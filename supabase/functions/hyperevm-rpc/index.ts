@@ -41,29 +41,47 @@ function padAddress(address: string): string {
   return "0x" + address.toLowerCase().replace("0x", "").padStart(64, "0");
 }
 
-// Make JSON-RPC call
-async function rpcCall(method: string, params: any[]): Promise<any> {
-  console.log(`[hyperevm-rpc] Calling ${method} with params:`, JSON.stringify(params));
-  
-  const response = await fetch(HYPEREVM_RPC_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method,
-      params,
-    }),
-  });
+// Simple delay helper
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  const data = await response.json();
-  
-  if (data.error) {
-    console.error(`[hyperevm-rpc] RPC error:`, data.error);
-    throw new Error(data.error.message || "RPC error");
+// Make JSON-RPC call with retry
+async function rpcCall(method: string, params: any[], retries = 2): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(HYPEREVM_RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method,
+          params,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        // Check for rate limit
+        if (data.error.message?.includes("rate") && attempt < retries) {
+          console.warn(`[hyperevm-rpc] Rate limited, waiting before retry ${attempt + 1}...`);
+          await delay(500 * (attempt + 1));
+          continue;
+        }
+        throw new Error(data.error.message || "RPC error");
+      }
+      
+      return data.result;
+    } catch (err: any) {
+      if (attempt < retries) {
+        await delay(300 * (attempt + 1));
+        continue;
+      }
+      throw err;
+    }
   }
-  
-  return data.result;
 }
 
 // Try to get token metadata (name, symbol, decimals)
@@ -387,7 +405,7 @@ serve(async (req) => {
     // Get EVM transaction history for an address by scanning recent blocks
     if (action === "addressTxs") {
       const address = url.searchParams.get("address");
-      const limit = parseInt(url.searchParams.get("limit") || "25", 10);
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10), 15);
       
       if (!address) {
         return new Response(JSON.stringify({ error: "Missing address parameter" }), {
@@ -404,10 +422,10 @@ serve(async (req) => {
       const latest = hexToDecimal(latestHex);
       
       const foundTxs: any[] = [];
-      const blocksPerBatch = 10;
-      const maxBlocksToScan = 500; // Limit scanning to recent 500 blocks
+      const blocksPerBatch = 5; // Reduced batch size
+      const maxBlocksToScan = 100; // Reduced to avoid rate limits
       
-      // Scan blocks in batches until we find enough txs or hit limit
+      // Scan blocks in batches with delays
       for (let start = latest; start > latest - maxBlocksToScan && foundTxs.length < limit; start -= blocksPerBatch) {
         const blockPromises = [];
         for (let i = 0; i < blocksPerBatch && start - i >= 0; i++) {
@@ -425,9 +443,6 @@ serve(async (req) => {
             const toMatch = tx.to?.toLowerCase() === normalizedAddress;
             
             if (fromMatch || toMatch) {
-              // Get receipt for status
-              const receipt = await rpcCall("eth_getTransactionReceipt", [tx.hash]).catch(() => null);
-              
               foundTxs.push({
                 hash: tx.hash,
                 from: tx.from,
@@ -441,15 +456,20 @@ serve(async (req) => {
                 blockHash: tx.blockHash,
                 timestamp: hexToDecimal(block.timestamp),
                 direction: fromMatch ? "out" : "in",
-                status: receipt ? (receipt.status === "0x1" ? "success" : "failed") : "pending",
-                gasUsed: receipt ? hexToDecimal(receipt.gasUsed) : null,
-                contractAddress: receipt?.contractAddress || null,
+                status: "success", // Skip receipt call to reduce requests
+                gasUsed: null,
+                contractAddress: null,
               });
               
               if (foundTxs.length >= limit) break;
             }
           }
           if (foundTxs.length >= limit) break;
+        }
+        
+        // Add delay between batches to avoid rate limits
+        if (foundTxs.length < limit) {
+          await delay(100);
         }
       }
 
@@ -466,7 +486,8 @@ serve(async (req) => {
     // Get ERC-20 token balances for an address by scanning Transfer events
     if (action === "tokenBalances") {
       const address = url.searchParams.get("address");
-      const blocksToScan = parseInt(url.searchParams.get("blocks") || "5000", 10);
+      // Max 1000 blocks to stay within RPC limit
+      const blocksToScan = Math.min(parseInt(url.searchParams.get("blocks") || "500", 10), 900);
       
       if (!address) {
         return new Response(JSON.stringify({ error: "Missing address parameter" }), {
@@ -475,7 +496,7 @@ serve(async (req) => {
         });
       }
 
-      console.log(`[hyperevm-rpc] Scanning for ERC-20 tokens for ${address}`);
+      console.log(`[hyperevm-rpc] Scanning for ERC-20 tokens for ${address} (last ${blocksToScan} blocks)`);
 
       // Get latest block
       const latestHex = await rpcCall("eth_blockNumber", []);
@@ -484,55 +505,72 @@ serve(async (req) => {
 
       const paddedAddress = padAddress(address);
 
-      // Get Transfer events TO this address (receiving tokens)
-      const [logsTo, logsFrom] = await Promise.all([
-        rpcCall("eth_getLogs", [{
+      // Get Transfer events one at a time to avoid rate limits
+      let logsTo: any[] = [];
+      let logsFrom: any[] = [];
+      
+      try {
+        logsTo = await rpcCall("eth_getLogs", [{
           fromBlock,
           toBlock: "latest",
-          topics: [ERC20_TRANSFER_TOPIC, null, paddedAddress], // Transfer(*, *, to=address)
-        }]),
-        rpcCall("eth_getLogs", [{
+          topics: [ERC20_TRANSFER_TOPIC, null, paddedAddress],
+        }]) || [];
+      } catch (e) {
+        console.warn("[hyperevm-rpc] Failed to get logsTo:", e);
+      }
+      
+      await delay(100);
+      
+      try {
+        logsFrom = await rpcCall("eth_getLogs", [{
           fromBlock,
           toBlock: "latest",
-          topics: [ERC20_TRANSFER_TOPIC, paddedAddress, null], // Transfer(from=address, *, *)
-        }]),
-      ]);
+          topics: [ERC20_TRANSFER_TOPIC, paddedAddress, null],
+        }]) || [];
+      } catch (e) {
+        console.warn("[hyperevm-rpc] Failed to get logsFrom:", e);
+      }
 
       // Collect unique token addresses
       const tokenAddresses = new Set<string>();
-      for (const log of [...(logsTo || []), ...(logsFrom || [])]) {
+      for (const log of [...logsTo, ...logsFrom]) {
         tokenAddresses.add(log.address.toLowerCase());
       }
 
       console.log(`[hyperevm-rpc] Found ${tokenAddresses.size} unique tokens`);
 
-      // Get balances and metadata for each token
+      // Get balances and metadata for each token (limit to first 10 to avoid rate limits)
       const tokens: any[] = [];
-      for (const tokenAddr of tokenAddresses) {
-        const [metadata, balanceHex] = await Promise.all([
-          getTokenMetadata(tokenAddr),
-          getTokenBalance(tokenAddr, address),
-        ]);
+      const tokenAddrsArray = Array.from(tokenAddresses).slice(0, 10);
+      
+      for (const tokenAddr of tokenAddrsArray) {
+        try {
+          const [metadata, balanceHex] = await Promise.all([
+            getTokenMetadata(tokenAddr),
+            getTokenBalance(tokenAddr, address),
+          ]);
 
-        if (balanceHex && balanceHex !== "0x" && balanceHex !== "0x0") {
-          const decimals = metadata?.decimals || 18;
-          const balance = formatTokenAmount(balanceHex, decimals);
-          
-          // Only include tokens with non-zero balance
-          if (parseFloat(balance) > 0) {
-            tokens.push({
-              address: tokenAddr,
-              name: metadata?.name || "Unknown",
-              symbol: metadata?.symbol || "???",
-              decimals,
-              balance,
-              balanceRaw: balanceHex,
-            });
+          if (balanceHex && balanceHex !== "0x" && balanceHex !== "0x0") {
+            const decimals = metadata?.decimals || 18;
+            const balance = formatTokenAmount(balanceHex, decimals);
+            
+            if (parseFloat(balance) > 0) {
+              tokens.push({
+                address: tokenAddr,
+                name: metadata?.name || "Unknown",
+                symbol: metadata?.symbol || "???",
+                decimals,
+                balance,
+                balanceRaw: balanceHex,
+              });
+            }
           }
+          await delay(50);
+        } catch (e) {
+          console.warn(`[hyperevm-rpc] Failed to get token info for ${tokenAddr}:`, e);
         }
       }
 
-      // Sort by balance descending (roughly)
       tokens.sort((a, b) => parseFloat(b.balance) - parseFloat(a.balance));
 
       return new Response(JSON.stringify({ 
