@@ -318,6 +318,11 @@ export interface SpotPair {
   tokens: [number, number];
   index: number;
   isCanonical: boolean;
+  // Optional asset context data
+  markPx?: string;
+  midPx?: string;
+  prevDayPx?: string;
+  dayNtlVlm?: string;
 }
 
 export interface SpotMeta {
@@ -422,12 +427,24 @@ export async function findSpotTokenByName(name: string): Promise<SpotToken | nul
 }
 
 /**
- * Get spot pairs for a specific token
+ * Get spot pairs for a specific token with price and volume data
  */
 export async function getSpotPairsForToken(tokenIndex: number): Promise<SpotPair[]> {
   try {
-    const meta = await getSpotMeta();
-    return meta.universe.filter(pair => pair.tokens.includes(tokenIndex));
+    const [meta, assetCtxs] = await getSpotMetaAndAssetCtxs();
+    const relevantPairs = meta.universe.filter(pair => pair.tokens.includes(tokenIndex));
+    
+    // Enrich pairs with asset context data
+    return relevantPairs.map(pair => {
+      const ctx = assetCtxs[pair.index];
+      return {
+        ...pair,
+        markPx: ctx?.markPx,
+        midPx: ctx?.midPx,
+        prevDayPx: ctx?.prevDayPx,
+        dayNtlVlm: ctx?.dayNtlVlm,
+      };
+    });
   } catch (err) {
     console.error('[Spot API] getSpotPairsForToken error:', err);
     return [];
