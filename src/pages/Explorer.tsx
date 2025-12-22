@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useExplorerState } from '@/hooks/useExplorerState';
+import { useApiHealthCheck } from '@/hooks/useApiHealthCheck';
 import { ExplorerSearch, ChainFilter } from '@/components/explorer/ExplorerSearch';
-import { LiveActivityFeed } from '@/components/explorer/LiveActivityFeed';
-import { LiveBlockActivity } from '@/components/explorer/LiveBlockActivity';
+import { ApiHealthIndicator } from '@/components/explorer/ApiHealthIndicator';
+import { NetworkStats } from '@/components/explorer/NetworkStats';
+import { TopMarkets } from '@/components/explorer/TopMarkets';
+import { RecentTrades } from '@/components/explorer/RecentTrades';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
@@ -17,6 +20,8 @@ export default function ExplorerPage() {
     openDrawer,
     closeDrawer,
   } = useExplorerState();
+
+  const { health, refresh: refreshHealth } = useApiHealthCheck();
 
   const [isLoading, setIsLoading] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -45,7 +50,6 @@ export default function ExplorerPage() {
 
     // If searching in Spot mode, treat as token search
     if (chainFilter === 'hypercore-spot') {
-      // Could be token name or tokenId
       setDetailView({ type: 'spot-token', id: query });
       setIsLoading(false);
       return;
@@ -53,21 +57,15 @@ export default function ExplorerPage() {
 
     // Detect query type based on length and format
     if (lowerQuery.startsWith('0x') && lowerQuery.length === 42) {
-      // Wallet address (42 chars including 0x)
       setDetailView({ type: 'wallet', id: lowerQuery });
     } else if (lowerQuery.startsWith('0x') && lowerQuery.length === 66) {
-      // Tx hash (66 chars including 0x)
       setDetailView({ type: 'tx', id: lowerQuery, chain: preferredChain });
     } else if (/^\d+$/.test(query)) {
-      // Block number (only digits)
       setDetailView({ type: 'block', id: query, chain: preferredChain });
     } else if (lowerQuery.startsWith('0x')) {
-      // Could be tokenId or partial hash
       if (lowerQuery.length === 34) {
-        // Token ID format (0x + 32 hex chars)
         setDetailView({ type: 'spot-token', id: lowerQuery });
       } else {
-        // Try as tx hash
         setDetailView({ type: 'tx', id: lowerQuery, chain: preferredChain });
       }
     } else {
@@ -83,11 +81,12 @@ export default function ExplorerPage() {
       setDetailView({ type: 'block', id });
     } else if (type === 'tx') {
       const txHash = data?.hash || id;
-      // Transactions coming from the live "transactions" tab are Hypercore L1.
       const chain = data?.user && data?.block ? 'hypercore' : undefined;
       setDetailView({ type: 'tx', id: txHash, chain });
     } else if (type === 'wallet') {
       setDetailView({ type: 'wallet', id: data?.address || id });
+    } else if (type === 'spot-token') {
+      setDetailView({ type: 'spot-token', id });
     } else {
       openDrawer(type, id, data);
     }
@@ -156,7 +155,7 @@ export default function ExplorerPage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
         {/* Search Header */}
         <ExplorerSearch
           searchQuery={localSearch}
@@ -167,14 +166,19 @@ export default function ExplorerPage() {
           onChainFilterChange={setChainFilter}
         />
 
-        {/* Live Block Activity Visualizer */}
-        <div className="mt-6">
-          <LiveBlockActivity />
-        </div>
+        {/* API Health Status */}
+        <ApiHealthIndicator health={health} onRefresh={refreshHealth} />
 
-        {/* Live Activity Feed */}
-        <div className="mt-6">
-          <LiveActivityFeed onRowClick={handleRowClick} />
+        {/* Network Stats */}
+        <NetworkStats />
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Markets */}
+          <TopMarkets onNavigate={(type, id) => handleRowClick(type, id, null)} />
+
+          {/* Live Trades */}
+          <RecentTrades onNavigate={(type, id) => handleRowClick('wallet', id, { address: id })} />
         </div>
       </div>
     </Layout>
