@@ -110,29 +110,62 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
     return () => { cancelled = true; };
   }, [tokenQuery, simulateLoadingStages]);
 
-  const handleCopy = (text: string, id: string) => {
+  const handleCopy = useCallback((text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
 
-  const toggleSection = (section: string) => {
+  const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev);
       if (next.has(section)) next.delete(section);
       else next.add(section);
       return next;
     });
-  };
+  }, []);
 
-  const truncateHash = (hash: string | null | undefined) => {
+  const truncateHash = useCallback((hash: string | null | undefined) => {
     if (!hash) return '—';
     return hash.length > 16 ? `${hash.slice(0, 10)}...${hash.slice(-6)}` : hash;
-  };
-  const truncateAddress = (addr: string | null | undefined) => {
+  }, []);
+
+  const truncateAddress = useCallback((addr: string | null | undefined) => {
     if (!addr) return '—';
     return addr.length > 14 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
-  };
+  }, []);
+
+  // Get similar tokens for suggestions - must be defined before early returns
+  const getSimilarTokens = useCallback(() => {
+    if (!allTokens.length) return [];
+    const query = tokenQuery.toLowerCase();
+    
+    // Score tokens by similarity
+    const scored = allTokens.map(t => {
+      const name = t.name.toLowerCase();
+      const fullName = (t.fullName || '').toLowerCase();
+      
+      // Exact substring match gets high score
+      if (name.includes(query) || fullName.includes(query)) return { token: t, score: 100 };
+      if (query.includes(name)) return { token: t, score: 90 };
+      
+      // Check if first letters match
+      if (name.startsWith(query[0])) return { token: t, score: 50 };
+      
+      // Levenshtein-like simple check: count matching chars
+      let matches = 0;
+      for (const char of query) {
+        if (name.includes(char)) matches++;
+      }
+      return { token: t, score: matches * 10 };
+    });
+    
+    return scored
+      .filter(s => s.score > 20)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map(s => s.token);
+  }, [allTokens, tokenQuery]);
 
   // Loading state
   if (isLoading) {
@@ -169,38 +202,6 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
       </div>
     );
   }
-
-  // Get similar tokens for suggestions
-  const getSimilarTokens = useCallback(() => {
-    if (!allTokens.length) return [];
-    const query = tokenQuery.toLowerCase();
-    
-    // Score tokens by similarity
-    const scored = allTokens.map(t => {
-      const name = t.name.toLowerCase();
-      const fullName = (t.fullName || '').toLowerCase();
-      
-      // Exact substring match gets high score
-      if (name.includes(query) || fullName.includes(query)) return { token: t, score: 100 };
-      if (query.includes(name)) return { token: t, score: 90 };
-      
-      // Check if first letters match
-      if (name.startsWith(query[0])) return { token: t, score: 50 };
-      
-      // Levenshtein-like simple check: count matching chars
-      let matches = 0;
-      for (const char of query) {
-        if (name.includes(char)) matches++;
-      }
-      return { token: t, score: matches * 10 };
-    });
-    
-    return scored
-      .filter(s => s.score > 20)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 12)
-      .map(s => s.token);
-  }, [allTokens, tokenQuery]);
 
   // Error state
   if (error || !token) {
