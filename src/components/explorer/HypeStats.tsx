@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Globe, Layers, CircleDollarSign, Box, Wifi, WifiOff } from 'lucide-react';
+import { Globe, Layers, CircleDollarSign, Box, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HypeStatsData {
@@ -12,6 +12,47 @@ interface HypeStatsData {
   tps: number | null;
   latestBlock: number | null;
   blockTime: number | null;
+}
+
+// Animated value component with smooth transitions
+function AnimatedValue({ 
+  value, 
+  className,
+  showPulse = false 
+}: { 
+  value: string; 
+  className?: string;
+  showPulse?: boolean;
+}) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (value !== prevValueRef.current && value !== '-') {
+      setIsUpdating(true);
+      setDisplayValue(value);
+      prevValueRef.current = value;
+      
+      const timeout = setTimeout(() => setIsUpdating(false), 300);
+      return () => clearTimeout(timeout);
+    } else if (value !== '-') {
+      setDisplayValue(value);
+    }
+    // Keep previous value if new value is '-'
+  }, [value]);
+
+  return (
+    <span 
+      className={cn(
+        "transition-all duration-300 ease-out inline-block",
+        isUpdating && showPulse && "text-primary scale-[1.02]",
+        className
+      )}
+    >
+      {displayValue}
+    </span>
+  );
 }
 
 export function HypeStats() {
@@ -29,18 +70,26 @@ export function HypeStats() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [lastBlockUpdate, setLastBlockUpdate] = useState<number | null>(null);
+  const [recentlyUpdated, setRecentlyUpdated] = useState<Record<string, boolean>>({});
   
   const wsRef = useRef<WebSocket | null>(null);
   const blockTimestampsRef = useRef<number[]>([]);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const txCountRef = useRef<number>(102460000); // Base transaction count
+  const txCountRef = useRef<number>(102460000);
+
+  // Mark a field as recently updated for micro-animation
+  const markUpdated = useCallback((field: string) => {
+    setRecentlyUpdated(prev => ({ ...prev, [field]: true }));
+    setTimeout(() => {
+      setRecentlyUpdated(prev => ({ ...prev, [field]: false }));
+    }, 500);
+  }, []);
 
   // Calculate TPS from recent blocks
   const calculateTps = useCallback(() => {
     const timestamps = blockTimestampsRef.current;
-    if (timestamps.length < 2) return 3.9; // Default TPS
+    if (timestamps.length < 2) return 3.9;
     
-    // Get blocks from last 10 seconds
     const now = Date.now();
     const recentBlocks = timestamps.filter(t => now - t < 10000);
     
@@ -49,9 +98,8 @@ export function HypeStats() {
     const timeSpan = (recentBlocks[recentBlocks.length - 1] - recentBlocks[0]) / 1000;
     const blocksInSpan = recentBlocks.length;
     
-    // Assume ~4 txs per block on average
     const tps = timeSpan > 0 ? (blocksInSpan * 4) / timeSpan : 3.9;
-    return Math.min(tps, 10); // Cap at 10 TPS
+    return Math.min(tps, 10);
   }, []);
 
   // WebSocket connection for real-time block updates
@@ -66,7 +114,6 @@ export function HypeStats() {
         console.log('[HypeStats] WebSocket connected');
         setIsLive(true);
         
-        // Subscribe to new block headers
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
@@ -79,36 +126,34 @@ export function HypeStats() {
         try {
           const data = JSON.parse(event.data);
           
-          // Handle subscription confirmation
           if (data.id === 1 && data.result) {
             console.log('[HypeStats] Subscribed to newHeads:', data.result);
           }
           
-          // Handle new block notifications
           if (data.method === 'eth_subscription' && data.params?.result) {
             const block = data.params.result;
             const blockNumber = parseInt(block.number, 16);
             const timestamp = Date.now();
             
-            // Track block timestamps for TPS calculation
             blockTimestampsRef.current.push(timestamp);
             if (blockTimestampsRef.current.length > 20) {
               blockTimestampsRef.current.shift();
             }
             
-            // Calculate block time from previous block
             const prevTimestamp = lastBlockUpdate;
             const blockTime = prevTimestamp ? (timestamp - prevTimestamp) / 1000 : 0.98;
             
-            // Increment transaction count (estimate based on block)
             const txCount = block.transactions?.length || parseInt(block.gasUsed, 16) / 21000 || 4;
             txCountRef.current += Math.max(1, Math.floor(txCount));
             
             setLastBlockUpdate(timestamp);
+            markUpdated('block');
+            markUpdated('txns');
+            
             setStats(prev => ({
               ...prev,
               latestBlock: blockNumber,
-              blockTime: Math.min(blockTime, 5), // Cap display at 5s
+              blockTime: Math.min(blockTime, 5),
               totalTxns: txCountRef.current,
               tps: calculateTps(),
             }));
@@ -128,7 +173,6 @@ export function HypeStats() {
         setIsLive(false);
         wsRef.current = null;
         
-        // Reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
           connectWebSocket();
         }, 3000);
@@ -137,17 +181,15 @@ export function HypeStats() {
       console.error('[HypeStats] WebSocket connection error:', err);
       setIsLive(false);
       
-      // Fallback to polling if WebSocket fails
       reconnectTimeoutRef.current = setTimeout(() => {
         connectWebSocket();
       }, 5000);
     }
-  }, [lastBlockUpdate, calculateTps]);
+  }, [lastBlockUpdate, calculateTps, markUpdated]);
 
-  // Fetch price data (runs more frequently)
+  // Fetch price data
   const fetchPriceData = useCallback(async () => {
     try {
-      // Fetch HYPE price from Hyperliquid perps (more reliable)
       const perpsResponse = await fetch('https://api.hyperliquid.xyz/info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,7 +202,6 @@ export function HypeStats() {
       let btcPrice: number | null = null;
       
       if (perpsData && perpsData[0]?.universe && perpsData[1]) {
-        // Get HYPE price
         const hypeIndex = perpsData[0].universe.findIndex((u: any) => u.name === 'HYPE');
         if (hypeIndex >= 0 && perpsData[1][hypeIndex]) {
           hypePrice = parseFloat(perpsData[1][hypeIndex].markPx || '0');
@@ -170,7 +211,6 @@ export function HypeStats() {
           }
         }
         
-        // Get BTC price
         const btcIndex = perpsData[0].universe.findIndex((u: any) => u.name === 'BTC');
         if (btcIndex >= 0 && perpsData[1][btcIndex]) {
           btcPrice = parseFloat(perpsData[1][btcIndex].markPx || '0');
@@ -178,26 +218,35 @@ export function HypeStats() {
       }
       
       const hypePriceBtc = hypePrice && btcPrice ? hypePrice / btcPrice : null;
-      const circSupply = 337000000; // Updated circulating supply
+      const circSupply = 337000000;
       const marketCap = hypePrice ? hypePrice * circSupply : null;
       
-      setStats(prev => ({
-        ...prev,
-        hypePrice,
-        hypePriceBtc,
-        priceChange24h,
-        marketCap,
-        circSupply,
-      }));
+      // Check if price actually changed and keep previous values if null
+      setStats(prev => {
+        if (hypePrice !== null && prev.hypePrice !== hypePrice) {
+          markUpdated('price');
+        }
+        if (marketCap !== null && prev.marketCap !== marketCap) {
+          markUpdated('marketCap');
+        }
+        return {
+          ...prev,
+          hypePrice: hypePrice ?? prev.hypePrice,
+          hypePriceBtc: hypePriceBtc ?? prev.hypePriceBtc,
+          priceChange24h: priceChange24h ?? prev.priceChange24h,
+          marketCap: marketCap ?? prev.marketCap,
+          circSupply: circSupply ?? prev.circSupply,
+        };
+      });
       
       setIsLoading(false);
     } catch (err) {
       console.error('[HypeStats] Error fetching price data:', err);
-      setIsLoading(false);
+      // Don't set loading false on error to keep showing previous data
     }
-  }, []);
+  }, [markUpdated]);
 
-  // Initial block fetch (fallback if WebSocket not available)
+  // Initial block fetch (fallback)
   const fetchInitialBlock = useCallback(async () => {
     try {
       const rpcResponse = await fetch('https://rpc.hyperliquid.xyz/evm', {
@@ -213,32 +262,32 @@ export function HypeStats() {
       const rpcData = await rpcResponse.json();
       if (rpcData.result) {
         const blockNumber = parseInt(rpcData.result, 16);
-        setStats(prev => ({
-          ...prev,
-          latestBlock: blockNumber,
-          blockTime: 0.98,
-          totalTxns: txCountRef.current,
-          tps: 3.9,
-        }));
+        setStats(prev => {
+          if (prev.latestBlock !== blockNumber) {
+            markUpdated('block');
+          }
+          return {
+            ...prev,
+            latestBlock: blockNumber,
+            blockTime: prev.blockTime ?? 0.98,
+            totalTxns: txCountRef.current,
+            tps: prev.tps ?? 3.9,
+          };
+        });
         setLastBlockUpdate(Date.now());
+        setIsLoading(false);
       }
     } catch (e) {
       console.error('[HypeStats] Error fetching initial block:', e);
     }
-  }, []);
+  }, [markUpdated]);
 
   useEffect(() => {
-    // Fetch initial data
     fetchPriceData();
     fetchInitialBlock();
-    
-    // Connect WebSocket for real-time block updates
     connectWebSocket();
     
-    // Poll price data every 5 seconds
     const priceInterval = setInterval(fetchPriceData, 5000);
-    
-    // Fallback block polling every 2 seconds if WebSocket fails
     const blockInterval = setInterval(() => {
       if (!isLive) {
         fetchInitialBlock();
@@ -267,28 +316,36 @@ export function HypeStats() {
     return `${price.toFixed(5)} BTC`;
   };
 
-  const formatMarketCap = (cap: number | null, supply: number | null): { main: string; sub: string } => {
-    if (cap === null) return { main: '-', sub: '' };
-    const formatted = cap >= 1e9 
+  const formatMarketCap = (cap: number | null): string => {
+    if (cap === null) return '-';
+    return cap >= 1e9 
       ? `$${(cap / 1e9).toFixed(2)}B` 
       : `$${(cap / 1e6).toFixed(2)}M`;
-    const supplyFormatted = supply ? `${(supply / 1e6).toFixed(0)}M HYPE` : '';
-    return { main: formatted, sub: supplyFormatted };
   };
 
-  const formatTxns = (txns: number | null, tps: number | null): { main: string; sub: string } => {
-    if (txns === null) return { main: '-', sub: '' };
-    const main = txns >= 1e6 ? `${(txns / 1e6).toFixed(2)} M` : txns.toLocaleString();
-    const sub = tps ? `${tps.toFixed(1)} TPS` : '';
-    return { main, sub };
+  const formatSupply = (supply: number | null): string => {
+    if (supply === null) return '';
+    return `${(supply / 1e6).toFixed(0)}M HYPE`;
   };
 
-  const formatBlock = (block: number | null, time: number | null): { main: string; sub: string } => {
-    if (block === null) return { main: '-', sub: '-' };
-    return { 
-      main: block.toLocaleString(), 
-      sub: time ? `${time.toFixed(2)}s` : '' 
-    };
+  const formatTxns = (txns: number | null): string => {
+    if (txns === null) return '-';
+    return txns >= 1e6 ? `${(txns / 1e6).toFixed(2)} M` : txns.toLocaleString();
+  };
+
+  const formatTps = (tps: number | null): string => {
+    if (tps === null) return '';
+    return `${tps.toFixed(1)} TPS`;
+  };
+
+  const formatBlock = (block: number | null): string => {
+    if (block === null) return '-';
+    return block.toLocaleString();
+  };
+
+  const formatBlockTime = (time: number | null): string => {
+    if (time === null) return '';
+    return `${time.toFixed(2)}s`;
   };
 
   if (isLoading) {
@@ -305,10 +362,6 @@ export function HypeStats() {
       </div>
     );
   }
-
-  const marketCapData = formatMarketCap(stats.marketCap, stats.circSupply);
-  const txnsData = formatTxns(stats.totalTxns, stats.tps);
-  const blockData = formatBlock(stats.latestBlock, stats.blockTime);
 
   return (
     <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 md:p-5 relative">
@@ -333,21 +386,27 @@ export function HypeStats() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
         {/* HYPE Price */}
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
+          <div className={cn(
+            "p-2 rounded-lg bg-primary/10 transition-all duration-300",
+            recentlyUpdated.price && "bg-primary/20 scale-105"
+          )}>
             <CircleDollarSign className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">HYPE Price</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-lg font-semibold text-foreground transition-all">
-                {formatPrice(stats.hypePrice)}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                @ {formatBtcPrice(stats.hypePriceBtc)}
-              </span>
+              <AnimatedValue 
+                value={formatPrice(stats.hypePrice)} 
+                className="text-lg font-semibold text-foreground"
+                showPulse={true}
+              />
+              <AnimatedValue 
+                value={`@ ${formatBtcPrice(stats.hypePriceBtc)}`}
+                className="text-xs text-muted-foreground"
+              />
               {stats.priceChange24h !== null && (
                 <span className={cn(
-                  "text-xs font-medium",
+                  "text-xs font-medium transition-all duration-300",
                   stats.priceChange24h >= 0 ? "text-profit-3" : "text-loss-3"
                 )}>
                   ({stats.priceChange24h >= 0 ? '+' : ''}{stats.priceChange24h.toFixed(2)}%)
@@ -359,48 +418,72 @@ export function HypeStats() {
 
         {/* Transactions */}
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
+          <div className={cn(
+            "p-2 rounded-lg bg-primary/10 transition-all duration-300",
+            recentlyUpdated.txns && "bg-primary/20 scale-105"
+          )}>
             <Layers className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Transactions</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-lg font-semibold text-foreground tabular-nums">{txnsData.main}</span>
-              {txnsData.sub && (
-                <span className="text-xs text-muted-foreground">({txnsData.sub})</span>
-              )}
+              <AnimatedValue 
+                value={formatTxns(stats.totalTxns)} 
+                className="text-lg font-semibold text-foreground tabular-nums"
+                showPulse={true}
+              />
+              <AnimatedValue 
+                value={stats.tps ? `(${formatTps(stats.tps)})` : ''}
+                className="text-xs text-muted-foreground"
+              />
             </div>
           </div>
         </div>
 
         {/* Market Cap */}
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
+          <div className={cn(
+            "p-2 rounded-lg bg-primary/10 transition-all duration-300",
+            recentlyUpdated.marketCap && "bg-primary/20 scale-105"
+          )}>
             <Globe className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">HYPE Market Cap</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-lg font-semibold text-foreground">{marketCapData.main}</span>
-              {marketCapData.sub && (
-                <span className="text-xs text-muted-foreground">({marketCapData.sub})</span>
-              )}
+              <AnimatedValue 
+                value={formatMarketCap(stats.marketCap)} 
+                className="text-lg font-semibold text-foreground"
+                showPulse={true}
+              />
+              <AnimatedValue 
+                value={stats.circSupply ? `(${formatSupply(stats.circSupply)})` : ''}
+                className="text-xs text-muted-foreground"
+              />
             </div>
           </div>
         </div>
 
         {/* Latest Block */}
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
+          <div className={cn(
+            "p-2 rounded-lg bg-primary/10 transition-all duration-300",
+            recentlyUpdated.block && "bg-primary/20 scale-105"
+          )}>
             <Box className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Latest Block</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-lg font-semibold text-foreground tabular-nums">{blockData.main}</span>
-              {blockData.sub && (
-                <span className="text-xs text-muted-foreground">({blockData.sub})</span>
-              )}
+              <AnimatedValue 
+                value={formatBlock(stats.latestBlock)} 
+                className="text-lg font-semibold text-foreground tabular-nums"
+                showPulse={true}
+              />
+              <AnimatedValue 
+                value={stats.blockTime ? `(${formatBlockTime(stats.blockTime)})` : ''}
+                className="text-xs text-muted-foreground"
+              />
             </div>
           </div>
         </div>
