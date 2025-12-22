@@ -173,30 +173,38 @@ export interface L1UserDetails {
  * Call the explorer-proxy edge function (for Hypercore L1)
  */
 async function callL1ExplorerProxy(params: Record<string, string>): Promise<any | null> {
-  const url = new URL(`${SUPABASE_URL}/functions/v1/explorer-proxy`);
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
+  try {
+    const url = new URL(`${SUPABASE_URL}/functions/v1/explorer-proxy`);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
 
-  const response = await fetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-    },
-  });
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  // "Not found" is expected when a tx/hash belongs to the other chain.
-  // Treat it as a normal miss (null) instead of throwing.
-  if (response.status === 404) return null;
+    // 404 is expected - not all data exists on L1 explorer (e.g., EVM-only wallets)
+    // Return null silently without logging errors
+    if (response.status === 404) {
+      return null;
+    }
 
-  if (!response.ok) {
-    const errJson = await response.json().catch(() => null);
-    console.error('[L1 Explorer API] Non-OK response:', response.status, errJson);
+    if (!response.ok) {
+      // Only log actual errors, not expected 404s
+      console.warn('[L1 Explorer API] Non-OK response:', response.status);
+      return null;
+    }
+
+    return response.json();
+  } catch (err) {
+    // Network errors are also expected in some cases, don't treat as critical
+    console.warn('[L1 Explorer API] Request failed:', err);
     return null;
   }
-
-  return response.json();
 }
 
 /**
