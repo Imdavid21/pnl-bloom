@@ -294,7 +294,7 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
       )}
 
       {/* Genesis Holders (Top 10) */}
-      {tokenDetails && tokenDetails.genesis.userBalances.length > 0 && (
+      {tokenDetails?.genesis?.userBalances && tokenDetails.genesis.userBalances.length > 0 && (
         <div className="rounded-lg border border-border overflow-hidden bg-card/30">
           <div className="px-5 py-4 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
