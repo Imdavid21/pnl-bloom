@@ -194,17 +194,15 @@ export function WalletTradingStats({ walletAddress }: WalletTradingStatsProps) {
 
       const result = await response.json();
       
-      if (result.status === 'completed' || result.status === 'success') {
-        toast.success('Wallet synced successfully!');
+      if (result.success) {
+        toast.success(`Wallet synced! ${result.sync?.events || 0} events, ${result.sync?.days || 0} days`);
         setIsSyncing(false);
         setSyncProgress(null);
         await fetchStats();
-      } else if (result.runId || result.status === 'running') {
-        // Start polling for progress
-        toast.info('Sync started. Tracking progress...');
-        if (walletId) {
-          startProgressPolling(walletId);
-        }
+      } else if (result.error) {
+        setIsSyncing(false);
+        setSyncProgress(null);
+        toast.error(result.error);
       } else {
         setIsSyncing(false);
         setSyncProgress(null);
