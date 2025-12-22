@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Coins, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -6,7 +6,8 @@ import { proxyRequest, getL1UserDetails, type L1TransactionDetails } from '@/lib
 import { cn } from '@/lib/utils';
 import { WalletInsights } from './WalletInsights';
 import { SpotBalances } from './SpotBalances';
-
+import { WalletSummaryHero } from './WalletSummaryHero';
+import { WalletActivityTimeline, fillsToEpisodes } from './WalletActivityTimeline';
 interface WalletDetailPageProps {
   address: string;
   onBack: () => void;
@@ -360,65 +361,60 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       return labels[key] || key;
     });
 
+  // Calculate risk level based on positions
+  const riskData = useMemo(() => {
+    const maxLev = positions.reduce((max, p) => Math.max(max, p.leverage?.value || 0), 0);
+    const factors: string[] = [];
+    let level: 'low' | 'medium' | 'high' | 'critical' = 'low';
+    
+    if (maxLev > 50) { level = 'critical'; factors.push(`${maxLev.toFixed(0)}x leverage detected`); }
+    else if (maxLev > 20) { level = 'high'; factors.push(`High leverage: ${maxLev.toFixed(0)}x`); }
+    else if (maxLev > 10) { level = 'medium'; factors.push(`Moderate leverage: ${maxLev.toFixed(0)}x`); }
+    
+    if (positions.length > 5) factors.push(`${positions.length} open positions`);
+    
+    return { level, factors, maxLeverage: maxLev > 0 ? maxLev : undefined };
+  }, [positions]);
+
+  // Convert fills to episodes for timeline
+  const episodes = useMemo(() => fillsToEpisodes(fills), [fills]);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-        <button onClick={onBack} className="hover:text-foreground transition-colors">Explorer</button>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
+        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">Wallet Details</span>
+        <span className="text-foreground">Wallet</span>
       </div>
 
-      {/* Title */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            {evmData?.isContract ? (
-              <Code className="h-5 w-5 text-primary" />
-            ) : (
-              <User className="h-5 w-5 text-primary" />
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold font-mono text-foreground">{truncateHash(address)}</h1>
-              <button 
-                onClick={() => handleCopy(address, 'address')}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {copiedId === 'address' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </button>
-              {evmData?.isContract && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-info/20 text-info">
-                  Contract
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <a 
-                href={verifyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-              >
-                Hyperliquid <ExternalLink className="h-2 w-2" />
-              </a>
-              <span className="text-muted-foreground/30">•</span>
-              <a 
-                href={purrsecUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-              >
-                Purrsec <ExternalLink className="h-2 w-2" />
-              </a>
-            </div>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-3.5 w-3.5" /> Back
-        </Button>
-      </div>
+      {/* Enhanced Summary Hero */}
+      <WalletSummaryHero
+        address={address}
+        isContract={evmData?.isContract || false}
+        accountValue={accountValue}
+        evmBalance={evmData?.balance || '0'}
+        openPositions={positions.length}
+        riskLevel={riskData.level}
+        riskFactors={riskData.factors}
+        maxLeverage={riskData.maxLeverage}
+        onCopy={handleCopy}
+        copiedId={copiedId}
+        provenance={{
+          source: 'hyperliquid_api',
+          fetchedAt: Date.now(),
+          finality: 'final',
+        }}
+      />
+
+      {/* Activity Timeline */}
+      {episodes.length > 0 && (
+        <WalletActivityTimeline 
+          episodes={episodes} 
+          onNavigate={(type, id) => onNavigate(type, id)}
+          maxItems={5}
+        />
+      )}
 
       {/* Loading Progress */}
       {!isFullyLoaded && (
