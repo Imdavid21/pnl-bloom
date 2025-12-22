@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ExplorerShell } from '@/components/explorer/ExplorerShell';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { WhaleTracker } from '@/components/explorer/WhaleTracker';
+import { HypeStats } from '@/components/explorer/HypeStats';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
@@ -95,12 +95,11 @@ export default function ExplorerPage() {
     }
   }
 
-  // Default: show explorer home with search
+  // Default: show explorer home with network stats
   return (
     <Layout>
       <ExplorerShell loadingStage={loadingStage}>
-        {/* Top Accounts (formerly Whale Tracker) */}
-        <WhaleTracker onNavigate={(type, id) => handleNavigate('wallet', id)} />
+        <HypeStats />
       </ExplorerShell>
     </Layout>
   );
