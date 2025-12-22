@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Target, DollarSign, Activity, BarChart2, Loader2, ArrowRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { TrendingUp, TrendingDown, Target, DollarSign, Activity, BarChart2, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface MarketStat {
   market: string;
@@ -22,55 +23,140 @@ interface WalletTradingStatsProps {
   onSyncRequest?: () => void;
 }
 
-export function WalletTradingStats({ walletAddress, onSyncRequest }: WalletTradingStatsProps) {
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+export function WalletTradingStats({ walletAddress }: WalletTradingStatsProps) {
   const [marketStats, setMarketStats] = useState<MarketStat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
   const [walletId, setWalletId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<string>('');
+
+  const fetchStats = useCallback(async () => {
+    setIsLoading(true);
+    
+    try {
+      // First, find the wallet ID
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('id')
+        .eq('address', walletAddress.toLowerCase())
+        .single();
+
+      if (!wallet) {
+        setHasData(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setWalletId(wallet.id);
+
+      // Fetch market stats from the PnL backend
+      const { data: stats, error } = await supabase
+        .from('market_stats')
+        .select('*')
+        .eq('wallet_id', wallet.id)
+        .order('total_pnl', { ascending: false });
+
+      if (error || !stats || stats.length === 0) {
+        setHasData(false);
+      } else {
+        setMarketStats(stats);
+        setHasData(true);
+      }
+    } catch (err) {
+      console.error('[WalletTradingStats] Error:', err);
+      setHasData(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletAddress]);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      setIsLoading(true);
-      
-      try {
-        // First, find the wallet ID
-        const { data: wallet } = await supabase
-          .from('wallets')
-          .select('id')
-          .eq('address', walletAddress.toLowerCase())
-          .single();
-
-        if (!wallet) {
-          setHasData(false);
-          setIsLoading(false);
-          return;
-        }
-
-        setWalletId(wallet.id);
-
-        // Fetch market stats from the PnL backend
-        const { data: stats, error } = await supabase
-          .from('market_stats')
-          .select('*')
-          .eq('wallet_id', wallet.id)
-          .order('total_pnl', { ascending: false });
-
-        if (error || !stats || stats.length === 0) {
-          setHasData(false);
-        } else {
-          setMarketStats(stats);
-          setHasData(true);
-        }
-      } catch (err) {
-        console.error('[WalletTradingStats] Error:', err);
-        setHasData(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchStats();
-  }, [walletAddress]);
+  }, [fetchStats]);
+
+  const handleSync = useCallback(async () => {
+    setIsSyncing(true);
+    setSyncProgress('Starting sync...');
+    
+    try {
+      // Call the sync-wallet edge function
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/sync-wallet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ wallet: walletAddress }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Sync failed');
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'completed' || result.status === 'success') {
+        toast.success('Wallet synced successfully!');
+        setSyncProgress('Complete!');
+        // Refresh the stats
+        await fetchStats();
+      } else if (result.status === 'running' || result.runId) {
+        // Poll for completion
+        setSyncProgress('Processing trades...');
+        toast.info('Sync started. This may take a moment.');
+        
+        // Poll every 3 seconds for up to 60 seconds
+        let attempts = 0;
+        const maxAttempts = 20;
+        
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          
+          try {
+            // Check if sync is complete by fetching stats
+            const { data: stats } = await supabase
+              .from('market_stats')
+              .select('*')
+              .eq('wallet_id', walletId || '')
+              .limit(1);
+            
+            if (stats && stats.length > 0) {
+              clearInterval(pollInterval);
+              setSyncProgress('Complete!');
+              toast.success('Wallet synced successfully!');
+              await fetchStats();
+              setIsSyncing(false);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              setSyncProgress('');
+              toast.info('Sync is still processing. Check back in a moment.');
+              setIsSyncing(false);
+            } else {
+              setSyncProgress(`Processing... (${Math.round((attempts / maxAttempts) * 100)}%)`);
+            }
+          } catch {
+            // Continue polling
+          }
+        }, 3000);
+        
+        return;
+      } else {
+        toast.error('Sync returned unexpected status');
+      }
+    } catch (err) {
+      console.error('[WalletTradingStats] Sync error:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to sync wallet');
+    } finally {
+      if (!isSyncing) return;
+      setIsSyncing(false);
+      setSyncProgress('');
+    }
+  }, [walletAddress, walletId, fetchStats, isSyncing]);
 
   // Calculate aggregate stats
   const aggregateStats = marketStats.reduce((acc, stat) => {
@@ -136,24 +222,30 @@ export function WalletTradingStats({ walletAddress, onSyncRequest }: WalletTradi
           </span>
         </div>
         <div className="text-center py-6">
-          <p className="text-sm text-muted-foreground mb-3">
-            Advanced trading analytics require syncing this wallet with our PnL engine.
+          <p className="text-sm text-muted-foreground mb-4">
+            Sync this wallet to unlock advanced trading analytics powered by our PnL engine.
           </p>
-          {onSyncRequest ? (
-            <Button variant="outline" size="sm" onClick={onSyncRequest} className="gap-2">
-              <ArrowRight className="h-3.5 w-3.5" />
-              Go to PnL Page to Sync
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open(`/?wallet=${walletAddress}`, '_blank')}
-              className="gap-2"
-            >
-              <ArrowRight className="h-3.5 w-3.5" />
-              Open in PnL Tracker
-            </Button>
+          <Button 
+            onClick={handleSync} 
+            disabled={isSyncing}
+            className="gap-2"
+          >
+            {isSyncing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {syncProgress || 'Syncing...'}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Sync Wallet Now
+              </>
+            )}
+          </Button>
+          {isSyncing && (
+            <p className="text-xs text-muted-foreground mt-3">
+              This may take a few moments depending on trading history...
+            </p>
           )}
         </div>
       </div>
@@ -165,12 +257,27 @@ export function WalletTradingStats({ walletAddress, onSyncRequest }: WalletTradi
       <div className="flex items-center gap-2 mb-4">
         <BarChart2 className="h-4 w-4 text-primary" />
         <h2 className="text-sm font-medium text-foreground">Trading Analytics</h2>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-profit-3/20 text-profit-3 font-medium">
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-profit-3/20 text-profit-3 font-medium flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3" />
           Synced
         </span>
         <span className="text-[10px] text-muted-foreground ml-auto">
           {marketStats.length} markets • {aggregateStats.totalTrades} trades
         </span>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="h-7 px-2 text-xs gap-1.5"
+        >
+          {isSyncing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
+          {isSyncing ? 'Syncing...' : 'Refresh'}
+        </Button>
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
