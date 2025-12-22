@@ -310,6 +310,85 @@ serve(async (req) => {
       });
     }
 
+    // Get EVM transaction history for an address by scanning recent blocks
+    if (action === "addressTxs") {
+      const address = url.searchParams.get("address");
+      const limit = parseInt(url.searchParams.get("limit") || "25", 10);
+      
+      if (!address) {
+        return new Response(JSON.stringify({ error: "Missing address parameter" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const normalizedAddress = address.toLowerCase();
+      console.log(`[hyperevm-rpc] Scanning for txs involving ${normalizedAddress}`);
+
+      // Get latest block number
+      const latestHex = await rpcCall("eth_blockNumber", []);
+      const latest = hexToDecimal(latestHex);
+      
+      const foundTxs: any[] = [];
+      const blocksPerBatch = 10;
+      const maxBlocksToScan = 500; // Limit scanning to recent 500 blocks
+      
+      // Scan blocks in batches until we find enough txs or hit limit
+      for (let start = latest; start > latest - maxBlocksToScan && foundTxs.length < limit; start -= blocksPerBatch) {
+        const blockPromises = [];
+        for (let i = 0; i < blocksPerBatch && start - i >= 0; i++) {
+          const blockNum = "0x" + (start - i).toString(16);
+          blockPromises.push(rpcCall("eth_getBlockByNumber", [blockNum, true]));
+        }
+        
+        const blocks = await Promise.all(blockPromises);
+        
+        for (const block of blocks) {
+          if (!block?.transactions) continue;
+          
+          for (const tx of block.transactions) {
+            const fromMatch = tx.from?.toLowerCase() === normalizedAddress;
+            const toMatch = tx.to?.toLowerCase() === normalizedAddress;
+            
+            if (fromMatch || toMatch) {
+              // Get receipt for status
+              const receipt = await rpcCall("eth_getTransactionReceipt", [tx.hash]).catch(() => null);
+              
+              foundTxs.push({
+                hash: tx.hash,
+                from: tx.from,
+                to: tx.to,
+                value: tx.value,
+                valueEth: weiToEth(tx.value),
+                gas: hexToDecimal(tx.gas),
+                gasPrice: tx.gasPrice ? hexToDecimal(tx.gasPrice) : null,
+                nonce: hexToDecimal(tx.nonce),
+                blockNumber: hexToDecimal(tx.blockNumber),
+                blockHash: tx.blockHash,
+                timestamp: hexToDecimal(block.timestamp),
+                direction: fromMatch ? "out" : "in",
+                status: receipt ? (receipt.status === "0x1" ? "success" : "failed") : "pending",
+                gasUsed: receipt ? hexToDecimal(receipt.gasUsed) : null,
+                contractAddress: receipt?.contractAddress || null,
+              });
+              
+              if (foundTxs.length >= limit) break;
+            }
+          }
+          if (foundTxs.length >= limit) break;
+        }
+      }
+
+      console.log(`[hyperevm-rpc] Found ${foundTxs.length} txs for ${address}`);
+
+      return new Response(JSON.stringify({ 
+        transactions: foundTxs,
+        scannedBlocks: Math.min(maxBlocksToScan, latest),
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(
       JSON.stringify({ error: "Invalid action. Use: latestBlock, block, tx, address, logs, recentBlocks" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
