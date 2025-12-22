@@ -143,6 +143,11 @@ function FillsList({ fills, onRowClick, formatTime, truncateAddress }: {
   formatTime: (ts: number) => string;
   truncateAddress: (addr: string) => string;
 }) {
+  const handleWalletClick = (e: React.MouseEvent, address: string) => {
+    e.stopPropagation();
+    onRowClick('wallet', address, { address });
+  };
+
   return (
     <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
       {fills.slice(0, 30).map((fill, i) => {
@@ -193,7 +198,12 @@ function FillsList({ fills, onRowClick, formatTime, truncateAddress }: {
                   {fill.user && (
                     <>
                       <span>•</span>
-                      <span className="font-mono">{truncateAddress(fill.user)}</span>
+                      <button 
+                        onClick={(e) => handleWalletClick(e, fill.user)}
+                        className="font-mono text-primary/80 hover:text-primary hover:underline transition-colors"
+                      >
+                        {truncateAddress(fill.user)}
+                      </button>
                     </>
                   )}
                 </div>
@@ -264,6 +274,11 @@ function TransactionList({ transactions, onRowClick, formatTime, truncateHash, t
   truncateHash: (hash: string) => string;
   truncateAddress: (addr: string) => string;
 }) {
+  const handleWalletClick = (e: React.MouseEvent, address: string) => {
+    e.stopPropagation();
+    onRowClick('wallet', address, { address });
+  };
+
   const getActionColor = (action: string) => {
     switch (action.toLowerCase()) {
       case 'order': return 'text-primary';
@@ -302,7 +317,12 @@ function TransactionList({ transactions, onRowClick, formatTime, truncateHash, t
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>Block {tx.block.toLocaleString()}</span>
                 <span>•</span>
-                <span className="font-mono">{truncateAddress(tx.user)}</span>
+                <button 
+                  onClick={(e) => handleWalletClick(e, tx.user)}
+                  className="font-mono text-primary/80 hover:text-primary hover:underline transition-colors"
+                >
+                  {truncateAddress(tx.user)}
+                </button>
               </div>
             </div>
           </div>
