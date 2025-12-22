@@ -4,8 +4,6 @@ import { useExplorerState } from '@/hooks/useExplorerState';
 import { useApiHealthCheck } from '@/hooks/useApiHealthCheck';
 import { ExplorerSearch, type ChainFilter } from '@/components/explorer/ExplorerSearch';
 import { ApiHealthIndicator } from '@/components/explorer/ApiHealthIndicator';
-import { NetworkStats } from '@/components/explorer/NetworkStats';
-import { TopMarkets } from '@/components/explorer/TopMarkets';
 import { WhaleTracker } from '@/components/explorer/WhaleTracker';
 import { Watchlist } from '@/components/explorer/Watchlist';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
@@ -168,21 +166,8 @@ export default function ExplorerPage() {
         {/* API Health Status */}
         <ApiHealthIndicator health={health} onRefresh={refreshHealth} />
 
-        {/* Network Stats */}
-        <NetworkStats />
-
-        {/* Main Content Grid - 3 columns on large screens */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Top Markets - spans 2 columns */}
-          <div className="lg:col-span-2">
-            <TopMarkets onNavigate={(type, id) => handleRowClick(type, id, null)} />
-          </div>
-
-          {/* Right sidebar - Watchlist */}
-          <div className="space-y-6">
-            <Watchlist onNavigate={(type, id) => handleNavigate(type, id)} />
-          </div>
-        </div>
+        {/* Watchlist */}
+        <Watchlist onNavigate={(type, id) => handleNavigate(type, id)} />
 
         {/* Whale Tracker - Full width */}
         <WhaleTracker onNavigate={(type, id) => handleRowClick('wallet', id, { address: id })} />
