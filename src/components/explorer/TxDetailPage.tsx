@@ -172,8 +172,14 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
     );
   }
 
-  // Error state
+  // Error state with helpful suggestions
   if (error || !txView) {
+    // Infer if this looks like an EVM tx hash (0x + 64 chars = 66 total)
+    const looksLikeEvmTx = hash.startsWith('0x') && hash.length === 66;
+    const suggestedChain = looksLikeEvmTx ? 'hyperevm' : 'hypercore';
+    const currentlyTrying = preferredChain || 'hyperevm';
+    const shouldSuggestSwitch = suggestedChain !== currentlyTrying;
+
     return (
       <div className="mx-auto max-w-4xl px-4 py-6">
         <Button variant="ghost" onClick={onBack} className="mb-4 gap-2">
@@ -181,8 +187,31 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
         </Button>
         <div className="text-center py-20">
           <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">{error || 'Transaction not found'}</p>
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-muted-foreground mb-2">{error || 'Transaction not found'}</p>
+          
+          {shouldSuggestSwitch && (
+            <div className="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/20 max-w-md mx-auto">
+              <p className="text-sm text-foreground mb-3">
+                This looks like a <span className="font-semibold">{suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore L1'}</span> transaction.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Re-navigate with the suggested chain
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('chain', suggestedChain);
+                  window.location.href = url.toString();
+                }}
+                className="gap-2"
+              >
+                <ArrowRight className="h-3.5 w-3.5" />
+                Try {suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore L1'}
+              </Button>
+            </div>
+          )}
+          
+          <p className="text-xs text-muted-foreground mt-4">
             Note: HyperEVM and Hypercore have different transaction formats.
           </p>
         </div>
