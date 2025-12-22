@@ -8,7 +8,7 @@ import { ThemeProvider } from 'next-themes';
 import { config } from '@/lib/wagmi';
 import Index from "./pages/Index";
 import Assets from "./pages/Assets";
-import Logic from "./pages/Logic";
+import Docs from "./pages/Docs";
 import Api from "./pages/Api";
 import Explorer from "./pages/Explorer";
 import NotFound from "./pages/NotFound";
@@ -26,7 +26,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/assets" element={<Assets />} />
-              <Route path="/logic" element={<Logic />} />
+              <Route path="/docs" element={<Docs />} />
               <Route path="/api" element={<Api />} />
               <Route path="/explorer" element={<Explorer />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
