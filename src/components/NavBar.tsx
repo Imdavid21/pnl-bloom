@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Activity, Menu, X } from 'lucide-react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,21 @@ const NAV_LINKS = [
 
 export function NavBar() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Get current wallet from explorer URL params
+  const currentQuery = searchParams.get('q');
+  const currentMode = searchParams.get('mode');
+  const isWalletMode = currentMode === 'wallet' && currentQuery;
+
+  // Build link with wallet param for Analytics if we're viewing a wallet in Explorer
+  const getLinkTo = (baseTo: string) => {
+    if (baseTo === '/analytics' && isWalletMode && location.pathname === '/') {
+      return `/analytics?wallet=${currentQuery}`;
+    }
+    return baseTo;
+  };
 
   return (
     <header className="border-b border-border bg-card/50 sticky top-0 z-50 backdrop-blur-sm">
@@ -34,7 +48,7 @@ export function NavBar() {
             {NAV_LINKS.map(link => (
               <Link
                 key={link.to}
-                to={link.to}
+                to={getLinkTo(link.to)}
                 className={cn(
                   "text-sm font-medium transition-colors",
                   location.pathname === link.to
@@ -75,7 +89,7 @@ export function NavBar() {
               {NAV_LINKS.map(link => (
                 <Link
                   key={link.to}
-                  to={link.to}
+                  to={getLinkTo(link.to)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
                     "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
