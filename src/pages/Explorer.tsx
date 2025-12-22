@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ExplorerShell } from '@/components/explorer/ExplorerShell';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
@@ -10,12 +11,18 @@ import { SpotTokenDetailPage } from '@/components/explorer/SpotTokenDetailPage';
 import type { LoadingStage } from '@/lib/explorer/types';
 
 export default function ExplorerPage() {
+  const navigate = useNavigate();
   const { query, mode, chain, navigateTo, clear } = useExplorerUrl();
   const [loadingStage, setLoadingStage] = useState<LoadingStage>({ stage: 'ready', message: '' });
 
   const handleBack = useCallback(() => {
-    clear();
-  }, [clear]);
+    // Use browser history for proper back navigation
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      clear();
+    }
+  }, [navigate, clear]);
 
   const handleNavigate = useCallback((type: 'block' | 'tx' | 'wallet' | 'spot-token', id: string) => {
     const modeMap: Record<string, 'block' | 'tx' | 'wallet' | 'token'> = {
