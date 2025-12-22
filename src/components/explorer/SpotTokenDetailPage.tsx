@@ -311,18 +311,22 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tokenDetails.genesis.userBalances.slice(0, 10).map(([address, balance], idx) => (
-                  <TableRow 
-                    key={idx} 
-                    className="border-b border-border/30 hover:bg-muted/20 cursor-pointer"
-                    onClick={() => onNavigate('wallet', address)}
-                  >
-                    <TableCell className="text-xs font-mono text-primary py-3 px-5">{truncateAddress(address)}</TableCell>
-                    <TableCell className="text-xs font-mono text-foreground py-3 px-5 text-right">
-                      {parseFloat(balance.replace(/,/g, '')).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {tokenDetails.genesis.userBalances.slice(0, 10).map((holder: any, idx: number) => {
+                  const address = typeof holder === 'object' ? holder.address : (Array.isArray(holder) ? holder[0] : String(holder));
+                  const balance = typeof holder === 'object' ? holder.evm_extra_wei_decimals : (Array.isArray(holder) ? holder[1] : '0');
+                  return (
+                    <TableRow 
+                      key={idx} 
+                      className="border-b border-border/30 hover:bg-muted/20 cursor-pointer"
+                      onClick={() => onNavigate('wallet', address)}
+                    >
+                      <TableCell className="text-xs font-mono text-primary py-3 px-5">{truncateAddress(address)}</TableCell>
+                      <TableCell className="text-xs font-mono text-foreground py-3 px-5 text-right">
+                        {balance ? parseFloat(String(balance).replace(/,/g, '')).toLocaleString() : '-'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
