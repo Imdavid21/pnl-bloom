@@ -1,12 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Search, Loader2, X, Share2, ChevronRight } from 'lucide-react';
+import { Search, Loader2, X, Share2, ChevronRight, Star, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
 import { getSearchPlaceholder, formatEntityId, getEntityLabel } from '@/lib/explorer/searchResolver';
+import { findSpotTokenByName } from '@/lib/hyperliquidApi';
 import type { EntityMode, ChainSource, LoadingStage } from '@/lib/explorer/types';
 import { toast } from 'sonner';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { useWatchlist } from '@/hooks/useWatchlist';
 
 // Chain toggle component
 function ChainToggle({ 
@@ -40,7 +47,7 @@ function ChainToggle({
   );
 }
 
-// Quick search suggestion button
+// Quick search suggestion button - now auto-submits
 function QuickButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -49,6 +56,71 @@ function QuickButton({ label, onClick }: { label: string; onClick: () => void })
     >
       {label}
     </button>
+  );
+}
+
+// Compact watchlist popover
+function WatchlistPopover({ onNavigate }: { onNavigate?: (type: 'wallet' | 'spot-token', id: string) => void }) {
+  const { wallets, tokens, remove } = useWatchlist();
+  const totalItems = wallets.length + tokens.length;
+
+  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5">
+          <Star className="h-3.5 w-3.5 text-warning" />
+          <span className="hidden sm:inline">Watchlist</span>
+          {totalItems > 0 && (
+            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{totalItems}</span>
+          )}
+          <ChevronDown className="h-3 w-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-0" align="end">
+        <div className="p-3 border-b border-border">
+          <h4 className="text-sm font-medium">Your Watchlist</h4>
+        </div>
+        <div className="max-h-64 overflow-y-auto divide-y divide-border">
+          {wallets.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate?.('wallet', item.address!)}
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+            >
+              <span className="text-xs font-mono text-foreground">{truncateAddress(item.address!)}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); remove(item.id); }}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </button>
+          ))}
+          {tokens.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate?.('spot-token', item.symbol!)}
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+            >
+              <span className="text-xs font-medium text-foreground">{item.symbol}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); remove(item.id); }}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </button>
+          ))}
+          {totalItems === 0 && (
+            <div className="p-4 text-center text-xs text-muted-foreground">
+              No items yet. Add from wallet/token pages.
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -94,9 +166,10 @@ function LoadingIndicator({ stage }: { stage: LoadingStage }) {
 interface ExplorerShellProps {
   children: React.ReactNode;
   loadingStage?: LoadingStage;
+  showHeader?: boolean;
 }
 
-export function ExplorerShell({ children, loadingStage }: ExplorerShellProps) {
+export function ExplorerShell({ children, loadingStage, showHeader = true }: ExplorerShellProps) {
   const { 
     query, 
     mode, 
@@ -105,22 +178,70 @@ export function ExplorerShell({ children, loadingStage }: ExplorerShellProps) {
     setChain, 
     clear,
     getShareableUrl,
+    navigateTo,
   } = useExplorerUrl();
   
   const [localSearch, setLocalSearch] = useState(query);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
   
   // Sync local search with URL query
   useEffect(() => {
     setLocalSearch(query);
   }, [query]);
   
-  const handleSearchSubmit = useCallback(() => {
+  // Handle search with token name resolution
+  const handleSearchSubmit = useCallback(async () => {
     const trimmed = localSearch.trim();
-    if (trimmed) {
-      setQuery(trimmed);
+    if (!trimmed) return;
+    
+    // Check if it looks like a token name (all letters or alphanumeric, not a hex address)
+    const isLikelyTokenName = /^[A-Za-z][A-Za-z0-9]*$/i.test(trimmed) && !trimmed.startsWith('0x');
+    
+    if (isLikelyTokenName) {
+      setIsResolving(true);
+      try {
+        const token = await findSpotTokenByName(trimmed);
+        if (token) {
+          // Found token - navigate directly to token page
+          navigateTo('token', token.tokenId, 'hypercore');
+          setIsResolving(false);
+          return;
+        }
+        // Token not found - setQuery anyway, let detail page handle error
+      } catch (err) {
+        console.error('Token lookup failed:', err);
+      }
+      setIsResolving(false);
     }
-  }, [localSearch, setQuery]);
+    
+    setQuery(trimmed);
+  }, [localSearch, setQuery, navigateTo]);
+  
+  // Quick search handler - auto-submits
+  const handleQuickSearch = useCallback(async (value: string) => {
+    setLocalSearch(value);
+    
+    // Check if it's a token name
+    const isLikelyTokenName = /^[A-Za-z][A-Za-z0-9]*$/i.test(value) && !value.startsWith('0x');
+    
+    if (isLikelyTokenName) {
+      setIsResolving(true);
+      try {
+        const token = await findSpotTokenByName(value);
+        if (token) {
+          navigateTo('token', token.tokenId, 'hypercore');
+          setIsResolving(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Token lookup failed:', err);
+      }
+      setIsResolving(false);
+    }
+    
+    setQuery(value);
+  }, [setQuery, navigateTo]);
   
   const handleClear = useCallback(() => {
     setLocalSearch('');
@@ -133,24 +254,67 @@ export function ExplorerShell({ children, loadingStage }: ExplorerShellProps) {
     toast.success('Link copied to clipboard');
   }, [getShareableUrl]);
   
+  const handleNavigate = useCallback((type: 'wallet' | 'spot-token', id: string) => {
+    if (type === 'wallet') {
+      navigateTo('wallet', id);
+    } else {
+      navigateTo('token', id, 'hypercore');
+    }
+  }, [navigateTo]);
+  
   const hasActiveQuery = !!query;
   
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-      {/* Header */}
+      {/* Always visible search header */}
       <div className="space-y-4">
-        {/* Title row */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Hyperliquid Explorer</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Search wallets, transactions, blocks, and tokens across Hypercore & HyperEVM
-            </p>
+        {/* Title row - only show on home */}
+        {showHeader && !hasActiveQuery && (
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Hyperliquid Explorer</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Search wallets, transactions, blocks, and tokens across Hypercore & HyperEVM
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <WatchlistPopover onNavigate={handleNavigate} />
+              <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
+            </div>
           </div>
-          <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
-        </div>
+        )}
         
-        {/* Search bar */}
+        {/* Compact header when viewing entity */}
+        {hasActiveQuery && (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1.5 text-xs">
+              <button 
+                onClick={handleClear}
+                className="text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                ← Explorer
+              </button>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-foreground">{getEntityLabel(mode || 'wallet')}</span>
+              {chain && (
+                <span className={cn(
+                  "ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                  chain === 'hyperevm' 
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-primary/20 text-primary"
+                )}>
+                  {chain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <WatchlistPopover onNavigate={handleNavigate} />
+              <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
+            </div>
+          </div>
+        )}
+        
+        {/* Search bar - always visible */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -166,21 +330,25 @@ export function ExplorerShell({ children, loadingStage }: ExplorerShellProps) {
                 isSearchFocused && "border-primary ring-1 ring-primary/20"
               )}
             />
-            {localSearch && (
+            {(localSearch || isResolving) && (
               <button
                 onClick={handleClear}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                {isResolving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="h-4 w-4" />
+                )}
               </button>
             )}
           </div>
           <Button
             onClick={handleSearchSubmit}
-            disabled={!localSearch.trim()}
+            disabled={!localSearch.trim() || isResolving}
             className="h-12 px-6"
           >
-            Search
+            {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
           {hasActiveQuery && (
             <Button
@@ -194,38 +362,14 @@ export function ExplorerShell({ children, loadingStage }: ExplorerShellProps) {
           )}
         </div>
         
-        {/* Quick searches */}
+        {/* Quick searches - only on home */}
         {!hasActiveQuery && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">Try:</span>
-            <QuickButton label="Sample Wallet" onClick={() => setLocalSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')} />
-            <QuickButton label="PURR" onClick={() => setLocalSearch('PURR')} />
-            <QuickButton label="HYPE" onClick={() => setLocalSearch('HYPE')} />
-            <QuickButton label="Block 1M" onClick={() => setLocalSearch('1000000')} />
-          </div>
-        )}
-        
-        {/* Breadcrumb when viewing entity */}
-        {hasActiveQuery && mode && (
-          <div className="flex items-center gap-1.5 text-xs">
-            <button 
-              onClick={handleClear}
-              className="text-primary hover:text-primary/80 transition-colors"
-            >
-              Explorer
-            </button>
-            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            <span className="text-foreground">{getEntityLabel(mode)}</span>
-            {chain && (
-              <span className={cn(
-                "ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium",
-                chain === 'hyperevm' 
-                  ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-primary/20 text-primary"
-              )}>
-                {chain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
-              </span>
-            )}
+            <QuickButton label="Sample Wallet" onClick={() => handleQuickSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')} />
+            <QuickButton label="PURR" onClick={() => handleQuickSearch('PURR')} />
+            <QuickButton label="HYPE" onClick={() => handleQuickSearch('HYPE')} />
+            <QuickButton label="Block 1M" onClick={() => handleQuickSearch('1000000')} />
           </div>
         )}
       </div>

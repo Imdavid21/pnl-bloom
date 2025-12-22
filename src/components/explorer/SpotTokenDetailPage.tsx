@@ -170,26 +170,83 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
     );
   }
 
+  // Get similar tokens for suggestions
+  const getSimilarTokens = useCallback(() => {
+    if (!allTokens.length) return [];
+    const query = tokenQuery.toLowerCase();
+    
+    // Score tokens by similarity
+    const scored = allTokens.map(t => {
+      const name = t.name.toLowerCase();
+      const fullName = (t.fullName || '').toLowerCase();
+      
+      // Exact substring match gets high score
+      if (name.includes(query) || fullName.includes(query)) return { token: t, score: 100 };
+      if (query.includes(name)) return { token: t, score: 90 };
+      
+      // Check if first letters match
+      if (name.startsWith(query[0])) return { token: t, score: 50 };
+      
+      // Levenshtein-like simple check: count matching chars
+      let matches = 0;
+      for (const char of query) {
+        if (name.includes(char)) matches++;
+      }
+      return { token: t, score: matches * 10 };
+    });
+    
+    return scored
+      .filter(s => s.score > 20)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map(s => s.token);
+  }, [allTokens, tokenQuery]);
+
   // Error state
   if (error || !token) {
+    const suggestions = getSimilarTokens();
+    
     return (
       <div className="mx-auto max-w-4xl px-4 py-6">
         <Button variant="ghost" onClick={onBack} className="mb-4 gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <div className="text-center py-20">
-          <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">{error || `Token "${tokenQuery}" not found`}</p>
+        <div className="text-center py-12">
+          <AlertTriangle className="h-12 w-12 text-warning mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Token Not Found</h2>
+          <p className="text-muted-foreground mb-8">
+            Could not find a token matching "{tokenQuery}"
+          </p>
           
-          {allTokens.length > 0 && (
-            <div className="mt-8 max-w-2xl mx-auto">
-              <p className="text-xs text-muted-foreground mb-4">Available tokens:</p>
+          {suggestions.length > 0 && (
+            <div className="max-w-2xl mx-auto">
+              <p className="text-sm text-muted-foreground mb-4">Did you mean one of these?</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {suggestions.map(t => (
+                  <button
+                    key={t.tokenId}
+                    onClick={() => onNavigate('spot-token', t.name)}
+                    className="px-4 py-2 rounded-lg bg-warning/10 text-warning text-sm font-medium hover:bg-warning/20 transition-colors border border-warning/20"
+                  >
+                    {t.name}
+                    {t.fullName && t.fullName !== t.name && (
+                      <span className="text-warning/60 ml-1 text-xs">({t.fullName})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {allTokens.length > 0 && suggestions.length === 0 && (
+            <div className="max-w-2xl mx-auto">
+              <p className="text-xs text-muted-foreground mb-4">Browse available tokens:</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {allTokens.slice(0, 20).map(t => (
                   <button
                     key={t.tokenId}
                     onClick={() => onNavigate('spot-token', t.name)}
-                    className="px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-xs font-medium hover:bg-muted/80 transition-colors"
                   >
                     {t.name}
                   </button>

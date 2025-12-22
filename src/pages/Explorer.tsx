@@ -4,7 +4,6 @@ import { ExplorerShell } from '@/components/explorer/ExplorerShell';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
 import { ApiHealthIndicator } from '@/components/explorer/ApiHealthIndicator';
 import { WhaleTracker } from '@/components/explorer/WhaleTracker';
-import { Watchlist } from '@/components/explorer/Watchlist';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
@@ -36,12 +35,14 @@ export default function ExplorerPage() {
     if (mode === 'block') {
       return (
         <Layout>
-          <BlockDetailPage 
-            blockNumber={parseInt(query)} 
-            onBack={handleBack}
-            onNavigate={handleNavigate}
-            preferredChain={chain === 'hypercore' ? 'hypercore' : chain === 'hyperevm' ? 'hyperevm' : undefined}
-          />
+          <ExplorerShell loadingStage={loadingStage}>
+            <BlockDetailPage 
+              blockNumber={parseInt(query)} 
+              onBack={handleBack}
+              onNavigate={handleNavigate}
+              preferredChain={chain === 'hypercore' ? 'hypercore' : chain === 'hyperevm' ? 'hyperevm' : undefined}
+            />
+          </ExplorerShell>
         </Layout>
       );
     }
@@ -49,12 +50,14 @@ export default function ExplorerPage() {
     if (mode === 'tx') {
       return (
         <Layout>
-          <TxDetailPage
-            hash={query}
-            onBack={handleBack}
-            onNavigate={handleNavigate}
-            preferredChain={chain === 'hypercore' ? 'hypercore' : chain === 'hyperevm' ? 'hyperevm' : undefined}
-          />
+          <ExplorerShell loadingStage={loadingStage}>
+            <TxDetailPage
+              hash={query}
+              onBack={handleBack}
+              onNavigate={handleNavigate}
+              preferredChain={chain === 'hypercore' ? 'hypercore' : chain === 'hyperevm' ? 'hyperevm' : undefined}
+            />
+          </ExplorerShell>
         </Layout>
       );
     }
@@ -62,11 +65,13 @@ export default function ExplorerPage() {
     if (mode === 'wallet') {
       return (
         <Layout>
-          <WalletDetailPage 
-            address={query} 
-            onBack={handleBack}
-            onNavigate={handleNavigate}
-          />
+          <ExplorerShell loadingStage={loadingStage}>
+            <WalletDetailPage 
+              address={query} 
+              onBack={handleBack}
+              onNavigate={handleNavigate}
+            />
+          </ExplorerShell>
         </Layout>
       );
     }
@@ -74,11 +79,13 @@ export default function ExplorerPage() {
     if (mode === 'token') {
       return (
         <Layout>
-          <SpotTokenDetailPage 
-            tokenQuery={query} 
-            onBack={handleBack}
-            onNavigate={handleNavigate}
-          />
+          <ExplorerShell loadingStage={loadingStage}>
+            <SpotTokenDetailPage 
+              tokenQuery={query} 
+              onBack={handleBack}
+              onNavigate={handleNavigate}
+            />
+          </ExplorerShell>
         </Layout>
       );
     }
@@ -91,10 +98,7 @@ export default function ExplorerPage() {
         {/* API Health Status */}
         <ApiHealthIndicator health={health} onRefresh={refreshHealth} />
 
-        {/* Watchlist */}
-        <Watchlist onNavigate={(type, id) => handleNavigate(type, id)} />
-
-        {/* Whale Tracker */}
+        {/* Top Accounts (formerly Whale Tracker) */}
         <WhaleTracker onNavigate={(type, id) => handleNavigate('wallet', id)} />
       </ExplorerShell>
     </Layout>

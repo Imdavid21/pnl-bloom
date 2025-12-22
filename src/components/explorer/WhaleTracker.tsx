@@ -37,7 +37,7 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
       <div className="rounded-lg border border-border bg-card/30 p-4">
         <div className="flex items-center gap-2 mb-4">
           <Fish className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Whale Tracker</h3>
+          <h3 className="text-sm font-semibold text-foreground">Top Accounts</h3>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -51,7 +51,7 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Fish className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Whale Tracker</h3>
+          <h3 className="text-sm font-semibold text-foreground">Top Accounts</h3>
           <span className="text-[10px] text-muted-foreground">$50K+ trades</span>
         </div>
         <div className="flex items-center gap-1.5">
