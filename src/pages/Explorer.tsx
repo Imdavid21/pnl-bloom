@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useExplorerState } from '@/hooks/useExplorerState';
-import { ExplorerSearch } from '@/components/explorer/ExplorerSearch';
+import { ExplorerSearch, ChainFilter } from '@/components/explorer/ExplorerSearch';
 import { LiveActivityFeed } from '@/components/explorer/LiveActivityFeed';
 import { LiveBlockActivity } from '@/components/explorer/LiveBlockActivity';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
+import { SpotTokenDetailPage } from '@/components/explorer/SpotTokenDetailPage';
 
 export default function ExplorerPage() {
   const {
@@ -19,9 +20,11 @@ export default function ExplorerPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const [chainFilter, setChainFilter] = useState<ChainFilter>('all');
   const [detailView, setDetailView] = useState<{
-    type: 'block' | 'tx' | 'wallet' | null;
+    type: 'block' | 'tx' | 'wallet' | 'spot-token' | null;
     id: string;
+    chain?: 'hyperevm' | 'hypercore';
   }>({ type: null, id: '' });
 
   const handleSearchSubmit = useCallback(async () => {
@@ -31,9 +34,17 @@ export default function ExplorerPage() {
     setIsLoading(true);
     setSearch(query);
     
-    // Detect query type based on length and format
     const lowerQuery = query.toLowerCase();
     
+    // If searching in Spot mode, treat as token search
+    if (chainFilter === 'hypercore-spot') {
+      // Could be token name or tokenId
+      setDetailView({ type: 'spot-token', id: query });
+      setIsLoading(false);
+      return;
+    }
+    
+    // Detect query type based on length and format
     if (lowerQuery.startsWith('0x') && lowerQuery.length === 42) {
       // Wallet address (42 chars including 0x)
       setDetailView({ type: 'wallet', id: lowerQuery });
@@ -42,14 +53,26 @@ export default function ExplorerPage() {
       setDetailView({ type: 'tx', id: lowerQuery });
     } else if (/^\d+$/.test(query)) {
       // Block number (only digits)
-      setDetailView({ type: 'block', id: query });
+      // Use chain filter to determine which chain to query
+      const chain = chainFilter === 'hyperevm' ? 'hyperevm' : 
+                    chainFilter === 'hypercore-perps' ? 'hypercore' : undefined;
+      setDetailView({ type: 'block', id: query, chain });
     } else if (lowerQuery.startsWith('0x')) {
-      // Partial or other 0x prefix - try as tx hash first
-      setDetailView({ type: 'tx', id: lowerQuery });
+      // Could be tokenId or partial hash
+      if (lowerQuery.length === 34) {
+        // Token ID format (0x + 32 hex chars)
+        setDetailView({ type: 'spot-token', id: lowerQuery });
+      } else {
+        // Try as tx hash
+        setDetailView({ type: 'tx', id: lowerQuery });
+      }
+    } else {
+      // Likely a token name search
+      setDetailView({ type: 'spot-token', id: query });
     }
     
     setIsLoading(false);
-  }, [localSearch, setSearch]);
+  }, [localSearch, setSearch, chainFilter]);
 
   const handleRowClick = useCallback((type: any, id: string, data: any) => {
     if (type === 'block') {
@@ -73,7 +96,7 @@ export default function ExplorerPage() {
     setDetailView({ type, id });
   }, []);
 
-  // Show detail page if viewing block/tx/wallet
+  // Show detail page if viewing block/tx/wallet/token
   if (detailView.type === 'block') {
     return (
       <Layout>
@@ -81,6 +104,7 @@ export default function ExplorerPage() {
           blockNumber={parseInt(detailView.id)} 
           onBack={handleBack}
           onNavigate={handleNavigate}
+          preferredChain={detailView.chain}
         />
       </Layout>
     );
@@ -110,6 +134,18 @@ export default function ExplorerPage() {
     );
   }
 
+  if (detailView.type === 'spot-token') {
+    return (
+      <Layout>
+        <SpotTokenDetailPage 
+          tokenQuery={detailView.id} 
+          onBack={handleBack}
+          onNavigate={handleNavigate}
+        />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="mx-auto max-w-7xl px-4 py-6">
@@ -119,6 +155,8 @@ export default function ExplorerPage() {
           onSearch={setLocalSearch}
           onSearchSubmit={handleSearchSubmit}
           isLoading={isLoading}
+          chainFilter={chainFilter}
+          onChainFilterChange={setChainFilter}
         />
 
         {/* Live Block Activity Visualizer */}
