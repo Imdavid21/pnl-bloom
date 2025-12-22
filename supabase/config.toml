@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.explorer-proxy]
 verify_jwt = false
 
+[functions.hyperevm-rpc]
+verify_jwt = false
+
 [functions.pnl-calendar]
 verify_jwt = false
 
