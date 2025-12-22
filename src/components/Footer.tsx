@@ -6,7 +6,7 @@ const LINKS = [
   { to: '/explorer', label: 'Explorer' },
   { to: '/assets', label: 'Assets' },
   { to: '/api', label: 'API' },
-  { to: '/logic', label: 'Logic' },
+  { to: '/docs', label: 'Docs' },
 ];
 
 export function Footer() {
