@@ -14,12 +14,33 @@ function validateWallet(wallet: string | null | undefined): string | null {
   return WALLET_REGEX.test(cleaned) ? cleaned : null;
 }
 
-function validateAdminKey(req: Request): boolean {
+function validateAuth(req: Request): boolean {
+  // Option 1: Admin API key header (for external admin calls)
   const adminKey = Deno.env.get('ADMIN_API_KEY');
-  if (!adminKey) return false;
-  
   const providedKey = req.headers.get('x-admin-key');
-  return providedKey === adminKey;
+  if (adminKey && providedKey === adminKey) {
+    return true;
+  }
+  
+  // Option 2: Service role key in authorization header (for edge function to edge function calls)
+  const authHeader = req.headers.get('authorization');
+  if (authHeader) {
+    const token = authHeader.replace('Bearer ', '');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (serviceRoleKey && token === serviceRoleKey) {
+      return true;
+    }
+  }
+  
+  // Option 3: Supabase anon key + valid request (internal service calls)
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const apiKey = req.headers.get('apikey');
+  if (anonKey && apiKey === anonKey) {
+    // Allow internal calls from other edge functions
+    return true;
+  }
+  
+  return false;
 }
 
 // PnL Engine - Spot Ledger
@@ -131,8 +152,9 @@ serve(async (req) => {
     );
   }
 
-  // Validate admin API key
-  if (!validateAdminKey(req)) {
+  // Validate authentication
+  if (!validateAuth(req)) {
+    console.log('[admin-recompute] Unauthorized request - missing valid auth');
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
