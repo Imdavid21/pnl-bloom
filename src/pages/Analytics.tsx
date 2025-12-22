@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { TrendingUp, TrendingDown, Calendar, Banknote, BarChart3, Hash, RefreshCw } from "lucide-react";
 import { getAllMockData, DailyPnl } from "@/data/mockPnlData";
 import { KpiCard } from "@/components/pnl/KpiCard";
@@ -17,8 +18,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const Index = () => {
+const Analytics = () => {
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const allMockData = getAllMockData();
   
   const [selectedYear, setSelectedYear] = useState(2025);
@@ -29,6 +31,14 @@ const Index = () => {
   const [selectedDayData, setSelectedDayData] = useState<DailyPnl | undefined>();
   const [targetWallet, setTargetWallet] = useState<string>('');
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Initialize wallet from URL params
+  useEffect(() => {
+    const walletParam = searchParams.get('wallet');
+    if (walletParam && !targetWallet) {
+      setTargetWallet(walletParam);
+    }
+  }, [searchParams, targetWallet]);
 
   const activeWallet = targetWallet || null;
   
@@ -303,4 +313,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Analytics;

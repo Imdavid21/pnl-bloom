@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from 'next-themes';
 import { WagmiProvider } from 'wagmi';
 import { config } from '@/lib/wagmi';
-import Index from "./pages/Index";
+import Analytics from "./pages/Analytics";
 import Assets from "./pages/Assets";
 import Docs from "./pages/Docs";
 import Api from "./pages/Api";
@@ -24,7 +24,8 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<Explorer />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/assets" element={<Assets />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/api" element={<Api />} />
