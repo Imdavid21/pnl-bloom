@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Globe, Layers, CircleDollarSign, Box } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface HypeStatsData {
@@ -95,41 +94,28 @@ export function HypeStats() {
         
         const hypePriceBtc = hypePrice && btcPrice ? hypePrice / btcPrice : null;
         
-        // Fetch latest block from HyperEVM
+        // Fetch latest block from HyperEVM using direct RPC
         let latestBlock: number | null = null;
         let blockTime: number | null = null;
         
         try {
-          const blockResponse = await supabase.functions.invoke('hyperevm-rpc', {
-            body: null,
+          const rpcResponse = await fetch('https://rpc.hyperliquid.xyz/evm', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: Date.now(),
+              method: 'eth_blockNumber',
+              params: [],
+            }),
           });
-          
-          // Use query params approach
-          const { data: blockData } = await supabase.functions.invoke('hyperevm-rpc?action=latestBlock');
-          if (blockData?.blockNumber) {
-            latestBlock = blockData.blockNumber;
+          const rpcData = await rpcResponse.json();
+          if (rpcData.result) {
+            latestBlock = parseInt(rpcData.result, 16);
             blockTime = 0.98; // Approximate block time
           }
         } catch (e) {
-          // Fallback to direct RPC
-          try {
-            const rpcResponse = await fetch('https://rpc.hyperliquid.xyz/evm', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'eth_blockNumber',
-                params: [],
-              }),
-            });
-            const rpcData = await rpcResponse.json();
-            if (rpcData.result) {
-              latestBlock = parseInt(rpcData.result, 16);
-              blockTime = 0.98;
-            }
-          } catch {}
+          console.error('[HypeStats] Error fetching block:', e);
         }
         
         // Estimate circulating supply and market cap (using known values)
