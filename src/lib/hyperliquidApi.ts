@@ -1,10 +1,11 @@
 /**
  * Hyperliquid API Wrapper
- * Direct calls to Hyperliquid API
+ * Direct calls to Hyperliquid API and Edge Function proxy
  */
 
 const HYPERLIQUID_INFO_API = "https://api.hyperliquid.xyz/info";
-const HYPERLIQUID_EXPLORER_API = "https://api.hyperliquid.xyz/explorer";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export interface ApiEndpoint {
   id: string;
@@ -109,12 +110,10 @@ export const ENDPOINTS: ApiEndpoint[] = [
 ];
 
 /**
- * Make a direct request to Hyperliquid API
+ * Make a direct request to Hyperliquid Info API
  */
-export async function proxyRequest(body: object, endpoint: 'info' | 'explorer' = 'info'): Promise<any> {
-  const targetUrl = endpoint === 'explorer' ? HYPERLIQUID_EXPLORER_API : HYPERLIQUID_INFO_API;
-  
-  const response = await fetch(targetUrl, {
+export async function proxyRequest(body: object): Promise<any> {
+  const response = await fetch(HYPERLIQUID_INFO_API, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -132,16 +131,15 @@ export async function proxyRequest(body: object, endpoint: 'info' | 'explorer' =
 /**
  * Get the API URL for display
  */
-export function getApiUrl(endpoint: 'info' | 'explorer' = 'info'): string {
-  return endpoint === 'explorer' ? HYPERLIQUID_EXPLORER_API : HYPERLIQUID_INFO_API;
+export function getApiUrl(): string {
+  return HYPERLIQUID_INFO_API;
 }
 
 /**
  * Build cURL command for Hyperliquid API
  */
-export function buildCurlCommand(body: object, endpoint: 'info' | 'explorer' = 'info'): string {
-  const targetUrl = endpoint === 'explorer' ? HYPERLIQUID_EXPLORER_API : HYPERLIQUID_INFO_API;
-  return `curl -X POST "${targetUrl}" \\
+export function buildCurlCommand(body: object): string {
+  return `curl -X POST "${HYPERLIQUID_INFO_API}" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify(body)}'`;
 }
@@ -164,7 +162,37 @@ export interface TransactionDetails {
   user: string;
   action: any;
   error: string | null;
-  type?: string;
+}
+
+export interface UserExplorerDetails {
+  address: string;
+  txs: TransactionDetails[];
+}
+
+/**
+ * Call the explorer-proxy edge function
+ */
+async function callExplorerProxy(params: Record<string, string>): Promise<any> {
+  const url = new URL(`${SUPABASE_URL}/functions/v1/explorer-proxy`);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    console.error('[Explorer API] Error:', error);
+    throw new Error(error.error || 'API request failed');
+  }
+
+  return response.json();
 }
 
 /**
@@ -172,30 +200,10 @@ export interface TransactionDetails {
  */
 export async function getBlockDetails(blockHeight: number): Promise<BlockDetails | null> {
   try {
-    // Hyperliquid explorer API expects 'height' not 'blockHeight'
-    const response = await proxyRequest({ type: 'blockDetails', height: blockHeight }, 'explorer');
-    console.log('[Explorer API] Block response:', response);
-    
-    if (response?.blockDetails) {
-      const bd = response.blockDetails;
-      return {
-        blockNumber: bd.height,
-        hash: bd.hash,
-        time: bd.blockTime,
-        txCount: bd.numTxs,
-        proposer: bd.proposer,
-        txs: (bd.txs || []).map((tx: any) => ({
-          hash: tx.hash,
-          block: tx.block,
-          time: tx.time,
-          user: tx.user,
-          action: tx.action,
-          error: tx.error,
-          type: tx.action?.type,
-        })),
-      };
-    }
-    return null;
+    console.log(`[Explorer API] Fetching block ${blockHeight}`);
+    const data = await callExplorerProxy({ type: 'block', height: String(blockHeight) });
+    console.log('[Explorer API] Block response:', data);
+    return data as BlockDetails;
   } catch (err) {
     console.error('[Explorer API] getBlockDetails error:', err);
     return null;
@@ -207,20 +215,10 @@ export async function getBlockDetails(blockHeight: number): Promise<BlockDetails
  */
 export async function getTxDetails(hash: string): Promise<TransactionDetails | null> {
   try {
-    const response = await proxyRequest({ type: 'txDetails', hash }, 'explorer');
-    if (response?.txDetails) {
-      const tx = response.txDetails;
-      return {
-        hash: tx.hash,
-        block: tx.block,
-        time: tx.time,
-        user: tx.user,
-        action: tx.action,
-        error: tx.error,
-        type: tx.action?.type,
-      };
-    }
-    return null;
+    console.log(`[Explorer API] Fetching tx ${hash}`);
+    const data = await callExplorerProxy({ type: 'tx', hash });
+    console.log('[Explorer API] Tx response:', data);
+    return data as TransactionDetails;
   } catch (err) {
     console.error('[Explorer API] getTxDetails error:', err);
     return null;
@@ -230,66 +228,14 @@ export async function getTxDetails(hash: string): Promise<TransactionDetails | n
 /**
  * Get user/address details from Hyperliquid Explorer API
  */
-export async function getUserDetails(userAddress: string): Promise<any> {
+export async function getUserDetails(userAddress: string): Promise<UserExplorerDetails | null> {
   try {
-    const response = await proxyRequest({ type: 'userDetails', user: userAddress }, 'explorer');
-    return response?.userDetails || null;
+    console.log(`[Explorer API] Fetching user ${userAddress}`);
+    const data = await callExplorerProxy({ type: 'user', address: userAddress });
+    console.log('[Explorer API] User response:', data);
+    return data as UserExplorerDetails;
   } catch (err) {
     console.error('[Explorer API] getUserDetails error:', err);
     return null;
   }
-}
-
-/**
- * Get recent blocks by fetching the latest block and working backwards
- */
-export async function getRecentBlocks(count: number = 10): Promise<BlockDetails[]> {
-  try {
-    // First get the latest block to know the current height
-    // We'll estimate based on time - Hyperliquid produces ~2.5 blocks/second
-    const estimatedHeight = Math.floor(Date.now() / 400); // Rough estimate
-    
-    // Try to get the most recent blocks
-    const blocks: BlockDetails[] = [];
-    let currentHeight = 836200000; // Start from a known recent range
-    
-    // Get multiple blocks in parallel
-    const promises = Array.from({ length: count }, (_, i) => 
-      getBlockDetails(currentHeight - i)
-    );
-    
-    const results = await Promise.all(promises);
-    for (const block of results) {
-      if (block) blocks.push(block);
-    }
-    
-    return blocks.sort((a, b) => b.blockNumber - a.blockNumber);
-  } catch (err) {
-    console.error('[Explorer API] getRecentBlocks error:', err);
-    return [];
-  }
-}
-
-/**
- * Find the latest block by binary search or estimate
- */
-export async function findLatestBlock(): Promise<number> {
-  // Start with an estimated height based on time
-  // Hyperliquid produces blocks every ~400ms, started around a specific time
-  // For now use a known recent height and adjust
-  let low = 836000000;
-  let high = 837000000;
-  
-  // Binary search to find the latest block
-  while (low < high - 1) {
-    const mid = Math.floor((low + high) / 2);
-    const block = await getBlockDetails(mid);
-    if (block) {
-      low = mid;
-    } else {
-      high = mid;
-    }
-  }
-  
-  return low;
 }
