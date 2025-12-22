@@ -141,7 +141,18 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   };
 
   const updateAvailability = (updates: Partial<ChainAvailability>) => {
-    setChainAvailability(prev => ({ ...prev, ...updates }));
+    setChainAvailability(prev => {
+      const next = { ...prev, ...updates };
+      // Auto-switch to available chain if current view has no data
+      if (next.hyperevm && !next.hypercore && chainView === 'hypercore') {
+        setChainView('hyperevm');
+        setActiveTab('evm-txs');
+      } else if (next.hypercore && !next.hyperevm && chainView === 'hyperevm') {
+        setChainView('hypercore');
+        setActiveTab('positions');
+      }
+      return next;
+    });
   };
 
   // Define fetch functions first (before useEffect that uses them)
