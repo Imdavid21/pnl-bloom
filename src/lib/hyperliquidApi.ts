@@ -144,18 +144,18 @@ export function buildCurlCommand(body: object): string {
   -d '${JSON.stringify(body)}'`;
 }
 
-// ============= Explorer API Functions =============
+// ============= L1 Explorer API (Hypercore - perps L1) =============
 
-export interface BlockDetails {
+export interface L1BlockDetails {
   blockNumber: number;
   hash: string;
   time: number;
   txCount: number;
   proposer: string;
-  txs: TransactionDetails[];
+  txs: L1TransactionDetails[];
 }
 
-export interface TransactionDetails {
+export interface L1TransactionDetails {
   hash: string;
   block: number;
   time: number;
@@ -164,15 +164,15 @@ export interface TransactionDetails {
   error: string | null;
 }
 
-export interface UserExplorerDetails {
+export interface L1UserDetails {
   address: string;
-  txs: TransactionDetails[];
+  txs: L1TransactionDetails[];
 }
 
 /**
- * Call the explorer-proxy edge function
+ * Call the explorer-proxy edge function (for Hypercore L1)
  */
-async function callExplorerProxy(params: Record<string, string>): Promise<any> {
+async function callL1ExplorerProxy(params: Record<string, string>): Promise<any> {
   const url = new URL(`${SUPABASE_URL}/functions/v1/explorer-proxy`);
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, value);
@@ -188,7 +188,7 @@ async function callExplorerProxy(params: Record<string, string>): Promise<any> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('[Explorer API] Error:', error);
+    console.error('[L1 Explorer API] Error:', error);
     throw new Error(error.error || 'API request failed');
   }
 
@@ -196,46 +196,54 @@ async function callExplorerProxy(params: Record<string, string>): Promise<any> {
 }
 
 /**
- * Get block details from Hyperliquid Explorer API
+ * Get L1 block details from Hyperliquid Explorer API
  */
-export async function getBlockDetails(blockHeight: number): Promise<BlockDetails | null> {
+export async function getL1BlockDetails(blockHeight: number): Promise<L1BlockDetails | null> {
   try {
-    console.log(`[Explorer API] Fetching block ${blockHeight}`);
-    const data = await callExplorerProxy({ type: 'block', height: String(blockHeight) });
-    console.log('[Explorer API] Block response:', data);
-    return data as BlockDetails;
+    console.log(`[L1 Explorer API] Fetching block ${blockHeight}`);
+    const data = await callL1ExplorerProxy({ type: 'block', height: String(blockHeight) });
+    console.log('[L1 Explorer API] Block response:', data);
+    return data as L1BlockDetails;
   } catch (err) {
-    console.error('[Explorer API] getBlockDetails error:', err);
+    console.error('[L1 Explorer API] getL1BlockDetails error:', err);
     return null;
   }
 }
 
 /**
- * Get transaction details from Hyperliquid Explorer API
+ * Get L1 transaction details from Hyperliquid Explorer API
  */
-export async function getTxDetails(hash: string): Promise<TransactionDetails | null> {
+export async function getL1TxDetails(hash: string): Promise<L1TransactionDetails | null> {
   try {
-    console.log(`[Explorer API] Fetching tx ${hash}`);
-    const data = await callExplorerProxy({ type: 'tx', hash });
-    console.log('[Explorer API] Tx response:', data);
-    return data as TransactionDetails;
+    console.log(`[L1 Explorer API] Fetching tx ${hash}`);
+    const data = await callL1ExplorerProxy({ type: 'tx', hash });
+    console.log('[L1 Explorer API] Tx response:', data);
+    return data as L1TransactionDetails;
   } catch (err) {
-    console.error('[Explorer API] getTxDetails error:', err);
+    console.error('[L1 Explorer API] getL1TxDetails error:', err);
     return null;
   }
 }
 
 /**
- * Get user/address details from Hyperliquid Explorer API
+ * Get L1 user/address details from Hyperliquid Explorer API
  */
-export async function getUserDetails(userAddress: string): Promise<UserExplorerDetails | null> {
+export async function getL1UserDetails(userAddress: string): Promise<L1UserDetails | null> {
   try {
-    console.log(`[Explorer API] Fetching user ${userAddress}`);
-    const data = await callExplorerProxy({ type: 'user', address: userAddress });
-    console.log('[Explorer API] User response:', data);
-    return data as UserExplorerDetails;
+    console.log(`[L1 Explorer API] Fetching user ${userAddress}`);
+    const data = await callL1ExplorerProxy({ type: 'user', address: userAddress });
+    console.log('[L1 Explorer API] User response:', data);
+    return data as L1UserDetails;
   } catch (err) {
-    console.error('[Explorer API] getUserDetails error:', err);
+    console.error('[L1 Explorer API] getL1UserDetails error:', err);
     return null;
   }
 }
+
+// ============= Deprecated aliases for backward compatibility =============
+export type BlockDetails = L1BlockDetails;
+export type TransactionDetails = L1TransactionDetails;
+export type UserExplorerDetails = L1UserDetails;
+export const getBlockDetails = getL1BlockDetails;
+export const getTxDetails = getL1TxDetails;
+export const getUserDetails = getL1UserDetails;

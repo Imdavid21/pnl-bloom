@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Hash, Copy, Check, ExternalLink, ChevronRight, Loader2, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Hash, Copy, Check, ExternalLink, ChevronRight, Loader2, CheckCircle, XCircle, Clock, ArrowRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getEVMTransaction, formatTimestamp, timeAgo, truncateHash, formatGwei, decodeKnownEvent, type EVMTransaction, type EVMLog } from '@/lib/hyperevmApi';
+import { getEVMTransaction, formatTimestamp, timeAgo, truncateHash as truncateHashEVM, formatGwei, decodeKnownEvent, type EVMTransaction, type EVMLog } from '@/lib/hyperevmApi';
+import { getL1TxDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
 
 interface TxDetailPageProps {
@@ -11,17 +12,36 @@ interface TxDetailPageProps {
 }
 
 export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
-  const [tx, setTx] = useState<EVMTransaction | null>(null);
+  const [evmTx, setEvmTx] = useState<EVMTransaction | null>(null);
+  const [l1Tx, setL1Tx] = useState<L1TransactionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showRawInput, setShowRawInput] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+  const [source, setSource] = useState<'evm' | 'l1' | 'unknown'>('unknown');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTx = async () => {
       setIsLoading(true);
-      const data = await getEVMTransaction(hash);
-      setTx(data);
+      setError(null);
+      
+      // Try both in parallel
+      const [evmData, l1Data] = await Promise.all([
+        getEVMTransaction(hash),
+        getL1TxDetails(hash),
+      ]);
+
+      if (evmData) {
+        setEvmTx(evmData);
+        setSource('evm');
+      } else if (l1Data) {
+        setL1Tx(l1Data);
+        setSource('l1');
+      } else {
+        setError('Transaction not found on HyperEVM or Hypercore L1');
+      }
+      
       setIsLoading(false);
     };
     fetchTx();
@@ -36,16 +56,13 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
   const toggleLog = (index: number) => {
     setExpandedLogs(prev => {
       const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
   };
 
-  const verifyUrl = `https://hypurrscan.io/tx/${hash}`;
+  const truncateHash = (h: string) => `${h.slice(0, 6)}...${h.slice(-4)}`;
 
   if (isLoading) {
     return (
@@ -58,26 +75,54 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
     );
   }
 
-  if (!tx) {
+  if (error || (!evmTx && !l1Tx)) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-6">
         <Button variant="ghost" onClick={onBack} className="mb-4 gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
         <div className="text-center py-20">
-          <p className="text-muted-foreground">Transaction not found</p>
+          <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">{error || 'Transaction not found'}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Note: HyperEVM and Hypercore L1 have different transaction formats.
+          </p>
         </div>
       </div>
     );
   }
 
+  // Render EVM transaction
+  if (source === 'evm' && evmTx) {
+    return <EVMTxDetail tx={evmTx} hash={hash} onBack={onBack} onNavigate={onNavigate} handleCopy={handleCopy} copiedId={copiedId} showRawInput={showRawInput} setShowRawInput={setShowRawInput} expandedLogs={expandedLogs} toggleLog={toggleLog} />;
+  }
+
+  // Render L1 transaction
+  if (source === 'l1' && l1Tx) {
+    return <L1TxDetail tx={l1Tx} onBack={onBack} onNavigate={onNavigate} handleCopy={handleCopy} copiedId={copiedId} />;
+  }
+
+  return null;
+}
+
+// EVM Transaction Component
+function EVMTxDetail({ tx, hash, onBack, onNavigate, handleCopy, copiedId, showRawInput, setShowRawInput, expandedLogs, toggleLog }: {
+  tx: EVMTransaction;
+  hash: string;
+  onBack: () => void;
+  onNavigate: (type: 'block' | 'tx' | 'wallet', id: string) => void;
+  handleCopy: (t: string, id: string) => void;
+  copiedId: string | null;
+  showRawInput: boolean;
+  setShowRawInput: (v: boolean) => void;
+  expandedLogs: Set<number>;
+  toggleLog: (i: number) => void;
+}) {
+  const truncateHash = (h: string) => `${h.slice(0, 6)}...${h.slice(-4)}`;
+  const verifyUrl = `https://hypurrscan.io/tx/${hash}`;
   const StatusIcon = tx.status === 'success' ? CheckCircle : tx.status === 'failed' ? XCircle : Clock;
   const statusColor = tx.status === 'success' ? 'text-profit-3' : tx.status === 'failed' ? 'text-loss-3' : 'text-yellow-500';
-  const txFee = tx.gasUsed && tx.effectiveGasPrice 
-    ? ((tx.gasUsed * tx.effectiveGasPrice) / 1e18).toFixed(8)
-    : null;
-
-  // Decode logs
+  const txFee = tx.gasUsed && tx.effectiveGasPrice ? ((tx.gasUsed * tx.effectiveGasPrice) / 1e18).toFixed(8) : null;
   const decodedLogs = (tx.logs || []).map(log => decodeKnownEvent(log));
 
   return (
@@ -87,37 +132,25 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
         <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
         <ChevronRight className="h-3 w-3" />
         <span className="text-foreground">Transaction Details</span>
+        <span className="ml-2 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px]">HyperEVM</span>
       </div>
 
       {/* Title */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", 
-            tx.status === 'success' ? 'bg-profit-3/10' : tx.status === 'failed' ? 'bg-loss-3/10' : 'bg-yellow-500/10'
-          )}>
+          <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", tx.status === 'success' ? 'bg-profit-3/10' : tx.status === 'failed' ? 'bg-loss-3/10' : 'bg-yellow-500/10')}>
             <StatusIcon className={cn("h-5 w-5", statusColor)} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-foreground">Transaction</h1>
-              <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium capitalize",
-                tx.status === 'success' ? 'bg-profit-3/20 text-profit-3' : 
-                tx.status === 'failed' ? 'bg-loss-3/20 text-loss-3' : 
-                'bg-yellow-500/20 text-yellow-500'
-              )}>
-                {tx.status}
-              </span>
+              <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium capitalize", tx.status === 'success' ? 'bg-profit-3/20 text-profit-3' : tx.status === 'failed' ? 'bg-loss-3/20 text-loss-3' : 'bg-yellow-500/20 text-yellow-500')}>{tx.status}</span>
             </div>
-            <p className="text-xs text-muted-foreground font-mono">{truncateHash(hash, 10, 8)}</p>
+            <p className="text-xs text-muted-foreground font-mono">{truncateHash(hash)}</p>
           </div>
         </div>
-        <a 
-          href={verifyUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Verify on Hypurrscan <ExternalLink className="h-3 w-3" />
+        <a href={verifyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          Verify <ExternalLink className="h-3 w-3" />
         </a>
       </div>
 
@@ -126,30 +159,15 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <p className="text-xs text-muted-foreground mb-1">From</p>
-            <button 
-              onClick={() => onNavigate('wallet', tx.from)}
-              className="text-sm font-mono text-primary hover:text-primary/80 break-all text-left"
-            >
-              {tx.from}
-            </button>
+            <button onClick={() => onNavigate('wallet', tx.from)} className="text-sm font-mono text-primary hover:text-primary/80 break-all text-left">{tx.from}</button>
           </div>
           <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-[200px]">
             <p className="text-xs text-muted-foreground mb-1">{tx.to ? 'To' : 'Contract Created'}</p>
             {tx.to ? (
-              <button 
-                onClick={() => onNavigate('wallet', tx.to!)}
-                className="text-sm font-mono text-primary hover:text-primary/80 break-all text-left"
-              >
-                {tx.to}
-              </button>
+              <button onClick={() => onNavigate('wallet', tx.to!)} className="text-sm font-mono text-primary hover:text-primary/80 break-all text-left">{tx.to}</button>
             ) : tx.contractAddress ? (
-              <button 
-                onClick={() => onNavigate('wallet', tx.contractAddress!)}
-                className="text-sm font-mono text-emerald-400 hover:text-emerald-300 break-all text-left"
-              >
-                {tx.contractAddress}
-              </button>
+              <button onClick={() => onNavigate('wallet', tx.contractAddress!)} className="text-sm font-mono text-emerald-400 break-all text-left">{tx.contractAddress}</button>
             ) : (
               <span className="text-sm text-muted-foreground">Pending...</span>
             )}
@@ -160,35 +178,13 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
       {/* Transaction Details */}
       <div className="rounded-lg border border-border bg-card/30 p-5 mb-6">
         <h2 className="text-sm font-semibold text-foreground mb-4">Transaction Details</h2>
-        <div className="space-y-0">
-          <DetailRow 
-            label="Transaction Hash" 
-            value={tx.hash}
-            copyable={tx.hash}
-            onCopy={handleCopy}
-            copiedId={copiedId}
-            id="hash"
-          />
-          <DetailRow 
-            label="Block" 
-            value={tx.blockNumber ? tx.blockNumber.toLocaleString() : 'Pending'}
-            onClick={tx.blockNumber ? () => onNavigate('block', String(tx.blockNumber)) : undefined}
-            isLink={!!tx.blockNumber}
-          />
-          <DetailRow label="Value" value={`${tx.valueEth} ETH`} />
-          <DetailRow label="Gas Limit" value={tx.gas.toLocaleString()} />
-          {tx.gasUsed && <DetailRow label="Gas Used" value={tx.gasUsed.toLocaleString()} />}
-          {tx.gasPrice && <DetailRow label="Gas Price" value={`${formatGwei(tx.gasPrice)} Gwei`} />}
-          {tx.effectiveGasPrice && <DetailRow label="Effective Gas Price" value={`${formatGwei(tx.effectiveGasPrice)} Gwei`} />}
-          {txFee && <DetailRow label="Transaction Fee" value={`${txFee} ETH`} />}
-          {tx.maxFeePerGas && <DetailRow label="Max Fee Per Gas" value={`${formatGwei(tx.maxFeePerGas)} Gwei`} />}
-          {tx.maxPriorityFeePerGas && <DetailRow label="Max Priority Fee" value={`${formatGwei(tx.maxPriorityFeePerGas)} Gwei`} />}
-          <DetailRow label="Nonce" value={tx.nonce.toString()} />
-          <DetailRow label="Transaction Type" value={`Type ${tx.type}`} />
-          {tx.transactionIndex !== null && (
-            <DetailRow label="Position in Block" value={tx.transactionIndex.toString()} />
-          )}
-        </div>
+        <DetailRow label="Transaction Hash" value={tx.hash} copyable={tx.hash} onCopy={handleCopy} copiedId={copiedId} id="hash" />
+        <DetailRow label="Block" value={tx.blockNumber ? tx.blockNumber.toLocaleString() : 'Pending'} onClick={tx.blockNumber ? () => onNavigate('block', String(tx.blockNumber)) : undefined} isLink={!!tx.blockNumber} />
+        <DetailRow label="Value" value={`${tx.valueEth} ETH`} />
+        <DetailRow label="Gas Limit" value={tx.gas.toLocaleString()} />
+        {tx.gasUsed && <DetailRow label="Gas Used" value={tx.gasUsed.toLocaleString()} />}
+        {txFee && <DetailRow label="Transaction Fee" value={`${txFee} ETH`} />}
+        <DetailRow label="Nonce" value={tx.nonce.toString()} />
       </div>
 
       {/* Input Data */}
@@ -196,33 +192,12 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
         <div className="rounded-lg border border-border bg-card/30 p-5 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Input Data</h2>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowRawInput(!showRawInput)}
-              className="text-xs"
-            >
-              {showRawInput ? 'Hide Raw' : 'Show Raw'}
-            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowRawInput(!showRawInput)} className="text-xs">{showRawInput ? 'Hide' : 'Show'}</Button>
           </div>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Method ID: <span className="font-mono text-foreground">{tx.input.slice(0, 10)}</span>
-            </p>
-            {showRawInput && (
-              <div className="relative">
-                <pre className="text-xs font-mono bg-muted/50 rounded p-3 overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
-                  {tx.input}
-                </pre>
-                <button 
-                  onClick={() => handleCopy(tx.input, 'input')}
-                  className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
-                >
-                  {copiedId === 'input' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </button>
-              </div>
-            )}
-          </div>
+          <p className="text-xs text-muted-foreground">Method ID: <span className="font-mono text-foreground">{tx.input.slice(0, 10)}</span></p>
+          {showRawInput && (
+            <pre className="mt-2 text-xs font-mono bg-muted/50 rounded p-3 overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">{tx.input}</pre>
+          )}
         </div>
       )}
 
@@ -230,69 +205,23 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
       {decodedLogs.length > 0 && (
         <div className="rounded-lg border border-border bg-card/30 p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Event Logs ({decodedLogs.length})</h2>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {decodedLogs.map((log, index) => (
               <div key={index} className="border border-border/50 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => toggleLog(index)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors text-left"
-                >
+                <button onClick={() => toggleLog(index)} className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors text-left">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-mono text-muted-foreground">#{log.logIndex}</span>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onNavigate('wallet', log.address); }}
-                      className="text-xs font-mono text-primary hover:text-primary/80"
-                    >
-                      {truncateHash(log.address)}
-                    </button>
-                    {log.decoded && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
-                        {log.decoded.eventName}
-                      </span>
-                    )}
+                    <button onClick={(e) => { e.stopPropagation(); onNavigate('wallet', log.address); }} className="text-xs font-mono text-primary">{truncateHash(log.address)}</button>
+                    {log.decoded && <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">{log.decoded.eventName}</span>}
                   </div>
-                  <ChevronRight className={cn(
-                    "h-4 w-4 text-muted-foreground transition-transform",
-                    expandedLogs.has(index) && "rotate-90"
-                  )} />
+                  <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedLogs.has(index) && "rotate-90")} />
                 </button>
                 {expandedLogs.has(index) && (
-                  <div className="border-t border-border/50 p-3 bg-muted/20 space-y-2">
-                    {log.decoded && (
-                      <div className="mb-3">
-                        <p className="text-xs text-muted-foreground mb-2">Decoded:</p>
-                        {Object.entries(log.decoded.args).map(([key, val]) => (
-                          <div key={key} className="flex items-start gap-2 text-xs">
-                            <span className="text-muted-foreground">{key}:</span>
-                            {typeof val === 'string' && val.startsWith('0x') && val.length === 42 ? (
-                              <button 
-                                onClick={() => onNavigate('wallet', val)}
-                                className="font-mono text-primary hover:text-primary/80 break-all text-left"
-                              >
-                                {val}
-                              </button>
-                            ) : (
-                              <span className="font-mono text-foreground break-all">{String(val)}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Topics:</p>
-                      {log.topics.map((topic, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          <span className="text-muted-foreground shrink-0">[{i}]</span>
-                          <span className="font-mono text-foreground break-all">{topic}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {log.data && log.data !== '0x' && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Data:</p>
-                        <pre className="text-xs font-mono text-foreground break-all">{log.data}</pre>
-                      </div>
-                    )}
+                  <div className="border-t border-border/50 p-3 bg-muted/20 space-y-2 text-xs">
+                    {log.topics.map((topic, i) => (
+                      <div key={i} className="flex gap-2"><span className="text-muted-foreground">[{i}]</span><span className="font-mono text-foreground break-all">{topic}</span></div>
+                    ))}
+                    {log.data && log.data !== '0x' && <div><span className="text-muted-foreground">Data:</span> <span className="font-mono break-all">{log.data}</span></div>}
                   </div>
                 )}
               </div>
@@ -304,16 +233,71 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
   );
 }
 
-function DetailRow({ 
-  label, 
-  value, 
-  copyable, 
-  onCopy, 
-  copiedId, 
-  id, 
-  onClick, 
-  isLink
-}: {
+// L1 Transaction Component
+function L1TxDetail({ tx, onBack, onNavigate, handleCopy, copiedId }: {
+  tx: L1TransactionDetails;
+  onBack: () => void;
+  onNavigate: (type: 'block' | 'tx' | 'wallet', id: string) => void;
+  handleCopy: (t: string, id: string) => void;
+  copiedId: string | null;
+}) {
+  const truncateHash = (h: string) => `${h.slice(0, 6)}...${h.slice(-4)}`;
+  const verifyUrl = `https://app.hyperliquid.xyz/explorer/tx/${tx.hash}`;
+  const formatTime = (timestamp: number) => new Date(timestamp).toLocaleString();
+  const action = tx.action || {};
+  const actionFields = Object.entries(action).filter(([key]) => key !== 'type');
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
+        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
+        <ChevronRight className="h-3 w-3" />
+        <span className="text-foreground">Transaction Details</span>
+        <span className="ml-2 px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px]">Hypercore L1</span>
+      </div>
+
+      {/* Title */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", tx.error ? 'bg-loss-3/10' : 'bg-profit-3/10')}>
+            {tx.error ? <XCircle className="h-5 w-5 text-loss-3" /> : <CheckCircle className="h-5 w-5 text-profit-3" />}
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Transaction</h1>
+            <p className="text-xs text-muted-foreground font-mono">{truncateHash(tx.hash)}</p>
+          </div>
+        </div>
+        <a href={verifyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          Verify <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+
+      {/* Overview */}
+      <div className="rounded-lg border border-border bg-card/30 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-foreground mb-4">Overview</h2>
+        <DetailRow label="Hash" value={tx.hash} copyable={tx.hash} onCopy={handleCopy} copiedId={copiedId} id="hash" />
+        <DetailRow label="Block" value={tx.block.toLocaleString()} onClick={() => onNavigate('block', String(tx.block))} isLink />
+        <DetailRow label="Time" value={formatTime(tx.time)} />
+        <DetailRow label="User" value={tx.user} copyable={tx.user} onCopy={handleCopy} copiedId={copiedId} id="user" onClick={() => onNavigate('wallet', tx.user)} isLink />
+        {action.type && <DetailRow label="Action Type" value={action.type} valueColor="emerald" />}
+        {tx.error && <DetailRow label="Error" value={tx.error} valueColor="red" />}
+      </div>
+
+      {/* Action Details */}
+      {actionFields.length > 0 && (
+        <div className="rounded-lg border border-border bg-card/30 p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-4">Action Details</h2>
+          {actionFields.map(([key, value]) => (
+            <DetailRow key={key} label={key} value={typeof value === 'object' ? JSON.stringify(value) : String(value)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value, copyable, onCopy, copiedId, id, onClick, isLink, valueColor }: {
   label: string;
   value: string;
   copyable?: string;
@@ -322,26 +306,20 @@ function DetailRow({
   id?: string;
   onClick?: () => void;
   isLink?: boolean;
+  valueColor?: 'primary' | 'emerald' | 'red';
 }) {
+  const colorClasses = { primary: 'text-primary', emerald: 'text-emerald-400', red: 'text-loss-3' };
   return (
     <div className="flex items-start py-3 border-b border-border/20 last:border-0 gap-6">
-      <span className="text-xs text-muted-foreground shrink-0 min-w-[140px]">{label}</span>
+      <span className="text-xs text-muted-foreground shrink-0 min-w-[120px]">{label}</span>
       <div className="flex items-center gap-2 min-w-0">
         {isLink && onClick ? (
-          <button 
-            onClick={onClick}
-            className="text-sm font-mono text-primary hover:text-primary/80 break-all text-left"
-          >
-            {value}
-          </button>
+          <button onClick={onClick} className="text-sm font-mono text-primary hover:text-primary/80 break-all text-left">{value}</button>
         ) : (
-          <span className="text-sm font-mono text-foreground break-all">{value}</span>
+          <span className={cn("text-sm font-mono break-all", valueColor ? colorClasses[valueColor] : 'text-foreground')}>{value}</span>
         )}
         {copyable && onCopy && id && (
-          <button 
-            onClick={() => onCopy(copyable, id)} 
-            className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
-          >
+          <button onClick={() => onCopy(copyable, id)} className="text-muted-foreground hover:text-foreground shrink-0">
             {copiedId === id ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
         )}
