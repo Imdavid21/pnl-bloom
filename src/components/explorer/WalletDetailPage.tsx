@@ -5,11 +5,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { proxyRequest } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
 import { WalletInsights } from './WalletInsights';
+import { SpotBalances } from './SpotBalances';
 
 interface WalletDetailPageProps {
   address: string;
   onBack: () => void;
-  onNavigate: (type: 'block' | 'tx' | 'wallet', id: string) => void;
+  onNavigate: (type: 'block' | 'tx' | 'wallet' | 'spot-token', id: string) => void;
 }
 
 interface Position {
@@ -167,6 +168,12 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       {fills.length > 0 && (
         <WalletInsights fills={fills} accountValue={accountValue} />
       )}
+
+      {/* Spot Token Holdings */}
+      <SpotBalances 
+        address={address} 
+        onNavigate={(type, id) => onNavigate(type, id)}
+      />
 
       {/* Tab Switcher */}
       <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4">
