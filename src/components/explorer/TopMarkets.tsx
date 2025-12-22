@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, ArrowUpRight } from 'lucide-react';
 import { proxyRequest, getSpotMetaAndAssetCtxs } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
+import { TokenLogo } from './TokenLogo';
 
 interface Market {
   name: string;
@@ -146,6 +147,7 @@ export function TopMarkets({ onNavigate }: TopMarketsProps) {
           >
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
+              <TokenLogo symbol={market.name} size="sm" />
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium">{market.name}</span>
