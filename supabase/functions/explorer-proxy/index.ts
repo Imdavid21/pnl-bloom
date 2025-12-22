@@ -70,9 +70,16 @@ serve(async (req) => {
     const responseText = await response.text();
     console.log(`[explorer-proxy] Response status: ${response.status}, body preview: ${responseText.substring(0, 500)}`);
     
-    // Handle empty response (404 from explorer typically returns empty body)
+    // Handle empty response - for user queries, return empty data instead of 404
     if (!responseText || responseText.trim() === '') {
-      console.error(`[explorer-proxy] Explorer API returned empty response`);
+      console.log(`[explorer-proxy] Explorer API returned empty response for ${requestType}`);
+      if (requestType === "user") {
+        // Return empty user data instead of 404
+        return new Response(
+          JSON.stringify({ txs: [], address: url.searchParams.get("address") }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: "Not found on Hyperliquid L1 explorer" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
