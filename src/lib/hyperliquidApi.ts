@@ -169,10 +169,22 @@ export interface L1UserDetails {
   txs: L1TransactionDetails[];
 }
 
+// Response type from explorer-proxy with multi-source resolution
+export interface ExplorerProxyResponse {
+  resolved: boolean;
+  source?: 'hyperevm' | 'hypercore';
+  attempted?: string[];
+  suggested?: string[];
+  message?: string;
+  error?: string;
+  [key: string]: any; // Additional data fields
+}
+
 /**
  * Call the explorer-proxy edge function (for Hypercore L1)
+ * Now returns structured response with resolved status
  */
-async function callL1ExplorerProxy(params: Record<string, string>): Promise<any | null> {
+async function callL1ExplorerProxy(params: Record<string, string>): Promise<ExplorerProxyResponse | null> {
   try {
     const url = new URL(`${SUPABASE_URL}/functions/v1/explorer-proxy`);
     Object.entries(params).forEach(([key, value]) => {
@@ -187,21 +199,11 @@ async function callL1ExplorerProxy(params: Record<string, string>): Promise<any 
       },
     });
 
-    // 404 is expected - not all data exists on L1 explorer (e.g., EVM-only wallets)
-    // Return null silently without logging errors
-    if (response.status === 404) {
-      return null;
-    }
-
-    if (!response.ok) {
-      // Only log actual errors, not expected 404s
-      console.warn('[L1 Explorer API] Non-OK response:', response.status);
-      return null;
-    }
-
-    return response.json();
+    // Always try to parse as JSON - even non-OK responses now return structured data
+    const data = await response.json();
+    return data as ExplorerProxyResponse;
   } catch (err) {
-    // Network errors are also expected in some cases, don't treat as critical
+    // Network errors
     console.warn('[L1 Explorer API] Request failed:', err);
     return null;
   }
@@ -213,9 +215,21 @@ async function callL1ExplorerProxy(params: Record<string, string>): Promise<any 
 export async function getL1BlockDetails(blockHeight: number): Promise<L1BlockDetails | null> {
   try {
     console.log(`[L1 Explorer API] Fetching block ${blockHeight}`);
-    const data = await callL1ExplorerProxy({ type: 'block', height: String(blockHeight) });
-    console.log('[L1 Explorer API] Block response:', data);
-    return data as L1BlockDetails;
+    const response = await callL1ExplorerProxy({ type: 'block', height: String(blockHeight) });
+    console.log('[L1 Explorer API] Block response:', response);
+    
+    if (!response || !response.resolved) {
+      return null;
+    }
+    
+    return {
+      blockNumber: response.blockNumber,
+      hash: response.hash,
+      time: response.time,
+      txCount: response.txCount,
+      proposer: response.proposer,
+      txs: response.txs || [],
+    } as L1BlockDetails;
   } catch (err) {
     console.error('[L1 Explorer API] getL1BlockDetails error:', err);
     return null;
@@ -224,13 +238,31 @@ export async function getL1BlockDetails(blockHeight: number): Promise<L1BlockDet
 
 /**
  * Get L1 transaction details from Hyperliquid Explorer API
+ * Now handles structured responses with multi-source resolution
  */
 export async function getL1TxDetails(hash: string): Promise<L1TransactionDetails | null> {
   try {
     console.log(`[L1 Explorer API] Fetching tx ${hash}`);
-    const data = await callL1ExplorerProxy({ type: 'tx', hash });
-    console.log('[L1 Explorer API] Tx response:', data);
-    return data as L1TransactionDetails;
+    const response = await callL1ExplorerProxy({ type: 'tx', hash });
+    console.log('[L1 Explorer API] Tx response:', response);
+    
+    // Handle structured response
+    if (!response || !response.resolved) {
+      if (response?.suggested?.includes('hyperevm')) {
+        console.log('[L1 Explorer API] Tx not found on L1, suggested to try HyperEVM');
+      }
+      return null;
+    }
+    
+    // Extract tx data from resolved response
+    return {
+      hash: response.hash,
+      block: response.block,
+      time: response.time,
+      user: response.user,
+      action: response.action,
+      error: response.error || null,
+    } as L1TransactionDetails;
   } catch (err) {
     console.error('[L1 Explorer API] getL1TxDetails error:', err);
     return null;
@@ -243,9 +275,17 @@ export async function getL1TxDetails(hash: string): Promise<L1TransactionDetails
 export async function getL1UserDetails(userAddress: string): Promise<L1UserDetails | null> {
   try {
     console.log(`[L1 Explorer API] Fetching user ${userAddress}`);
-    const data = await callL1ExplorerProxy({ type: 'user', address: userAddress });
-    console.log('[L1 Explorer API] User response:', data);
-    return data as L1UserDetails;
+    const response = await callL1ExplorerProxy({ type: 'user', address: userAddress });
+    console.log('[L1 Explorer API] User response:', response);
+    
+    if (!response || !response.resolved) {
+      return null;
+    }
+    
+    return {
+      address: response.address || userAddress,
+      txs: response.txs || [],
+    } as L1UserDetails;
   } catch (err) {
     console.error('[L1 Explorer API] getL1UserDetails error:', err);
     return null;
