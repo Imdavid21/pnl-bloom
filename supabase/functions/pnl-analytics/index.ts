@@ -39,10 +39,33 @@ serve(async (req) => {
       .eq('address', walletLower)
       .maybeSingle();
 
+    // If wallet not found, return empty data instead of 404
+    // This allows the frontend to show "no data yet" instead of an error
     if (!walletData) {
+      console.log(`[pnl-analytics] Wallet ${walletLower} not found, returning empty data`);
       return new Response(
-        JSON.stringify({ error: 'Wallet not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          message: 'Wallet not synced yet',
+          summary: {
+            total_trading_pnl: 0,
+            total_funding_pnl: 0,
+            total_fees: 0,
+            net_pnl: 0,
+            funding_share: 0,
+            total_trades: 0,
+            win_rate: 0,
+            max_drawdown: 0,
+            avg_recovery_days: 0,
+            markets_traded: 0,
+          },
+          equity_curve: [],
+          closed_trades: [],
+          market_stats: [],
+          positions: [],
+          drawdowns: [],
+          trade_size_leverage: { grouping: 'market', data: [] },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
