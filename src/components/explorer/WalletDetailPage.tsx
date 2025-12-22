@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers } from 'lucide-react';
+import { ArrowLeft, User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { proxyRequest, getL1UserDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi';
@@ -40,6 +40,28 @@ interface EvmData {
   code: string | null;
 }
 
+interface EvmTx {
+  hash: string;
+  from: string;
+  to: string | null;
+  valueEth: string;
+  blockNumber: number;
+  timestamp: number;
+  direction: 'in' | 'out';
+  status: 'success' | 'failed' | 'pending';
+  gasUsed: number | null;
+  contractAddress: string | null;
+}
+
+interface ChainAvailability {
+  hypercore: boolean;
+  hyperevm: boolean;
+  hasPerps: boolean;
+  hasL1Txs: boolean;
+  hasEvmBalance: boolean;
+  hasEvmTxs: boolean;
+}
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -49,9 +71,18 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   const [accountValue, setAccountValue] = useState<string>('0');
   const [l1Txs, setL1Txs] = useState<L1TransactionDetails[]>([]);
   const [evmData, setEvmData] = useState<EvmData | null>(null);
+  const [evmTxs, setEvmTxs] = useState<EvmTx[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'positions' | 'fills' | 'l1-txs'>('positions');
+  const [activeTab, setActiveTab] = useState<'positions' | 'fills' | 'l1-txs' | 'evm-txs'>('positions');
+  const [chainAvailability, setChainAvailability] = useState<ChainAvailability>({
+    hypercore: false,
+    hyperevm: false,
+    hasPerps: false,
+    hasL1Txs: false,
+    hasEvmBalance: false,
+    hasEvmTxs: false,
+  });
 
   useEffect(() => {
     const fetchWalletData = async () => {
@@ -67,34 +98,78 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         getL1UserDetails(address),
         // HyperEVM - balance and contract info
         fetchEvmData(address),
+        // HyperEVM - transaction history
+        fetchEvmTxs(address),
       ]);
+
+      const availability: ChainAvailability = {
+        hypercore: false,
+        hyperevm: false,
+        hasPerps: false,
+        hasL1Txs: false,
+        hasEvmBalance: false,
+        hasEvmTxs: false,
+      };
 
       // Process Hypercore clearinghouse state
       if (results[0].status === 'fulfilled' && results[0].value) {
         const stateRes = results[0].value;
         if (stateRes.marginSummary) {
           setAccountValue(stateRes.marginSummary.accountValue);
+          if (parseFloat(stateRes.marginSummary.accountValue) > 0) {
+            availability.hasPerps = true;
+            availability.hypercore = true;
+          }
         }
         if (stateRes.assetPositions) {
-          setPositions(stateRes.assetPositions.map((ap: any) => ap.position).filter(Boolean));
+          const pos = stateRes.assetPositions.map((ap: any) => ap.position).filter(Boolean);
+          setPositions(pos);
+          if (pos.length > 0) {
+            availability.hasPerps = true;
+            availability.hypercore = true;
+          }
         }
       }
 
       // Process Hypercore fills
       if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
-        setFills(results[1].value.slice(0, 50));
+        const fillsData = results[1].value.slice(0, 50);
+        setFills(fillsData);
+        if (fillsData.length > 0) {
+          availability.hasPerps = true;
+          availability.hypercore = true;
+        }
       }
 
       // Process L1 Explorer user data
       if (results[2].status === 'fulfilled' && results[2].value) {
-        setL1Txs(results[2].value.txs || []);
+        const txs = results[2].value.txs || [];
+        setL1Txs(txs);
+        if (txs.length > 0) {
+          availability.hasL1Txs = true;
+          availability.hypercore = true;
+        }
       }
 
       // Process EVM data
       if (results[3].status === 'fulfilled' && results[3].value) {
         setEvmData(results[3].value);
+        if (parseFloat(results[3].value.balance) > 0 || results[3].value.isContract) {
+          availability.hasEvmBalance = true;
+          availability.hyperevm = true;
+        }
       }
 
+      // Process EVM transactions
+      if (results[4].status === 'fulfilled' && results[4].value) {
+        setEvmTxs(results[4].value);
+        if (results[4].value.length > 0) {
+          availability.hasEvmTxs = true;
+          availability.hyperevm = true;
+        }
+      }
+
+      setChainAvailability(availability);
       setIsLoading(false);
     };
 
@@ -111,6 +186,20 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       return res.json();
     } catch {
       return null;
+    }
+  };
+
+  const fetchEvmTxs = async (addr: string): Promise<EvmTx[]> => {
+    try {
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressTxs&address=${addr}&limit=25`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.transactions || [];
+    } catch {
+      return [];
     }
   };
 
@@ -208,6 +297,56 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         </Button>
       </div>
 
+      {/* Chain Availability Indicator */}
+      <div className="flex items-center gap-3 mb-6 p-3 rounded-lg bg-muted/30 border border-border/50">
+        <span className="text-xs font-medium text-muted-foreground">Data Available:</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            {chainAvailability.hypercore ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-profit" />
+            ) : (
+              <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />
+            )}
+            <span className={cn(
+              "text-xs font-medium",
+              chainAvailability.hypercore ? "text-foreground" : "text-muted-foreground/50"
+            )}>
+              Hypercore
+            </span>
+            {chainAvailability.hypercore && (
+              <span className="text-[10px] text-muted-foreground">
+                ({[
+                  chainAvailability.hasPerps && 'Perps',
+                  chainAvailability.hasL1Txs && 'L1'
+                ].filter(Boolean).join(', ')})
+              </span>
+            )}
+          </div>
+          <div className="w-px h-4 bg-border" />
+          <div className="flex items-center gap-1.5">
+            {chainAvailability.hyperevm ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-profit" />
+            ) : (
+              <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />
+            )}
+            <span className={cn(
+              "text-xs font-medium",
+              chainAvailability.hyperevm ? "text-foreground" : "text-muted-foreground/50"
+            )}>
+              HyperEVM
+            </span>
+            {chainAvailability.hyperevm && (
+              <span className="text-[10px] text-muted-foreground">
+                ({[
+                  chainAvailability.hasEvmBalance && 'Balance',
+                  chainAvailability.hasEvmTxs && 'Txs'
+                ].filter(Boolean).join(', ')})
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Multi-chain Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Hypercore (Perps) Data */}
@@ -279,11 +418,11 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       />
 
       {/* Tab Switcher */}
-      <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4">
+      <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4 overflow-x-auto">
         <button
           onClick={() => setActiveTab('positions')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors",
+            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'positions' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -292,7 +431,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         <button
           onClick={() => setActiveTab('fills')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors",
+            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'fills' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -301,11 +440,20 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         <button
           onClick={() => setActiveTab('l1-txs')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors",
+            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'l1-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
           L1 Txs ({l1Txs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('evm-txs')}
+          className={cn(
+            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
+            activeTab === 'evm-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          EVM Txs ({evmTxs.length})
         </button>
       </div>
 
@@ -474,6 +622,100 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     No L1 transactions found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {activeTab === 'evm-txs' && (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border/50 hover:bg-transparent">
+                <TableHead className="text-xs h-9 px-4">Tx Hash</TableHead>
+                <TableHead className="text-xs h-9 px-4">Block</TableHead>
+                <TableHead className="text-xs h-9 px-4">Direction</TableHead>
+                <TableHead className="text-xs h-9 px-4">From/To</TableHead>
+                <TableHead className="text-xs h-9 px-4">Value</TableHead>
+                <TableHead className="text-xs h-9 px-4">Status</TableHead>
+                <TableHead className="text-xs h-9 px-4">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {evmTxs.map((tx, i) => {
+                const isOutgoing = tx.direction === 'out';
+                const counterparty = isOutgoing ? tx.to : tx.from;
+                return (
+                  <TableRow 
+                    key={i} 
+                    className="border-b border-border/30 hover:bg-muted/30 cursor-pointer"
+                    onClick={() => onNavigate('tx', tx.hash)}
+                  >
+                    <TableCell className="text-sm font-mono py-2.5 px-4 text-primary">
+                      {truncateHash(tx.hash)}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono py-2.5 px-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onNavigate('block', String(tx.blockNumber)); }}
+                        className="text-primary hover:underline"
+                      >
+                        {tx.blockNumber}
+                      </button>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        {isOutgoing ? (
+                          <ArrowUpRight className="h-3.5 w-3.5 text-loss" />
+                        ) : (
+                          <ArrowDownLeft className="h-3.5 w-3.5 text-profit" />
+                        )}
+                        <span className={cn(
+                          "text-xs font-medium",
+                          isOutgoing ? "text-loss" : "text-profit"
+                        )}>
+                          {isOutgoing ? 'OUT' : 'IN'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4">
+                      {counterparty ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNavigate('wallet', counterparty); }}
+                          className="text-xs font-mono text-primary hover:underline"
+                        >
+                          {truncateHash(counterparty)}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {tx.contractAddress ? 'Contract Created' : '-'}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono py-2.5 px-4">
+                      {parseFloat(tx.valueEth).toFixed(4)} ETH
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4">
+                      {tx.status === 'success' ? (
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-profit-3/20 text-profit">Success</span>
+                      ) : tx.status === 'failed' ? (
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-loss-3/20 text-loss">Failed</span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">Pending</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground py-2.5 px-4">
+                      {formatTime(tx.timestamp * 1000)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {evmTxs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No EVM transactions found in recent blocks
                   </TableCell>
                 </TableRow>
               )}
