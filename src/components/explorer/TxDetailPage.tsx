@@ -192,7 +192,7 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
           {shouldSuggestSwitch && (
             <div className="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/20 max-w-md mx-auto">
               <p className="text-sm text-foreground mb-3">
-                This looks like a <span className="font-semibold">{suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore L1'}</span> transaction.
+                This looks like a <span className="font-semibold">{suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}</span> transaction.
               </p>
               <Button 
                 variant="outline" 
@@ -206,7 +206,7 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
                 className="gap-2"
               >
                 <ArrowRight className="h-3.5 w-3.5" />
-                Try {suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore L1'}
+                Try {suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
               </Button>
             </div>
           )}

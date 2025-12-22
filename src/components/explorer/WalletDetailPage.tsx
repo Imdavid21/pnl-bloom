@@ -428,9 +428,9 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       const labels: Record<string, string> = {
         clearinghouse: 'Positions',
         fills: 'Fills',
-        l1Txs: 'L1 Txs',
-        evmData: 'EVM Data',
-        evmTxs: 'EVM Txs',
+        l1Txs: 'Hypercore Txs',
+        evmData: 'HyperEVM Data',
+        evmTxs: 'HyperEVM Txs',
         tokens: 'Tokens',
         internalTxs: 'Internal Txs',
       };
@@ -450,8 +450,8 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   };
 
   const retryLabels: Record<string, string> = {
-    evmData: 'EVM Data',
-    evmTxs: 'EVM Transactions',
+    evmData: 'HyperEVM Data',
+    evmTxs: 'HyperEVM Transactions',
     tokens: 'Token Balances',
     internalTxs: 'Internal Transactions',
   };
@@ -639,7 +639,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
           <div className="rounded-lg border border-border bg-card/50 p-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-medium text-foreground">Hypercore (Perps L1)</h2>
+              <h2 className="text-sm font-medium text-foreground">Hypercore</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -655,7 +655,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
                 <p className="text-lg font-semibold">{fills.length}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">L1 Transactions</p>
+                <p className="text-xs text-muted-foreground">Transactions</p>
                 <p className="text-lg font-semibold">{l1Txs.length}</p>
               </div>
             </div>
@@ -715,7 +715,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
           <div className="flex items-center gap-2 mb-3">
             <Layers className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Hypercore Activity</h2>
-            <span className="text-xs text-muted-foreground">Perps & L1 Transactions</span>
+            <span className="text-xs text-muted-foreground">Perps & Transactions</span>
           </div>
           <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4">
             <button
@@ -953,7 +953,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
               {l1Txs.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No L1 transactions found
+                    No Hypercore transactions found
                   </TableCell>
                 </TableRow>
               )}

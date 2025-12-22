@@ -81,7 +81,7 @@ function DeltaRow({ delta, compact }: { delta: AssetDelta; compact: boolean }) {
             <span className="text-sm font-medium text-foreground">{symbol}</span>
             {chain !== 'unknown' && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                {chain === 'hyperevm' ? 'EVM' : chain === 'hypercore' ? 'L1' : chain}
+                {chain === 'hyperevm' ? 'HyperEVM' : chain === 'hypercore' ? 'Hypercore' : chain}
               </span>
             )}
           </div>
