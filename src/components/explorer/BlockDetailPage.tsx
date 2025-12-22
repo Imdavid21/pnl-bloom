@@ -11,12 +11,13 @@ interface BlockDetailPageProps {
   blockNumber: number;
   onBack: () => void;
   onNavigate: (type: 'block' | 'tx' | 'wallet', id: string) => void;
+  preferredChain?: 'hyperevm' | 'hypercore';
 }
 
 // L1 blocks are currently around 200-300 million, HyperEVM blocks are much smaller
 const L1_BLOCK_THRESHOLD = 100_000_000; // 100M - anything above this is likely L1
 
-export function BlockDetailPage({ blockNumber, onBack, onNavigate }: BlockDetailPageProps) {
+export function BlockDetailPage({ blockNumber, onBack, onNavigate, preferredChain }: BlockDetailPageProps) {
   const [evmBlock, setEvmBlock] = useState<EVMBlock | null>(null);
   const [l1Block, setL1Block] = useState<L1BlockDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,10 +32,11 @@ export function BlockDetailPage({ blockNumber, onBack, onNavigate }: BlockDetail
       setIsLoading(true);
       setError(null);
       
-      // Try L1 first if block number is large (likely L1)
-      const isLikelyL1 = blockNumber >= L1_BLOCK_THRESHOLD;
+      // Use preferred chain if specified, otherwise heuristic
+      const tryL1First = preferredChain === 'hypercore' || 
+        (preferredChain === undefined && blockNumber >= L1_BLOCK_THRESHOLD);
       
-      if (isLikelyL1) {
+      if (tryL1First) {
         // Try L1 first
         const l1Data = await getL1BlockDetails(blockNumber);
         if (l1Data) {
@@ -43,16 +45,18 @@ export function BlockDetailPage({ blockNumber, onBack, onNavigate }: BlockDetail
           setIsLoading(false);
           return;
         }
-        // Fall back to EVM
-        const evmData = await getEVMBlock(blockNumber, true);
-        if (evmData) {
-          setEvmBlock(evmData);
-          setSource('evm');
-          setIsLoading(false);
-          return;
+        // Fall back to EVM if no preferred chain
+        if (preferredChain !== 'hypercore') {
+          const evmData = await getEVMBlock(blockNumber, true);
+          if (evmData) {
+            setEvmBlock(evmData);
+            setSource('evm');
+            setIsLoading(false);
+            return;
+          }
         }
       } else {
-        // Try EVM first for smaller block numbers
+        // Try EVM first for smaller block numbers or if preferred
         const evmData = await getEVMBlock(blockNumber, true);
         if (evmData) {
           setEvmBlock(evmData);
@@ -60,13 +64,15 @@ export function BlockDetailPage({ blockNumber, onBack, onNavigate }: BlockDetail
           setIsLoading(false);
           return;
         }
-        // Fall back to L1
-        const l1Data = await getL1BlockDetails(blockNumber);
-        if (l1Data) {
-          setL1Block(l1Data);
-          setSource('l1');
-          setIsLoading(false);
-          return;
+        // Fall back to L1 if no preferred chain
+        if (preferredChain !== 'hyperevm') {
+          const l1Data = await getL1BlockDetails(blockNumber);
+          if (l1Data) {
+            setL1Block(l1Data);
+            setSource('l1');
+            setIsLoading(false);
+            return;
+          }
         }
       }
       
@@ -74,7 +80,7 @@ export function BlockDetailPage({ blockNumber, onBack, onNavigate }: BlockDetail
       setIsLoading(false);
     };
     fetchBlock();
-  }, [blockNumber]);
+  }, [blockNumber, preferredChain]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);

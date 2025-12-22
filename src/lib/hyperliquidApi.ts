@@ -247,3 +247,137 @@ export type UserExplorerDetails = L1UserDetails;
 export const getBlockDetails = getL1BlockDetails;
 export const getTxDetails = getL1TxDetails;
 export const getUserDetails = getL1UserDetails;
+
+// ============= Hypercore Spot API =============
+
+export interface SpotToken {
+  name: string;
+  szDecimals: number;
+  weiDecimals: number;
+  index: number;
+  tokenId: string;
+  isCanonical: boolean;
+  evmContract: string | null;
+  fullName: string | null;
+}
+
+export interface SpotPair {
+  name: string;
+  tokens: [number, number];
+  index: number;
+  isCanonical: boolean;
+}
+
+export interface SpotMeta {
+  tokens: SpotToken[];
+  universe: SpotPair[];
+}
+
+export interface SpotAssetContext {
+  dayNtlVlm: string;
+  markPx: string;
+  midPx: string;
+  prevDayPx: string;
+}
+
+export interface SpotBalance {
+  coin: string;
+  token: number;
+  hold: string;
+  total: string;
+  entryNtl: string;
+}
+
+export interface SpotClearinghouseState {
+  balances: SpotBalance[];
+}
+
+export interface SpotTokenDetails {
+  name: string;
+  maxSupply: string;
+  totalSupply: string;
+  circulatingSupply: string;
+  szDecimals: number;
+  weiDecimals: number;
+  midPx: string;
+  markPx: string;
+  prevDayPx: string;
+  genesis: {
+    userBalances: [string, string][];
+    existingTokenBalances: [number, string][];
+  };
+  deployer: string;
+  deployGas: string;
+  deployTime: string;
+  seededUsdc: string;
+  nonCirculatingUserBalances: [string, string][];
+  futureEmissions: string;
+}
+
+/**
+ * Get spot metadata including all tokens and trading pairs
+ */
+export async function getSpotMeta(): Promise<SpotMeta> {
+  const response = await proxyRequest({ type: 'spotMeta' });
+  return response as SpotMeta;
+}
+
+/**
+ * Get spot metadata with asset contexts (prices, volumes)
+ */
+export async function getSpotMetaAndAssetCtxs(): Promise<[SpotMeta, SpotAssetContext[]]> {
+  const response = await proxyRequest({ type: 'spotMetaAndAssetCtxs' });
+  return response as [SpotMeta, SpotAssetContext[]];
+}
+
+/**
+ * Get a user's spot token balances
+ */
+export async function getSpotClearinghouseState(user: string): Promise<SpotClearinghouseState> {
+  const response = await proxyRequest({ type: 'spotClearinghouseState', user });
+  return response as SpotClearinghouseState;
+}
+
+/**
+ * Get detailed information about a specific token
+ */
+export async function getSpotTokenDetails(tokenId: string): Promise<SpotTokenDetails | null> {
+  try {
+    const response = await proxyRequest({ type: 'tokenDetails', tokenId });
+    return response as SpotTokenDetails;
+  } catch (err) {
+    console.error('[Spot API] getSpotTokenDetails error:', err);
+    return null;
+  }
+}
+
+/**
+ * Find a token by name (case-insensitive search)
+ */
+export async function findSpotTokenByName(name: string): Promise<SpotToken | null> {
+  try {
+    const meta = await getSpotMeta();
+    const upperName = name.toUpperCase();
+    const token = meta.tokens.find(
+      t => t.name.toUpperCase() === upperName || 
+           t.fullName?.toUpperCase() === upperName
+    );
+    return token || null;
+  } catch (err) {
+    console.error('[Spot API] findSpotTokenByName error:', err);
+    return null;
+  }
+}
+
+/**
+ * Get spot pairs for a specific token
+ */
+export async function getSpotPairsForToken(tokenIndex: number): Promise<SpotPair[]> {
+  try {
+    const meta = await getSpotMeta();
+    return meta.universe.filter(pair => pair.tokens.includes(tokenIndex));
+  } catch (err) {
+    console.error('[Spot API] getSpotPairsForToken error:', err);
+    return [];
+  }
+}
