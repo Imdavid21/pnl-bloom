@@ -87,6 +87,16 @@ interface ChainAvailability {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+interface LoadingState {
+  clearinghouse: 'pending' | 'loading' | 'done' | 'error';
+  fills: 'pending' | 'loading' | 'done' | 'error';
+  l1Txs: 'pending' | 'loading' | 'done' | 'error';
+  evmData: 'pending' | 'loading' | 'done' | 'error';
+  evmTxs: 'pending' | 'loading' | 'done' | 'error';
+  tokens: 'pending' | 'loading' | 'done' | 'error';
+  internalTxs: 'pending' | 'loading' | 'done' | 'error';
+}
+
 export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPageProps) {
   const [positions, setPositions] = useState<Position[]>([]);
   const [fills, setFills] = useState<Fill[]>([]);
@@ -96,7 +106,15 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   const [evmTxs, setEvmTxs] = useState<EvmTx[]>([]);
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [internalTxs, setInternalTxs] = useState<InternalTx[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState<LoadingState>({
+    clearinghouse: 'pending',
+    fills: 'pending',
+    l1Txs: 'pending',
+    evmData: 'pending',
+    evmTxs: 'pending',
+    tokens: 'pending',
+    internalTxs: 'pending',
+  });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'positions' | 'fills' | 'l1-txs' | 'evm-txs' | 'tokens' | 'internal-txs'>('positions');
   const [chainAvailability, setChainAvailability] = useState<ChainAvailability>({
@@ -110,113 +128,135 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     hasInternalTxs: false,
   });
 
+  const updateLoading = (key: keyof LoadingState, status: LoadingState[keyof LoadingState]) => {
+    setLoadingState(prev => ({ ...prev, [key]: status }));
+  };
+
+  const updateAvailability = (updates: Partial<ChainAvailability>) => {
+    setChainAvailability(prev => ({ ...prev, ...updates }));
+  };
+
   useEffect(() => {
-    const fetchWalletData = async () => {
-      setIsLoading(true);
-      
-      // Fetch from all sources in parallel
-      const results = await Promise.allSettled([
-        proxyRequest({ type: 'clearinghouseState', user: address }),
-        proxyRequest({ type: 'userFills', user: address }),
-        getL1UserDetails(address),
-        fetchEvmData(address),
-        fetchEvmTxs(address),
-        fetchTokenBalances(address),
-        fetchInternalTxs(address),
-      ]);
+    // Reset state when address changes
+    setPositions([]);
+    setFills([]);
+    setAccountValue('0');
+    setL1Txs([]);
+    setEvmData(null);
+    setEvmTxs([]);
+    setTokenBalances([]);
+    setInternalTxs([]);
+    setLoadingState({
+      clearinghouse: 'loading',
+      fills: 'loading',
+      l1Txs: 'loading',
+      evmData: 'loading',
+      evmTxs: 'loading',
+      tokens: 'loading',
+      internalTxs: 'loading',
+    });
+    setChainAvailability({
+      hypercore: false,
+      hyperevm: false,
+      hasPerps: false,
+      hasL1Txs: false,
+      hasEvmBalance: false,
+      hasEvmTxs: false,
+      hasTokens: false,
+      hasInternalTxs: false,
+    });
 
-      const availability: ChainAvailability = {
-        hypercore: false,
-        hyperevm: false,
-        hasPerps: false,
-        hasL1Txs: false,
-        hasEvmBalance: false,
-        hasEvmTxs: false,
-        hasTokens: false,
-        hasInternalTxs: false,
-      };
-
-      // Process Hypercore clearinghouse state
-      if (results[0].status === 'fulfilled' && results[0].value) {
-        const stateRes = results[0].value;
-        if (stateRes.marginSummary) {
+    // Fetch clearinghouse state
+    proxyRequest({ type: 'clearinghouseState', user: address })
+      .then(stateRes => {
+        if (stateRes?.marginSummary) {
           setAccountValue(stateRes.marginSummary.accountValue);
           if (parseFloat(stateRes.marginSummary.accountValue) > 0) {
-            availability.hasPerps = true;
-            availability.hypercore = true;
+            updateAvailability({ hasPerps: true, hypercore: true });
           }
         }
-        if (stateRes.assetPositions) {
+        if (stateRes?.assetPositions) {
           const pos = stateRes.assetPositions.map((ap: any) => ap.position).filter(Boolean);
           setPositions(pos);
           if (pos.length > 0) {
-            availability.hasPerps = true;
-            availability.hypercore = true;
+            updateAvailability({ hasPerps: true, hypercore: true });
           }
         }
-      }
+        updateLoading('clearinghouse', 'done');
+      })
+      .catch(() => updateLoading('clearinghouse', 'error'));
 
-      // Process Hypercore fills
-      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
-        const fillsData = results[1].value.slice(0, 50);
-        setFills(fillsData);
-        if (fillsData.length > 0) {
-          availability.hasPerps = true;
-          availability.hypercore = true;
+    // Fetch fills
+    proxyRequest({ type: 'userFills', user: address })
+      .then(fillsData => {
+        if (Array.isArray(fillsData)) {
+          const data = fillsData.slice(0, 50);
+          setFills(data);
+          if (data.length > 0) {
+            updateAvailability({ hasPerps: true, hypercore: true });
+          }
         }
-      }
+        updateLoading('fills', 'done');
+      })
+      .catch(() => updateLoading('fills', 'error'));
 
-      // Process L1 Explorer user data
-      if (results[2].status === 'fulfilled' && results[2].value) {
-        const txs = results[2].value.txs || [];
+    // Fetch L1 transactions
+    getL1UserDetails(address)
+      .then(result => {
+        const txs = result?.txs || [];
         setL1Txs(txs);
         if (txs.length > 0) {
-          availability.hasL1Txs = true;
-          availability.hypercore = true;
+          updateAvailability({ hasL1Txs: true, hypercore: true });
         }
-      }
+        updateLoading('l1Txs', 'done');
+      })
+      .catch(() => updateLoading('l1Txs', 'error'));
 
-      // Process EVM data
-      if (results[3].status === 'fulfilled' && results[3].value) {
-        setEvmData(results[3].value);
-        if (parseFloat(results[3].value.balance) > 0 || results[3].value.isContract) {
-          availability.hasEvmBalance = true;
-          availability.hyperevm = true;
+    // Fetch EVM data
+    fetchEvmData(address)
+      .then(data => {
+        if (data) {
+          setEvmData(data);
+          if (parseFloat(data.balance) > 0 || data.isContract) {
+            updateAvailability({ hasEvmBalance: true, hyperevm: true });
+          }
         }
-      }
+        updateLoading('evmData', 'done');
+      })
+      .catch(() => updateLoading('evmData', 'error'));
 
-      // Process EVM transactions
-      if (results[4].status === 'fulfilled' && results[4].value) {
-        setEvmTxs(results[4].value);
-        if (results[4].value.length > 0) {
-          availability.hasEvmTxs = true;
-          availability.hyperevm = true;
+    // Fetch EVM transactions
+    fetchEvmTxs(address)
+      .then(txs => {
+        setEvmTxs(txs);
+        if (txs.length > 0) {
+          updateAvailability({ hasEvmTxs: true, hyperevm: true });
         }
-      }
+        updateLoading('evmTxs', 'done');
+      })
+      .catch(() => updateLoading('evmTxs', 'error'));
 
-      // Process token balances
-      if (results[5].status === 'fulfilled' && results[5].value) {
-        setTokenBalances(results[5].value);
-        if (results[5].value.length > 0) {
-          availability.hasTokens = true;
-          availability.hyperevm = true;
+    // Fetch token balances
+    fetchTokenBalances(address)
+      .then(tokens => {
+        setTokenBalances(tokens);
+        if (tokens.length > 0) {
+          updateAvailability({ hasTokens: true, hyperevm: true });
         }
-      }
+        updateLoading('tokens', 'done');
+      })
+      .catch(() => updateLoading('tokens', 'error'));
 
-      // Process internal transactions
-      if (results[6].status === 'fulfilled' && results[6].value) {
-        setInternalTxs(results[6].value);
-        if (results[6].value.length > 0) {
-          availability.hasInternalTxs = true;
-          availability.hyperevm = true;
+    // Fetch internal transactions
+    fetchInternalTxs(address)
+      .then(txs => {
+        setInternalTxs(txs);
+        if (txs.length > 0) {
+          updateAvailability({ hasInternalTxs: true, hyperevm: true });
         }
-      }
-
-      setChainAvailability(availability);
-      setIsLoading(false);
-    };
-
-    fetchWalletData();
+        updateLoading('internalTxs', 'done');
+      })
+      .catch(() => updateLoading('internalTxs', 'error'));
   }, [address]);
 
   const fetchEvmData = async (addr: string): Promise<EvmData | null> => {
@@ -297,16 +337,28 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   const verifyUrl = `https://app.hyperliquid.xyz/explorer/address/${address}`;
   const purrsecUrl = `https://purrsec.com/address/${address}`;
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading wallet data from Hypercore & HyperEVM...</p>
-        </div>
-      </div>
-    );
-  }
+  // Calculate loading progress
+  const loadingItems = Object.values(loadingState);
+  const completedCount = loadingItems.filter(s => s === 'done' || s === 'error').length;
+  const totalCount = loadingItems.length;
+  const isFullyLoaded = completedCount === totalCount;
+  const loadingProgress = Math.round((completedCount / totalCount) * 100);
+
+  // Get which items are still loading
+  const stillLoading = Object.entries(loadingState)
+    .filter(([, status]) => status === 'loading')
+    .map(([key]) => {
+      const labels: Record<string, string> = {
+        clearinghouse: 'Positions',
+        fills: 'Fills',
+        l1Txs: 'L1 Txs',
+        evmData: 'EVM Data',
+        evmTxs: 'EVM Txs',
+        tokens: 'Tokens',
+        internalTxs: 'Internal Txs',
+      };
+      return labels[key] || key;
+    });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -367,6 +419,27 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
           <ArrowLeft className="h-3.5 w-3.5" /> Back
         </Button>
       </div>
+
+      {/* Loading Progress */}
+      {!isFullyLoaded && (
+        <div className="mb-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Loading: {stillLoading.join(', ')}
+              </span>
+            </div>
+            <span className="text-xs font-medium text-foreground">{loadingProgress}%</span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary transition-all duration-300 ease-out rounded-full"
+              style={{ width: `${loadingProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Chain Availability Indicator */}
       <div className="flex flex-wrap items-center gap-3 mb-6 p-3 rounded-lg bg-muted/30 border border-border/50">
