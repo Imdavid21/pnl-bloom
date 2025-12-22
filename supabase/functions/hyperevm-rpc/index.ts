@@ -46,8 +46,18 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Make JSON-RPC call with retry
-async function rpcCall(method: string, params: any[], retries = 2): Promise<any> {
+// Track rate limiting globally
+let lastRateLimitTime = 0;
+let consecutiveRateLimits = 0;
+
+// Make JSON-RPC call with retry and exponential backoff
+async function rpcCall(method: string, params: any[], retries = 3): Promise<any> {
+  // If we've been rate limited recently, add a delay before making the request
+  const timeSinceRateLimit = Date.now() - lastRateLimitTime;
+  if (timeSinceRateLimit < 2000 && lastRateLimitTime > 0) {
+    await delay(2000 - timeSinceRateLimit);
+  }
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch(HYPEREVM_RPC_URL, {
@@ -55,7 +65,7 @@ async function rpcCall(method: string, params: any[], retries = 2): Promise<any>
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jsonrpc: "2.0",
-          id: 1,
+          id: Date.now(),
           method,
           params,
         }),
@@ -65,18 +75,29 @@ async function rpcCall(method: string, params: any[], retries = 2): Promise<any>
       
       if (data.error) {
         // Check for rate limit
-        if (data.error.message?.includes("rate") && attempt < retries) {
-          console.warn(`[hyperevm-rpc] Rate limited, waiting before retry ${attempt + 1}...`);
-          await delay(500 * (attempt + 1));
-          continue;
+        if (data.error.message?.includes("rate") || data.error.code === -32005) {
+          lastRateLimitTime = Date.now();
+          consecutiveRateLimits++;
+          
+          if (attempt < retries) {
+            // Exponential backoff: 1s, 2s, 4s
+            const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000);
+            console.warn(`[hyperevm-rpc] Rate limited, backing off ${backoffMs}ms (attempt ${attempt + 1}/${retries})...`);
+            await delay(backoffMs);
+            continue;
+          }
+          throw new Error("rate limited");
         }
         throw new Error(data.error.message || "RPC error");
       }
       
+      // Reset rate limit counter on success
+      consecutiveRateLimits = 0;
       return data.result;
     } catch (err: any) {
+      if (err.message === "rate limited") throw err;
       if (attempt < retries) {
-        await delay(300 * (attempt + 1));
+        await delay(500 * (attempt + 1));
         continue;
       }
       throw err;
@@ -405,7 +426,7 @@ serve(async (req) => {
     // Get EVM transaction history for an address by scanning recent blocks
     if (action === "addressTxs") {
       const address = url.searchParams.get("address");
-      const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10), 15);
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10), 10);
       
       if (!address) {
         return new Response(JSON.stringify({ error: "Missing address parameter" }), {
@@ -417,70 +438,85 @@ serve(async (req) => {
       const normalizedAddress = address.toLowerCase();
       console.log(`[hyperevm-rpc] Scanning for txs involving ${normalizedAddress}`);
 
-      // Get latest block number
-      const latestHex = await rpcCall("eth_blockNumber", []);
-      const latest = hexToDecimal(latestHex);
-      
-      const foundTxs: any[] = [];
-      const blocksPerBatch = 5; // Reduced batch size
-      const maxBlocksToScan = 100; // Reduced to avoid rate limits
-      
-      // Scan blocks in batches with delays
-      for (let start = latest; start > latest - maxBlocksToScan && foundTxs.length < limit; start -= blocksPerBatch) {
-        const blockPromises = [];
-        for (let i = 0; i < blocksPerBatch && start - i >= 0; i++) {
-          const blockNum = "0x" + (start - i).toString(16);
-          blockPromises.push(rpcCall("eth_getBlockByNumber", [blockNum, true]));
-        }
+      try {
+        // Get latest block number
+        const latestHex = await rpcCall("eth_blockNumber", []);
+        const latest = hexToDecimal(latestHex);
         
-        const blocks = await Promise.all(blockPromises);
+        const foundTxs: any[] = [];
+        const blocksPerBatch = 3; // Smaller batches to avoid rate limits
+        const maxBlocksToScan = 50; // Reduced to minimize RPC calls
         
-        for (const block of blocks) {
-          if (!block?.transactions) continue;
-          
-          for (const tx of block.transactions) {
-            const fromMatch = tx.from?.toLowerCase() === normalizedAddress;
-            const toMatch = tx.to?.toLowerCase() === normalizedAddress;
-            
-            if (fromMatch || toMatch) {
-              foundTxs.push({
-                hash: tx.hash,
-                from: tx.from,
-                to: tx.to,
-                value: tx.value,
-                valueEth: weiToEth(tx.value),
-                gas: hexToDecimal(tx.gas),
-                gasPrice: tx.gasPrice ? hexToDecimal(tx.gasPrice) : null,
-                nonce: hexToDecimal(tx.nonce),
-                blockNumber: hexToDecimal(tx.blockNumber),
-                blockHash: tx.blockHash,
-                timestamp: hexToDecimal(block.timestamp),
-                direction: fromMatch ? "out" : "in",
-                status: "success", // Skip receipt call to reduce requests
-                gasUsed: null,
-                contractAddress: null,
-              });
+        // Scan blocks in batches with delays
+        for (let start = latest; start > latest - maxBlocksToScan && foundTxs.length < limit; start -= blocksPerBatch) {
+          // Sequential fetching to avoid rate limits
+          for (let i = 0; i < blocksPerBatch && start - i >= 0 && foundTxs.length < limit; i++) {
+            try {
+              const blockNum = "0x" + (start - i).toString(16);
+              const block = await rpcCall("eth_getBlockByNumber", [blockNum, true]);
               
-              if (foundTxs.length >= limit) break;
+              if (!block?.transactions) continue;
+              
+              for (const tx of block.transactions) {
+                const fromMatch = tx.from?.toLowerCase() === normalizedAddress;
+                const toMatch = tx.to?.toLowerCase() === normalizedAddress;
+                
+                if (fromMatch || toMatch) {
+                  foundTxs.push({
+                    hash: tx.hash,
+                    from: tx.from,
+                    to: tx.to,
+                    value: tx.value,
+                    valueEth: weiToEth(tx.value),
+                    gas: hexToDecimal(tx.gas),
+                    gasPrice: tx.gasPrice ? hexToDecimal(tx.gasPrice) : null,
+                    nonce: hexToDecimal(tx.nonce),
+                    blockNumber: hexToDecimal(tx.blockNumber),
+                    blockHash: tx.blockHash,
+                    timestamp: hexToDecimal(block.timestamp),
+                    direction: fromMatch ? "out" : "in",
+                    status: "success",
+                    gasUsed: null,
+                    contractAddress: null,
+                  });
+                  
+                  if (foundTxs.length >= limit) break;
+                }
+              }
+              
+              // Small delay between each block fetch
+              await delay(100);
+            } catch (err: any) {
+              if (err.message === "rate limited") {
+                console.warn(`[hyperevm-rpc] Rate limited during block scan, returning partial results`);
+                break;
+              }
+              // Continue on other errors
             }
           }
+          
           if (foundTxs.length >= limit) break;
         }
-        
-        // Add delay between batches to avoid rate limits
-        if (foundTxs.length < limit) {
-          await delay(100);
-        }
+
+        console.log(`[hyperevm-rpc] Found ${foundTxs.length} txs for ${address}`);
+
+        return new Response(JSON.stringify({ 
+          transactions: foundTxs,
+          scannedBlocks: Math.min(maxBlocksToScan, latest),
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+        console.error(`[hyperevm-rpc] Error scanning txs: ${err.message}`);
+        // Return empty result instead of error to prevent UI breakage
+        return new Response(JSON.stringify({ 
+          transactions: [],
+          scannedBlocks: 0,
+          error: err.message,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-
-      console.log(`[hyperevm-rpc] Found ${foundTxs.length} txs for ${address}`);
-
-      return new Response(JSON.stringify({ 
-        transactions: foundTxs,
-        scannedBlocks: Math.min(maxBlocksToScan, latest),
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     // Get ERC-20 token balances for an address by scanning Transfer events
