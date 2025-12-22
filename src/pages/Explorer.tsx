@@ -2,18 +2,15 @@ import { useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { ExplorerShell } from '@/components/explorer/ExplorerShell';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { ApiHealthIndicator } from '@/components/explorer/ApiHealthIndicator';
 import { WhaleTracker } from '@/components/explorer/WhaleTracker';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
 import { SpotTokenDetailPage } from '@/components/explorer/SpotTokenDetailPage';
-import { useApiHealthCheck } from '@/hooks/useApiHealthCheck';
 import type { LoadingStage } from '@/lib/explorer/types';
 
 export default function ExplorerPage() {
   const { query, mode, chain, navigateTo, clear } = useExplorerUrl();
-  const { health, refresh: refreshHealth } = useApiHealthCheck();
   const [loadingStage, setLoadingStage] = useState<LoadingStage>({ stage: 'ready', message: '' });
 
   const handleBack = useCallback(() => {
@@ -95,9 +92,6 @@ export default function ExplorerPage() {
   return (
     <Layout>
       <ExplorerShell loadingStage={loadingStage}>
-        {/* API Health Status */}
-        <ApiHealthIndicator health={health} onRefresh={refreshHealth} />
-
         {/* Top Accounts (formerly Whale Tracker) */}
         <WhaleTracker onNavigate={(type, id) => handleNavigate('wallet', id)} />
       </ExplorerShell>
