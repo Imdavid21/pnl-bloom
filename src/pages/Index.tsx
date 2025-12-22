@@ -1,22 +1,18 @@
 import { useState, useMemo, useCallback } from "react";
-import { useAccount } from "wagmi";
-import { TrendingUp, TrendingDown, Calendar, Banknote, BarChart3, Hash, RefreshCw, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, Banknote, BarChart3, Hash, RefreshCw } from "lucide-react";
 import { getAllMockData, DailyPnl } from "@/data/mockPnlData";
 import { KpiCard } from "@/components/pnl/KpiCard";
 import { ToggleGroup } from "@/components/pnl/ToggleGroup";
 import { Heatmap } from "@/components/pnl/Heatmap";
 import { HeatmapLegend } from "@/components/pnl/HeatmapLegend";
 import { DayDetailDrawer } from "@/components/pnl/DayDetailDrawer";
-import { WalletConnectButton } from "@/components/pnl/WalletConnectButton";
 import { WalletInput } from "@/components/pnl/WalletInput";
-import { PaymentModal } from "@/components/pnl/PaymentModal";
 import { AnalyticsSection } from "@/components/pnl/AnalyticsSection";
 import { CurrentPositions } from "@/components/pnl/CurrentPositions";
 import { Layout } from "@/components/Layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePnlCalendar } from "@/hooks/usePnlData";
-import { useX402Payment } from "@/hooks/useX402Payment";
-import { syncWalletFree } from "@/lib/x402";
+import { syncWalletFree } from "@/lib/pnlApi";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -24,7 +20,6 @@ import { toast } from "sonner";
 const Index = () => {
   const isMobile = useIsMobile();
   const allMockData = getAllMockData();
-  const { address: connectedWallet, isConnected } = useAccount();
   
   const [selectedYear, setSelectedYear] = useState(2025);
   const [viewMode, setViewMode] = useState<'total' | 'closed' | 'funding'>('total');
@@ -33,9 +28,9 @@ const Index = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedDayData, setSelectedDayData] = useState<DailyPnl | undefined>();
   const [targetWallet, setTargetWallet] = useState<string>('');
-  const [isSyncingFree, setIsSyncingFree] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const activeWallet = targetWallet || connectedWallet?.toLowerCase() || null;
+  const activeWallet = targetWallet || null;
   
   const {
     data: calendarData,
@@ -43,20 +38,6 @@ const Index = () => {
     error,
     refetch
   } = usePnlCalendar(activeWallet, selectedYear, viewMode, 'perps', timezoneMode === 'utc' ? 'utc' : 'local');
-  
-  const {
-    isPaying,
-    isWaitingForTx,
-    paymentRequired,
-    txHash,
-    error: paymentError,
-    initiateSync,
-    initiateRecompute,
-    executePayment,
-    reset: resetPayment
-  } = useX402Payment(() => {
-    refetch();
-  });
 
   const handleWalletChange = useCallback((wallet: string) => {
     setTargetWallet(wallet);
@@ -97,7 +78,6 @@ const Index = () => {
 
   const kpis = useMemo(() => {
     const summary = currentData.monthly_summary;
-    // Use closed_trades_count from API (round-trip trades) instead of trades_count (fills)
     const totalTrades = currentData.closed_trades_count || 0;
     const totalRealized = currentData.daily.reduce((sum, d) => sum + ((d.perps_pnl || 0) - (d.fees || 0)), 0);
     const totalFunding = currentData.daily.reduce((sum, d) => sum + (d.funding || 0), 0);
@@ -118,13 +98,9 @@ const Index = () => {
     setDrawerOpen(true);
   };
 
-  const handleSync = () => {
-    if (activeWallet) initiateSync(activeWallet);
-  };
-
-  const handleSyncFree = async () => {
+  const handleSync = async () => {
     if (!activeWallet) return;
-    setIsSyncingFree(true);
+    setIsSyncing(true);
     try {
       const result = await syncWalletFree(activeWallet);
       if (result.error) {
@@ -136,109 +112,62 @@ const Index = () => {
     } catch (err: any) {
       toast.error(err.message || 'Sync failed');
     } finally {
-      setIsSyncingFree(false);
+      setIsSyncing(false);
     }
   };
 
-  const handleRecompute = () => {
-    if (activeWallet) initiateRecompute(activeWallet);
-  };
-
   const years = [2025];
-  const isViewingOtherWallet = isConnected && activeWallet && activeWallet !== connectedWallet?.toLowerCase();
 
   return (
     <Layout showFooter={false}>
       <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6 lg:px-6">
         
-        {/* Wallet Connect Header */}
-        <div className="mb-4 sm:mb-6 flex justify-end">
-          <WalletConnectButton />
-        </div>
-
         {/* Wallet Panel */}
-        {isConnected && (
-          <div className="mb-6 panel">
-            <div className="panel-body space-y-4">
-              {/* Wallet Input Row */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1.5 block uppercase tracking-wider">
-                    Wallet
-                  </label>
-                  <WalletInput 
-                    value={targetWallet || connectedWallet?.toLowerCase() || ''} 
-                    onChange={handleWalletChange} 
-                  />
-                </div>
+        <div className="mb-6 panel">
+          <div className="panel-body space-y-4">
+            {/* Wallet Input Row */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground mb-1.5 block uppercase tracking-wider">
+                  Wallet Address
+                </label>
+                <WalletInput 
+                  value={targetWallet} 
+                  onChange={handleWalletChange} 
+                />
               </div>
+            </div>
 
-              {/* Status Row */}
+            {/* Status Row */}
+            {activeWallet && (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border pt-4">
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "h-1.5 w-1.5 rounded-full",
                     isLoading ? "bg-info animate-pulse" : "bg-profit-3"
                   )} />
-                  {activeWallet && (
-                    <code className="text-xs font-mono text-foreground tabular-nums">
-                      {activeWallet.slice(0, 8)}...{activeWallet.slice(-6)}
-                    </code>
-                  )}
+                  <code className="text-xs font-mono text-foreground tabular-nums">
+                    {activeWallet.slice(0, 8)}...{activeWallet.slice(-6)}
+                  </code>
                   {isLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
-                  {isViewingOtherWallet && (
-                    <span className="text-xs text-muted-foreground">(viewing)</span>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={handleSyncFree} 
-                    disabled={isSyncingFree || !activeWallet}
-                    className="h-7 text-xs gap-1.5"
-                  >
-                    <RefreshCw className={cn("h-3 w-3", isSyncingFree && "animate-spin")} />
-                    Sync
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
                     onClick={handleSync} 
-                    disabled={isPaying || !activeWallet}
+                    disabled={isSyncing || !activeWallet}
                     className="h-7 text-xs gap-1.5"
                   >
-                    <RefreshCw className={cn("h-3 w-3", isPaying && "animate-spin")} />
-                    Full Sync
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleRecompute} 
-                    disabled={isPaying || !activeWallet}
-                    className="h-7 text-xs text-muted-foreground"
-                  >
-                    Recompute
+                    <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+                    Sync
                   </Button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-
-        {/* Not Connected State */}
-        {!isConnected && (
-          <div className="mb-6 panel">
-            <div className="panel-body flex flex-col items-center gap-4 py-12">
-              <Wallet className="h-8 w-8 text-muted-foreground" />
-              <div className="text-center">
-                <p className="text-sm text-foreground">Connect wallet to view performance</p>
-              </div>
-              <WalletConnectButton />
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* KPI Grid - Responsive */}
         <div className="mb-4 sm:mb-6 grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -370,19 +299,6 @@ const Index = () => {
         wallet={activeWallet} 
         tz={timezoneMode === 'utc' ? 'utc' : 'local'} 
       />
-
-      {/* Payment Modal */}
-      <PaymentModal 
-        open={!!paymentRequired} 
-        onClose={resetPayment} 
-        paymentInfo={paymentRequired} 
-        onPay={executePayment} 
-        isPaying={isPaying} 
-        isWaitingForTx={isWaitingForTx} 
-        txHash={txHash} 
-        error={paymentError} 
-      />
-
     </Layout>
   );
 };

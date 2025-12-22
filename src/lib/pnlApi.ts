@@ -230,3 +230,20 @@ export async function triggerRecompute(
 
   return response.json();
 }
+
+export async function syncWalletFree(wallet: string): Promise<{ error?: string; success?: boolean }> {
+  try {
+    // First poll hypercore to get latest data
+    await pollHypercore(wallet, undefined, undefined, false, 500);
+    
+    // Then trigger recompute for recent data
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    await triggerRecompute(wallet, thirtyDaysAgo, today);
+    
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || 'Sync failed' };
+  }
+}
