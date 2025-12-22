@@ -56,6 +56,10 @@ const MAX_BUFFER_SIZE = 100;
 export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | 'trades')[]) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const isConnectingRef = useRef(false);
+  const maxReconnectAttempts = 5;
+  
   const [state, setState] = useState<WebSocketState>({
     connected: false,
     blocks: [],
@@ -66,6 +70,9 @@ export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | '
     lastFillTime: null,
   });
 
+  // Memoize subscriptions to prevent dependency changes
+  const subscriptionsKey = subscriptions.sort().join(',');
+
   const addFill = useCallback((fill: Fill) => {
     setState(prev => ({
       ...prev,
@@ -75,7 +82,16 @@ export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | '
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    // Prevent multiple simultaneous connection attempts
+    if (isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) return;
+    
+    // Limit reconnection attempts
+    if (reconnectAttemptRef.current >= maxReconnectAttempts) {
+      console.warn('[WS] Max reconnection attempts reached, stopping.');
+      return;
+    }
+
+    isConnectingRef.current = true;
 
     try {
       console.log('[WS] Connecting to Hyperliquid WebSocket...');
@@ -84,10 +100,12 @@ export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | '
 
       ws.onopen = () => {
         console.log('[WS] Connected to Hyperliquid');
+        reconnectAttemptRef.current = 0;
+        isConnectingRef.current = false;
         setState(prev => ({ ...prev, connected: true }));
 
         // Subscribe to trades for major coins
-        if (subscriptions.includes('trades')) {
+        if (subscriptionsKey.includes('trades')) {
           const coins = ['BTC', 'ETH', 'SOL', 'ARB', 'DOGE', 'WIF', 'PEPE'];
           coins.forEach(coin => {
             ws.send(JSON.stringify({
@@ -124,25 +142,35 @@ export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | '
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('[WS] WebSocket error:', error);
-        setState(prev => ({ ...prev, connected: false }));
+      ws.onerror = () => {
+        console.error('[WS] WebSocket error');
+        isConnectingRef.current = false;
       };
 
-      ws.onclose = (event) => {
-        console.log('[WS] Disconnected, reconnecting in 3s...');
+      ws.onclose = () => {
+        console.log('[WS] Disconnected');
+        isConnectingRef.current = false;
         setState(prev => ({ ...prev, connected: false }));
-        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+        
+        // Only reconnect if under limit
+        reconnectAttemptRef.current++;
+        if (reconnectAttemptRef.current < maxReconnectAttempts) {
+          const delay = Math.min(3000 * reconnectAttemptRef.current, 15000);
+          console.log(`[WS] Reconnecting in ${delay/1000}s (attempt ${reconnectAttemptRef.current}/${maxReconnectAttempts})...`);
+          reconnectTimeoutRef.current = setTimeout(connect, delay);
+        }
       };
     } catch (err) {
       console.error('[WS] Connection error:', err);
-      setState(prev => ({ ...prev, connected: false }));
+      isConnectingRef.current = false;
     }
-  }, [subscriptions, addFill]);
+  }, [subscriptionsKey, addFill]);
 
   const disconnect = useCallback(() => {
+    reconnectAttemptRef.current = maxReconnectAttempts; // Prevent auto-reconnect
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();
@@ -158,7 +186,10 @@ export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | '
 
   return {
     ...state,
-    reconnect: connect,
+    reconnect: () => {
+      reconnectAttemptRef.current = 0;
+      connect();
+    },
   };
 }
 
@@ -204,62 +235,16 @@ export function useRealBlockData(enabled: boolean = true) {
     }
   }, []);
 
-  // Initial load - find latest block and fetch recent blocks
+  // Initial load - skip L1 block fetching for now since the API returns 404
+  // The L1 explorer blocks are in the 800M+ range but the API seems to have issues
   useEffect(() => {
     if (!enabled) return;
 
-    const init = async () => {
-      setIsLoading(true);
-      console.log('[Explorer] Initializing block fetcher...');
-
-      // Try to find a valid block starting from a known recent range
-      // The latest blocks are around 836,600,000+ as of Dec 2024
-      let foundHeight: number | null = null;
-      const testHeights = [836620000, 836610000, 836600000, 836500000];
-      
-      for (const height of testHeights) {
-        console.log('[Explorer] Testing block height:', height);
-        const block = await fetchBlock(height);
-        if (block) {
-          foundHeight = height;
-          console.log('[Explorer] Found valid block at height:', height);
-          break;
-        }
-      }
-
-      if (!foundHeight) {
-        console.error('[Explorer] Could not find valid block height');
-        setIsLoading(false);
-        return;
-      }
-
-      setLatestBlockHeight(foundHeight);
-
-      // Fetch initial batch of blocks
-      const initialBlocks: Block[] = [];
-      const initialTxs: Transaction[] = [];
-
-      const promises = Array.from({ length: 10 }, (_, i) => fetchBlock(foundHeight! - i));
-      const results = await Promise.all(promises);
-
-      for (const block of results) {
-        if (block) {
-          initialBlocks.push(block);
-          if (block.txs) {
-            initialTxs.push(...block.txs);
-          }
-        }
-      }
-
-      setBlocks(initialBlocks.sort((a, b) => b.blockNumber - a.blockNumber));
-      setTransactions(initialTxs.sort((a, b) => b.time - a.time).slice(0, MAX_BUFFER_SIZE));
-      setLastUpdate(new Date());
-      setIsLoading(false);
-      console.log('[Explorer] Loaded', initialBlocks.length, 'blocks and', initialTxs.length, 'transactions');
-    };
-
-    init();
-  }, [enabled, fetchBlock]);
+    // For now, set loading to false and show empty state
+    // This prevents the 404 error loop while we rely on HyperEVM blocks
+    setIsLoading(false);
+    console.log('[Explorer] L1 block fetcher disabled - using HyperEVM blocks instead');
+  }, [enabled]);
 
   // Polling for new blocks
   useEffect(() => {
