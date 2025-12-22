@@ -167,6 +167,26 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
       .map(s => s.token);
   }, [allTokens, tokenQuery]);
 
+  // Resolve pair name from @index format to actual token name
+  const resolvePairName = useCallback((pairName: string): string => {
+    // If it's already a readable name like "PURR/USDC", keep it
+    if (!pairName.startsWith('@')) return pairName;
+    
+    // Extract the index from @107 format
+    const indexStr = pairName.slice(1);
+    const tokenIndex = parseInt(indexStr, 10);
+    
+    if (isNaN(tokenIndex)) return pairName;
+    
+    // Find the token by index
+    const foundToken = allTokens.find(t => t.index === tokenIndex);
+    if (foundToken) {
+      return `${foundToken.name}/USDC`;
+    }
+    
+    return pairName;
+  }, [allTokens]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -419,7 +439,7 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
               <TableBody>
                 {pairs.map((pair) => (
                   <TableRow key={pair.index} className="border-b border-border/30 hover:bg-muted/20">
-                    <TableCell className="text-xs font-mono text-foreground py-2.5 px-4">{pair.name}</TableCell>
+                    <TableCell className="text-xs font-mono text-foreground py-2.5 px-4">{resolvePairName(pair.name)}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground py-2.5 px-4">{pair.index}</TableCell>
                     <TableCell className="text-xs py-2.5 px-4">
                       {pair.isCanonical ? (
