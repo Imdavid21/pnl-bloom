@@ -439,7 +439,24 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
               <TableBody>
                 {pairs.map((pair) => (
                   <TableRow key={pair.index} className="border-b border-border/30 hover:bg-muted/20">
-                    <TableCell className="text-xs font-mono text-foreground py-2.5 px-4">{resolvePairName(pair.name)}</TableCell>
+                    <TableCell className="text-xs font-mono py-2.5 px-4">
+                      {pair.name.startsWith('@') ? (
+                        <button
+                          onClick={() => {
+                            const tokenIndex = parseInt(pair.name.slice(1), 10);
+                            const foundToken = allTokens.find(t => t.index === tokenIndex);
+                            if (foundToken) {
+                              onNavigate('spot-token', foundToken.name);
+                            }
+                          }}
+                          className="text-primary hover:text-primary/80 hover:underline transition-colors"
+                        >
+                          {resolvePairName(pair.name)}
+                        </button>
+                      ) : (
+                        <span className="text-foreground">{resolvePairName(pair.name)}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground py-2.5 px-4">{pair.index}</TableCell>
                     <TableCell className="text-xs py-2.5 px-4">
                       {pair.isCanonical ? (
