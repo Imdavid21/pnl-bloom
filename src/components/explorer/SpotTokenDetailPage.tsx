@@ -125,8 +125,14 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
     });
   };
 
-  const truncateHash = (hash: string) => hash.length > 16 ? `${hash.slice(0, 10)}...${hash.slice(-6)}` : hash;
-  const truncateAddress = (addr: string) => addr.length > 14 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
+  const truncateHash = (hash: string | null | undefined) => {
+    if (!hash) return '—';
+    return hash.length > 16 ? `${hash.slice(0, 10)}...${hash.slice(-6)}` : hash;
+  };
+  const truncateAddress = (addr: string | null | undefined) => {
+    if (!addr) return '—';
+    return addr.length > 14 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
+  };
 
   // Loading state
   if (isLoading) {
