@@ -1,4 +1,348 @@
-import { ArrowLeft, BookOpen, Calculator, TrendingUp, AlertTriangle, Wallet, Database, Globe, Zap, Code, Server, Shield, Layers, Activity, Search, BarChart3, Clock, Link as LinkIcon, FileCode, FolderTree, GitBranch, Cpu, Package, Settings, Key, RefreshCw, Table, Workflow } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calculator, TrendingUp, AlertTriangle, Wallet, Database, Globe, Zap, Code, Server, Shield, Layers, Activity, Search, BarChart3, Clock, Link as LinkIcon, FileCode, FolderTree, GitBranch, Cpu, Package, Settings, Key, RefreshCw, Table, Workflow, Download } from 'lucide-react';
+
+function generateMarkdownContent(): string {
+  return `# HyperPNL Documentation
+Complete rebuild guide and technical reference for the Hyperliquid analytics platform.
+
+## Platform Overview
+
+HyperPNL is a comprehensive analytics and exploration platform for Hyperliquid, providing real-time PnL tracking, position analytics, blockchain exploration, and trading insights. The platform operates across both Hyperliquid L1 (the native perps DEX) and HyperEVM (the EVM-compatible layer).
+
+### Key Features
+- **PnL Analytics**: Calendar heatmap, equity curves, drawdown tracking, market breakdowns
+- **Block Explorer**: Unified L1 + EVM explorer with wallet, tx, block, and token details
+- **Live Positions**: Real-time position tracking with liquidation scores and risk metrics
+- **Wallet Connect**: MetaMask, WalletConnect, Coinbase Wallet integration
+
+---
+
+## Technology Stack
+
+### Frontend
+- React 18 with TypeScript
+- Vite for build tooling
+- React Router v6 for routing
+- React Query (TanStack Query v5) for server state management
+
+### Styling & UI
+- TailwindCSS with custom design tokens
+- shadcn/ui component library
+- Lucide icons
+- Recharts for data visualization
+- next-themes for dark mode
+
+### Backend (Supabase/Lovable Cloud)
+- PostgreSQL database with Row Level Security
+- Deno-based Edge Functions
+- Real-time subscriptions
+
+### Web3 Integration
+- Wagmi v3 for wallet state management
+- Viem for Ethereum interactions
+- WalletConnect v2 for multi-wallet support
+
+---
+
+## Key Dependencies
+
+\`\`\`json
+{
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1",
+    "@tanstack/react-query": "^5.90.12",
+    "@supabase/supabase-js": "^2.89.0",
+    "wagmi": "^3.1.0",
+    "viem": "^2.43.2",
+    "recharts": "^2.15.4",
+    "tailwindcss": "^3.x",
+    "lucide-react": "^0.462.0",
+    "date-fns": "^3.6.0",
+    "sonner": "^1.7.4",
+    "zod": "^3.25.76"
+  }
+}
+\`\`\`
+
+---
+
+## Project Structure
+
+\`\`\`
+src/
+├── components/
+│   ├── ui/              # shadcn/ui primitives
+│   ├── explorer/        # Explorer page components
+│   └── pnl/             # PnL analytics components
+├── hooks/               # Custom React hooks
+├── lib/                 # Utility functions & API clients
+├── pages/               # Route page components
+├── integrations/supabase/  # Supabase client & types
+├── data/                # Mock data for development
+├── App.tsx              # Main app with routes
+├── main.tsx             # Entry point
+└── index.css            # Global styles & design tokens
+
+supabase/
+├── functions/
+│   ├── _shared/         # Shared utilities
+│   ├── explorer-proxy/  # L1 explorer proxy
+│   ├── hyperevm-rpc/    # HyperEVM RPC proxy
+│   ├── hyperliquid-proxy/  # Hyperliquid API proxy
+│   ├── poll-hypercore/  # Data ingestion
+│   ├── recompute-pnl/   # PnL aggregation
+│   ├── pnl-calendar/    # Calendar data API
+│   ├── pnl-day/         # Day detail API
+│   ├── pnl-analytics/   # Analytics API
+│   ├── compute-analytics/  # Analytics computation
+│   └── live-positions/  # Live position API
+└── config.toml          # Supabase config
+\`\`\`
+
+---
+
+## Database Schema
+
+### Core Tables
+
+#### wallets
+Primary wallet registry. Maps wallet addresses to internal UUIDs.
+
+\`\`\`sql
+CREATE TABLE wallets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  address TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+\`\`\`
+
+#### economic_events
+Source of truth for all trading activity. Event types: PERP_FILL, PERP_FUNDING, PERP_FEE, SPOT_BUY, SPOT_SELL, SPOT_TRANSFER_IN/OUT.
+
+\`\`\`sql
+CREATE TABLE economic_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet_id UUID REFERENCES wallets(id),
+  event_type event_type NOT NULL,
+  venue venue_type NOT NULL,
+  ts TIMESTAMPTZ NOT NULL,
+  day DATE NOT NULL,
+  market TEXT,
+  asset TEXT,
+  side side_type,
+  size NUMERIC,
+  exec_price NUMERIC,
+  realized_pnl_usd NUMERIC,
+  fee_usd NUMERIC,
+  funding_usd NUMERIC,
+  volume_usd NUMERIC,
+  meta JSONB,
+  dedupe_key TEXT UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_events_wallet_day ON economic_events(wallet_id, day);
+CREATE INDEX idx_events_wallet_ts ON economic_events(wallet_id, ts);
+\`\`\`
+
+### Aggregation Tables
+
+#### daily_pnl
+Daily aggregated metrics computed from economic_events.
+
+\`\`\`sql
+CREATE TABLE daily_pnl (
+  wallet_id UUID REFERENCES wallets(id),
+  day DATE NOT NULL,
+  closed_pnl NUMERIC DEFAULT 0,
+  funding NUMERIC DEFAULT 0,
+  fees NUMERIC DEFAULT 0,
+  total_pnl NUMERIC DEFAULT 0,
+  volume NUMERIC DEFAULT 0,
+  trades_count INT DEFAULT 0,
+  cumulative_pnl NUMERIC DEFAULT 0,
+  running_peak NUMERIC DEFAULT 0,
+  drawdown NUMERIC DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (wallet_id, day)
+);
+\`\`\`
+
+#### closed_trades
+Completed round-trip trades derived from matching entry/exit fills.
+
+\`\`\`sql
+CREATE TABLE closed_trades (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet_id UUID REFERENCES wallets(id),
+  market TEXT NOT NULL,
+  side TEXT NOT NULL,
+  size NUMERIC NOT NULL,
+  avg_entry_price NUMERIC NOT NULL,
+  avg_exit_price NUMERIC NOT NULL,
+  entry_time TIMESTAMPTZ NOT NULL,
+  exit_time TIMESTAMPTZ NOT NULL,
+  notional_value NUMERIC NOT NULL,
+  realized_pnl NUMERIC DEFAULT 0,
+  fees NUMERIC DEFAULT 0,
+  funding NUMERIC DEFAULT 0,
+  net_pnl NUMERIC DEFAULT 0,
+  is_win BOOLEAN DEFAULT false,
+  effective_leverage NUMERIC,
+  margin_used NUMERIC,
+  trade_duration_hours NUMERIC,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+\`\`\`
+
+### Database Enums
+
+\`\`\`sql
+CREATE TYPE event_type AS ENUM (
+  'SPOT_BUY', 'SPOT_SELL', 'SPOT_TRANSFER_IN', 'SPOT_TRANSFER_OUT',
+  'SPOT_FEE', 'PERP_FILL', 'PERP_FUNDING', 'PERP_FEE',
+  'PRICE_SNAPSHOT', 'MARK_SNAPSHOT'
+);
+
+CREATE TYPE side_type AS ENUM ('long', 'short');
+CREATE TYPE venue_type AS ENUM ('hypercore', 'onchain', 'external');
+CREATE TYPE source_type AS ENUM ('goldrush', 'hypercore');
+\`\`\`
+
+---
+
+## External APIs
+
+### Hyperliquid Info API
+Base URL: https://api.hyperliquid.xyz/info
+
+\`\`\`javascript
+// clearinghouseState - Account positions and balances
+{ "type": "clearinghouseState", "user": "0x..." }
+
+// userFills - Trade fills history
+{ "type": "userFills", "user": "0x...", "startTime": 1704067200000 }
+
+// userFunding - Funding payments
+{ "type": "userFunding", "user": "0x...", "startTime": 1704067200000 }
+
+// meta - Market metadata
+{ "type": "meta" }
+
+// allMids - Current mid prices
+{ "type": "allMids" }
+\`\`\`
+
+### HyperEVM RPC
+URL: https://rpc.hyperliquid.xyz/evm
+
+\`\`\`javascript
+// Get native balance
+{ "method": "eth_getBalance", "params": ["0x...", "latest"] }
+
+// Get block number
+{ "method": "eth_blockNumber", "params": [] }
+
+// Call contract (ERC20)
+{ "method": "eth_call", "params": [{ "to": "0x...", "data": "0x..." }, "latest"] }
+
+// Trace transaction
+{ "method": "debug_traceTransaction", "params": ["0x...", { "tracer": "callTracer" }] }
+\`\`\`
+
+### WebSocket
+URL: wss://api.hyperliquid.xyz/ws
+
+\`\`\`javascript
+// Subscribe to all mid prices
+{ "method": "subscribe", "subscription": { "type": "allMids" } }
+
+// Subscribe to trades
+{ "method": "subscribe", "subscription": { "type": "trades", "coin": "BTC" } }
+\`\`\`
+
+---
+
+## Edge Functions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /functions/v1/explorer-proxy | Proxies L1 Explorer API |
+| GET | /functions/v1/hyperevm-rpc | Proxies HyperEVM RPC |
+| GET | /functions/v1/hyperliquid-proxy | Proxies Hyperliquid Info API |
+| POST | /functions/v1/sync-wallet | Initiates wallet sync |
+| POST | /functions/v1/poll-hypercore | Ingests trading data |
+| POST | /functions/v1/recompute-pnl | Recomputes PnL aggregations |
+| POST | /functions/v1/compute-analytics | Computes derived analytics |
+| GET | /functions/v1/pnl-calendar | Returns calendar view data |
+| GET | /functions/v1/pnl-day | Returns day detail breakdown |
+| GET | /functions/v1/pnl-analytics | Returns analytics datasets |
+| GET | /functions/v1/live-positions | Fetches current positions |
+
+---
+
+## Key Formulas
+
+### Realized PnL
+\`\`\`
+(Exit Price - Entry Price) × Size × Direction
+\`\`\`
+Direction is +1 for long, -1 for short.
+
+### Net PnL
+\`\`\`
+Realized PnL + Funding - Fees
+\`\`\`
+
+### Drawdown
+\`\`\`
+(Peak Equity - Current Equity) / Peak Equity × 100%
+\`\`\`
+
+### Win Rate
+\`\`\`
+Winning Trades / Total Trades × 100%
+\`\`\`
+
+### Profit Factor
+\`\`\`
+Gross Profit / |Gross Loss|
+\`\`\`
+
+### Liquidation Score
+\`\`\`
+0.3×LevScore + 0.4×ProxScore + 0.2×MarginScore + 0.1×DDPenalty
+\`\`\`
+
+---
+
+## Environment Variables
+
+\`\`\`
+# Auto-generated by Supabase
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJ...
+VITE_SUPABASE_PROJECT_ID=your-project-id
+
+# Available in Edge Functions
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+\`\`\`
+
+---
+
+## External Resources
+
+- [Hyperliquid API Docs](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api)
+- [Hyperliquid Explorer](https://explorer.hyperliquid.xyz)
+- [Supabase Docs](https://supabase.com/docs)
+- [Wagmi Documentation](https://wagmi.sh)
+- [shadcn/ui](https://ui.shadcn.com)
+- [Recharts](https://recharts.org)
+`;
+}
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
@@ -136,6 +480,19 @@ function FileTreeItem({ name, type, description, children, indent = 0 }: FileTre
 }
 
 export default function DocsPage() {
+  const handleDownloadAll = () => {
+    const content = generateMarkdownContent();
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hyperpnl-documentation.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -154,7 +511,13 @@ export default function DocsPage() {
               </p>
             </div>
           </div>
-          <DarkModeToggle />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownloadAll} className="gap-2">
+              <Download className="h-4 w-4" />
+              Download All
+            </Button>
+            <DarkModeToggle />
+          </div>
         </div>
 
         {/* Quick Nav */}
