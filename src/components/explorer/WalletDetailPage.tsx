@@ -386,24 +386,16 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   }, []);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
-      {/* Action Bar */}
+    <div className="mx-auto max-w-7xl">
+      {/* Action Bar - no back button since ExplorerShell provides navigation */}
       <ExplorerActions
         entityType="wallet"
         entityId={address}
         title={`Wallet ${address.slice(0, 8)}...`}
-        onBack={onBack}
         onCompare={handleCompare}
         externalUrl={`https://purrsec.com/address/${address}`}
         className="mb-4"
       />
-      
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
-        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">Wallet</span>
-      </div>
 
       {/* Enhanced Summary Hero */}
       <WalletSummaryHero

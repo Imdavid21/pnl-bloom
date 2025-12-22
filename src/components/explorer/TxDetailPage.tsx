@@ -228,29 +228,15 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
   const statusBg = txView.status === 'success' ? 'bg-profit-3/10' : txView.status === 'failed' ? 'bg-loss-3/10' : 'bg-warning/10';
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
-      {/* Action Bar */}
+    <div className="mx-auto max-w-4xl">
+      {/* Action Bar - no back button since ExplorerShell provides navigation */}
       <ExplorerActions
         entityType="tx"
         entityId={hash}
         title={txView.narrative}
-        onBack={onBack}
         externalUrl={verifyUrl}
         className="mb-4"
       />
-      
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
-        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">Transaction</span>
-        <span className={cn(
-          "ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium",
-          txView.chain === 'hyperevm' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary/20 text-primary'
-        )}>
-          {txView.chain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
-        </span>
-      </div>
 
       {/* Hero Section: Narrative + Status */}
       <div className="rounded-xl border border-border bg-card/50 p-6 mb-6">

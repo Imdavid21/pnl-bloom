@@ -271,14 +271,7 @@ function EVMBlockDetail({ block, onBack, onNavigate, handleCopy, copiedId, page,
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
-        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">Block</span>
-        <span className="ml-2 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-medium">HyperEVM</span>
-      </div>
+    <div className="mx-auto max-w-4xl">
 
       {/* Hero Section */}
       <div className="rounded-xl border border-border bg-card/50 p-6 mb-6">
@@ -482,14 +475,7 @@ function L1BlockDetail({ block, onBack, onNavigate, handleCopy, copiedId, page, 
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
-        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">Block</span>
-        <span className="ml-2 px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-medium">Hypercore</span>
-      </div>
+    <div className="mx-auto max-w-4xl">
 
       {/* Hero Section */}
       <div className="rounded-xl border border-border bg-card/50 p-6 mb-6">
