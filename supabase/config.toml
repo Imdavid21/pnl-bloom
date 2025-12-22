@@ -39,9 +39,6 @@ verify_jwt = false
 [functions.compute-analytics]
 verify_jwt = false
 
-[functions.admin-backfill]
-verify_jwt = false
-
 [functions.admin-recompute]
 verify_jwt = false
 
