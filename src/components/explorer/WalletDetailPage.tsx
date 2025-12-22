@@ -248,7 +248,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
   const fetchTokenBalances = async (addr: string): Promise<TokenBalance[]> => {
     try {
-      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${addr}&blocks=5000`;
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${addr}&blocks=500`;
       const res = await fetch(url, {
         headers: { apikey: SUPABASE_ANON_KEY },
       });
