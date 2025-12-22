@@ -586,11 +586,15 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         />
       )}
 
-      {/* Tab Switcher - filtered by chain view */}
-      <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4 overflow-x-auto">
-        {/* Hypercore tabs */}
-        {chainView !== 'hyperevm' && (
-          <>
+      {/* Hypercore Section */}
+      {chainView !== 'hyperevm' && (chainAvailability.hypercore || chainView === 'hypercore') && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Layers className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Hypercore Activity</h2>
+            <span className="text-xs text-muted-foreground">Perps & L1 Transactions</span>
+          </div>
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4">
             <button
               onClick={() => setActiveTab('positions')}
               className={cn(
@@ -616,13 +620,21 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
                 activeTab === 'l1-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              L1 ({l1Txs.length})
+              Transactions ({l1Txs.length})
             </button>
-          </>
-        )}
-        {/* HyperEVM tabs */}
-        {chainView !== 'hypercore' && (
-          <>
+          </div>
+        </div>
+      )}
+
+      {/* HyperEVM Section */}
+      {chainView !== 'hypercore' && (chainAvailability.hyperevm || chainView === 'hyperevm') && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Wallet className="h-4 w-4 text-emerald-400" />
+            <h2 className="text-sm font-semibold text-foreground">HyperEVM Activity</h2>
+            <span className="text-xs text-muted-foreground">EVM Transactions & Tokens</span>
+          </div>
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4">
             <button
               onClick={() => setActiveTab('evm-txs')}
               className={cn(
@@ -630,31 +642,29 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
                 activeTab === 'evm-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              EVM ({evmTxs.length})
+              Transactions ({evmTxs.length})
             </button>
             <button
               onClick={() => setActiveTab('tokens')}
               className={cn(
-                "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5",
+                "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
                 activeTab === 'tokens' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Coins className="h-3.5 w-3.5" />
               Tokens ({tokenBalances.length})
             </button>
             <button
               onClick={() => setActiveTab('internal-txs')}
               className={cn(
-                "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5",
+                "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
                 activeTab === 'internal-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Zap className="h-3.5 w-3.5" />
               Internal ({internalTxs.length})
             </button>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {activeTab === 'positions' && (
