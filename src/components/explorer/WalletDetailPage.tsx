@@ -267,10 +267,15 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
   const fetchEvmData = async (addr: string): Promise<EvmData | null> => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
       const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${addr}`;
       const res = await fetch(url, {
         headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) return null;
       return res.json();
     } catch {
@@ -280,10 +285,15 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
   const fetchEvmTxs = async (addr: string): Promise<EvmTx[]> => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      
       const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressTxs&address=${addr}&limit=25`;
       const res = await fetch(url, {
         headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) return [];
       const data = await res.json();
       return data.transactions || [];
@@ -294,10 +304,15 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
   const fetchTokenBalances = async (addr: string): Promise<TokenBalance[]> => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      
       const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${addr}&blocks=500`;
       const res = await fetch(url, {
         headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) return [];
       const data = await res.json();
       return data.tokens || [];
@@ -308,10 +323,15 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
   const fetchInternalTxs = async (addr: string): Promise<InternalTx[]> => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      
       const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressInternalTxs&address=${addr}&limit=20`;
       const res = await fetch(url, {
         headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) return [];
       const data = await res.json();
       return data.internalTxs || [];
