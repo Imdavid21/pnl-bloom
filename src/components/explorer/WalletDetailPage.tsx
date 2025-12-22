@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Copy, Check, ExternalLink, Loader2, TrendingUp, TrendingDown, Wallet, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Coins, Zap } from 'lucide-react';
+import { Copy, Check, ExternalLink, Loader2, TrendingUp, TrendingDown, Wallet, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Coins, Zap, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { proxyRequest, getL1UserDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi';
@@ -92,14 +92,16 @@ interface ChainAvailability {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+type LoadingStatus = 'pending' | 'loading' | 'done' | 'error' | 'timeout';
+
 interface LoadingState {
-  clearinghouse: 'pending' | 'loading' | 'done' | 'error';
-  fills: 'pending' | 'loading' | 'done' | 'error';
-  l1Txs: 'pending' | 'loading' | 'done' | 'error';
-  evmData: 'pending' | 'loading' | 'done' | 'error';
-  evmTxs: 'pending' | 'loading' | 'done' | 'error';
-  tokens: 'pending' | 'loading' | 'done' | 'error';
-  internalTxs: 'pending' | 'loading' | 'done' | 'error';
+  clearinghouse: LoadingStatus;
+  fills: LoadingStatus;
+  l1Txs: LoadingStatus;
+  evmData: LoadingStatus;
+  evmTxs: LoadingStatus;
+  tokens: LoadingStatus;
+  internalTxs: LoadingStatus;
 }
 
 export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPageProps) {
@@ -142,6 +144,87 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     setChainAvailability(prev => ({ ...prev, ...updates }));
   };
 
+  // Define fetch functions first (before useEffect that uses them)
+  const fetchEvmData = useCallback(async (addr: string): Promise<{ data: EvmData | null; timedOut: boolean }> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${addr}`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return { data: null, timedOut: false };
+      return { data: await res.json(), timedOut: false };
+    } catch (e) {
+      const isAbort = e instanceof Error && e.name === 'AbortError';
+      return { data: null, timedOut: isAbort };
+    }
+  }, []);
+
+  const fetchEvmTxs = useCallback(async (addr: string): Promise<{ data: EvmTx[]; timedOut: boolean }> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressTxs&address=${addr}&limit=25`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return { data: [], timedOut: false };
+      const json = await res.json();
+      return { data: json.transactions || [], timedOut: false };
+    } catch (e) {
+      const isAbort = e instanceof Error && e.name === 'AbortError';
+      return { data: [], timedOut: isAbort };
+    }
+  }, []);
+
+  const fetchTokenBalances = useCallback(async (addr: string): Promise<{ data: TokenBalance[]; timedOut: boolean }> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${addr}&blocks=500`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return { data: [], timedOut: false };
+      const json = await res.json();
+      return { data: json.tokens || [], timedOut: false };
+    } catch (e) {
+      const isAbort = e instanceof Error && e.name === 'AbortError';
+      return { data: [], timedOut: isAbort };
+    }
+  }, []);
+
+  const fetchInternalTxs = useCallback(async (addr: string): Promise<{ data: InternalTx[]; timedOut: boolean }> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressInternalTxs&address=${addr}&limit=20`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return { data: [], timedOut: false };
+      const json = await res.json();
+      return { data: json.internalTxs || [], timedOut: false };
+    } catch (e) {
+      const isAbort = e instanceof Error && e.name === 'AbortError';
+      return { data: [], timedOut: isAbort };
+    }
+  }, []);
+
+  // Main data loading effect
   useEffect(() => {
     // Reset state when address changes
     setPositions([]);
@@ -220,125 +303,93 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
     // Fetch EVM data
     fetchEvmData(address)
-      .then(data => {
+      .then(({ data, timedOut }) => {
         if (data) {
           setEvmData(data);
           if (parseFloat(data.balance) > 0 || data.isContract) {
             updateAvailability({ hasEvmBalance: true, hyperevm: true });
           }
         }
-        updateLoading('evmData', 'done');
+        updateLoading('evmData', timedOut ? 'timeout' : 'done');
       })
       .catch(() => updateLoading('evmData', 'error'));
 
     // Fetch EVM transactions
     fetchEvmTxs(address)
-      .then(txs => {
-        setEvmTxs(txs);
-        if (txs.length > 0) {
+      .then(({ data, timedOut }) => {
+        setEvmTxs(data);
+        if (data.length > 0) {
           updateAvailability({ hasEvmTxs: true, hyperevm: true });
         }
-        updateLoading('evmTxs', 'done');
+        updateLoading('evmTxs', timedOut ? 'timeout' : 'done');
       })
       .catch(() => updateLoading('evmTxs', 'error'));
 
     // Fetch token balances
     fetchTokenBalances(address)
-      .then(tokens => {
-        setTokenBalances(tokens);
-        if (tokens.length > 0) {
+      .then(({ data, timedOut }) => {
+        setTokenBalances(data);
+        if (data.length > 0) {
           updateAvailability({ hasTokens: true, hyperevm: true });
         }
-        updateLoading('tokens', 'done');
+        updateLoading('tokens', timedOut ? 'timeout' : 'done');
       })
       .catch(() => updateLoading('tokens', 'error'));
 
     // Fetch internal transactions
     fetchInternalTxs(address)
-      .then(txs => {
-        setInternalTxs(txs);
-        if (txs.length > 0) {
+      .then(({ data, timedOut }) => {
+        setInternalTxs(data);
+        if (data.length > 0) {
           updateAvailability({ hasInternalTxs: true, hyperevm: true });
         }
-        updateLoading('internalTxs', 'done');
+        updateLoading('internalTxs', timedOut ? 'timeout' : 'done');
       })
       .catch(() => updateLoading('internalTxs', 'error'));
-  }, [address]);
+  }, [address, fetchEvmData, fetchEvmTxs, fetchTokenBalances, fetchInternalTxs]);
 
-  const fetchEvmData = async (addr: string): Promise<EvmData | null> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-      
-      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${addr}`;
-      const res = await fetch(url, {
-        headers: { apikey: SUPABASE_ANON_KEY },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) return null;
-      return res.json();
-    } catch {
-      return null;
+  // Retry functions for individual data types
+  const retryEvmData = useCallback(async () => {
+    updateLoading('evmData', 'loading');
+    const { data, timedOut } = await fetchEvmData(address);
+    if (data) {
+      setEvmData(data);
+      if (parseFloat(data.balance) > 0 || data.isContract) {
+        updateAvailability({ hasEvmBalance: true, hyperevm: true });
+      }
     }
-  };
+    updateLoading('evmData', timedOut ? 'timeout' : 'done');
+  }, [address, fetchEvmData]);
 
-  const fetchEvmTxs = async (addr: string): Promise<EvmTx[]> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
-      
-      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressTxs&address=${addr}&limit=25`;
-      const res = await fetch(url, {
-        headers: { apikey: SUPABASE_ANON_KEY },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.transactions || [];
-    } catch {
-      return [];
+  const retryEvmTxs = useCallback(async () => {
+    updateLoading('evmTxs', 'loading');
+    const { data, timedOut } = await fetchEvmTxs(address);
+    setEvmTxs(data);
+    if (data.length > 0) {
+      updateAvailability({ hasEvmTxs: true, hyperevm: true });
     }
-  };
+    updateLoading('evmTxs', timedOut ? 'timeout' : 'done');
+  }, [address, fetchEvmTxs]);
 
-  const fetchTokenBalances = async (addr: string): Promise<TokenBalance[]> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
-      
-      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${addr}&blocks=500`;
-      const res = await fetch(url, {
-        headers: { apikey: SUPABASE_ANON_KEY },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.tokens || [];
-    } catch {
-      return [];
+  const retryTokenBalances = useCallback(async () => {
+    updateLoading('tokens', 'loading');
+    const { data, timedOut } = await fetchTokenBalances(address);
+    setTokenBalances(data);
+    if (data.length > 0) {
+      updateAvailability({ hasTokens: true, hyperevm: true });
     }
-  };
+    updateLoading('tokens', timedOut ? 'timeout' : 'done');
+  }, [address, fetchTokenBalances]);
 
-  const fetchInternalTxs = async (addr: string): Promise<InternalTx[]> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
-      
-      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressInternalTxs&address=${addr}&limit=20`;
-      const res = await fetch(url, {
-        headers: { apikey: SUPABASE_ANON_KEY },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.internalTxs || [];
-    } catch {
-      return [];
+  const retryInternalTxs = useCallback(async () => {
+    updateLoading('internalTxs', 'loading');
+    const { data, timedOut } = await fetchInternalTxs(address);
+    setInternalTxs(data);
+    if (data.length > 0) {
+      updateAvailability({ hasInternalTxs: true, hyperevm: true });
     }
-  };
+    updateLoading('internalTxs', timedOut ? 'timeout' : 'done');
+  }, [address, fetchInternalTxs]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -365,7 +416,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
 
   // Calculate loading progress
   const loadingItems = Object.values(loadingState);
-  const completedCount = loadingItems.filter(s => s === 'done' || s === 'error').length;
+  const completedCount = loadingItems.filter(s => s === 'done' || s === 'error' || s === 'timeout').length;
   const totalCount = loadingItems.length;
   const isFullyLoaded = completedCount === totalCount;
   const loadingProgress = Math.round((completedCount / totalCount) * 100);
@@ -385,6 +436,25 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       };
       return labels[key] || key;
     });
+
+  // Get items that timed out (for retry UI)
+  const timedOutItems = Object.entries(loadingState)
+    .filter(([, status]) => status === 'timeout')
+    .map(([key]) => key as keyof LoadingState);
+
+  const retryFunctions: Record<string, () => void> = {
+    evmData: retryEvmData,
+    evmTxs: retryEvmTxs,
+    tokens: retryTokenBalances,
+    internalTxs: retryInternalTxs,
+  };
+
+  const retryLabels: Record<string, string> = {
+    evmData: 'EVM Data',
+    evmTxs: 'EVM Transactions',
+    tokens: 'Token Balances',
+    internalTxs: 'Internal Transactions',
+  };
 
   // Calculate risk level based on positions
   const riskData = useMemo(() => {
@@ -465,6 +535,39 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
               className="h-full bg-primary transition-all duration-300 ease-out rounded-full"
               style={{ width: `${loadingProgress}%` }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Timeout Retry Banner */}
+      {timedOutItems.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 text-yellow-500" />
+              <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
+                Some data timed out: {timedOutItems.map(k => retryLabels[k]).join(', ')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {timedOutItems.map((key) => (
+                <Button
+                  key={key}
+                  variant="outline"
+                  size="sm"
+                  onClick={retryFunctions[key]}
+                  disabled={loadingState[key] === 'loading'}
+                  className="h-6 text-xs px-2 border-yellow-500/50 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10"
+                >
+                  {loadingState[key] === 'loading' ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                  )}
+                  Retry {retryLabels[key]?.split(' ')[0]}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       )}
