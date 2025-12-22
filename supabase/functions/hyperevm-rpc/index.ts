@@ -689,83 +689,96 @@ serve(async (req) => {
 
       console.log(`[hyperevm-rpc] Scanning internal txs for address ${address}`);
 
-      // First get recent txs for this address
-      const latestHex = await rpcCall("eth_blockNumber", []);
-      const latest = hexToDecimal(latestHex);
-      
+      // This is an expensive operation - return empty with a message if rate limiting is a concern
       const normalizedAddress = address.toLowerCase();
       const foundInternals: any[] = [];
-      const blocksPerBatch = 20;
-      const maxBlocksToScan = 200;
       
-      for (let start = latest; start > latest - maxBlocksToScan && foundInternals.length < limit; start -= blocksPerBatch) {
-        const blockPromises = [];
-        for (let i = 0; i < blocksPerBatch && start - i >= 0; i++) {
-          const blockNum = "0x" + (start - i).toString(16);
-          blockPromises.push(rpcCall("eth_getBlockByNumber", [blockNum, true]));
-        }
+      // Much more conservative: only scan 3 blocks at a time, max 30 total
+      const blocksPerBatch = 3;
+      const maxBlocksToScan = Math.min(parseInt(url.searchParams.get("blocks") || "30", 10), 50);
+      const effectiveLimit = Math.min(limit, 10);
+      
+      try {
+        const latestHex = await rpcCall("eth_blockNumber", []);
+        const latest = hexToDecimal(latestHex);
         
-        const blocks = await Promise.all(blockPromises);
-        
-        for (const block of blocks) {
-          if (!block?.transactions) continue;
-          
-          // Check each tx that is TO a contract (might have internal calls)
-          for (const tx of block.transactions) {
-            // Skip simple transfers, look for contract interactions
-            if (!tx.input || tx.input === "0x") continue;
+        for (let start = latest; start > latest - maxBlocksToScan && foundInternals.length < effectiveLimit; start -= blocksPerBatch) {
+          // Fetch blocks one at a time to avoid rate limits
+          for (let i = 0; i < blocksPerBatch && start - i >= 0 && foundInternals.length < effectiveLimit; i++) {
+            const blockNum = "0x" + (start - i).toString(16);
             
             try {
-              const trace = await rpcCall("debug_traceTransaction", [
-                tx.hash,
-                { tracer: "callTracer", tracerConfig: { onlyTopCall: false } }
-              ]);
+              const block = await rpcCall("eth_getBlockByNumber", [blockNum, true]);
+              if (!block?.transactions) continue;
               
-              // Check if any internal calls involve our address
-              const checkCall = (call: any, depth: number = 0): boolean => {
-                const fromMatch = call.from?.toLowerCase() === normalizedAddress;
-                const toMatch = call.to?.toLowerCase() === normalizedAddress;
-                const hasValue = call.value && call.value !== "0x0" && call.value !== "0x";
+              // Only trace contract interactions (has input data)
+              const contractTxs = block.transactions.filter((tx: any) => tx.input && tx.input !== "0x").slice(0, 3);
+              
+              for (const tx of contractTxs) {
+                if (foundInternals.length >= effectiveLimit) break;
                 
-                if ((fromMatch || toMatch) && hasValue) {
-                  foundInternals.push({
-                    txHash: tx.hash,
-                    blockNumber: hexToDecimal(tx.blockNumber),
-                    timestamp: hexToDecimal(block.timestamp),
-                    type: call.type || "CALL",
-                    from: call.from,
-                    to: call.to,
-                    value: call.value,
-                    valueEth: weiToEth(call.value),
-                    direction: toMatch ? "in" : "out",
-                    depth,
-                  });
-                  return true;
+                try {
+                  const trace = await rpcCall("debug_traceTransaction", [
+                    tx.hash,
+                    { tracer: "callTracer", tracerConfig: { onlyTopCall: false } }
+                  ]);
+                  
+                  // Check if any internal calls involve our address
+                  const checkCall = (call: any, depth: number = 0): boolean => {
+                    const fromMatch = call.from?.toLowerCase() === normalizedAddress;
+                    const toMatch = call.to?.toLowerCase() === normalizedAddress;
+                    const hasValue = call.value && call.value !== "0x0" && call.value !== "0x";
+                    
+                    if ((fromMatch || toMatch) && hasValue) {
+                      foundInternals.push({
+                        txHash: tx.hash,
+                        blockNumber: hexToDecimal(tx.blockNumber),
+                        timestamp: hexToDecimal(block.timestamp),
+                        type: call.type || "CALL",
+                        from: call.from,
+                        to: call.to,
+                        value: call.value,
+                        valueEth: weiToEth(call.value),
+                        direction: toMatch ? "in" : "out",
+                        depth,
+                      });
+                      return true;
+                    }
+                    
+                    if (call.calls) {
+                      for (const subcall of call.calls) {
+                        if (checkCall(subcall, depth + 1)) return true;
+                      }
+                    }
+                    return false;
+                  };
+                  
+                  checkCall(trace);
+                } catch {
+                  // Tracing failed for this tx - skip
+                  continue;
                 }
                 
-                if (call.calls) {
-                  for (const subcall of call.calls) {
-                    if (checkCall(subcall, depth + 1)) return true;
-                  }
-                }
-                return false;
-              };
-              
-              checkCall(trace);
-              
-              if (foundInternals.length >= limit) break;
+                // Add delay between trace calls
+                await new Promise(r => setTimeout(r, 50));
+              }
             } catch {
-              // Tracing not supported or failed for this tx
+              // Block fetch failed - skip
               continue;
             }
+            
+            // Small delay between blocks
+            await new Promise(r => setTimeout(r, 30));
           }
-          if (foundInternals.length >= limit) break;
         }
+      } catch (e) {
+        console.warn(`[hyperevm-rpc] Internal tx scan failed:`, e);
+        // Return empty result instead of error
       }
 
       return new Response(JSON.stringify({ 
         internalTxs: foundInternals,
-        scannedBlocks: Math.min(maxBlocksToScan, latest),
+        scannedBlocks: maxBlocksToScan,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
