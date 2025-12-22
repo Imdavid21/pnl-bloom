@@ -1,12 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { 
-  create402Response, 
-  verifyPayment, 
-  recordPaymentReceipt,
-  parsePaymentHeader
-} from "../_shared/x402.ts";
-import { 
   calculateDailyMetrics, 
   calculateMonthlyMetrics,
   EconomicEvent 
@@ -14,7 +8,7 @@ import {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-payment-tx',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
@@ -52,48 +46,6 @@ serve(async (req) => {
       );
     }
 
-    // Check for payment
-    const paymentTxHash = req.headers.get('x-payment-tx');
-    
-    if (!paymentTxHash) {
-      console.log(`[recompute-pnl] No payment provided, returning 402`);
-      return create402Response('pnl_recompute', corsHeaders);
-    }
-
-    // Parse payment header (txHash:chainKey format)
-    const parsed = parsePaymentHeader(paymentTxHash);
-    if (!parsed) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid payment header format. Expected txHash:chainKey' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Verify payment
-    const paymentResult = await verifyPayment(parsed.txHash, parsed.chainKey, 'pnl_recompute', supabase);
-    
-    if (!paymentResult.valid) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Payment verification failed', 
-          details: paymentResult.error 
-        }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`[recompute-pnl] Payment verified: ${paymentResult.amount} USDC from ${paymentResult.from} on ${paymentResult.chain}`);
-
-    // Record payment receipt
-    await recordPaymentReceipt(
-      supabase, 
-      paymentResult.txHash!, 
-      walletLower, 
-      paymentResult.amount!, 
-      paymentResult.chain!,
-      'pnl_recompute'
-    );
-
     // Get wallet
     const { data: walletData } = await supabase
       .from('wallets')
@@ -116,7 +68,6 @@ serve(async (req) => {
       .insert({
         wallet_id: walletId,
         status: 'running',
-        payment_tx_hash: paymentResult.txHash,
       })
       .select('id')
       .single();
@@ -225,10 +176,6 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         wallet: walletLower,
-        payment: {
-          txHash: paymentResult.txHash,
-          amount: paymentResult.amount,
-        },
         recompute: {
           daysProcessed,
           monthsProcessed: affectedMonths.size,
