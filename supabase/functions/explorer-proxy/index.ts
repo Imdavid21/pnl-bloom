@@ -28,7 +28,8 @@ serve(async (req) => {
         );
       }
       body = { type: "blockDetails", height: parseInt(height, 10) };
-      console.log(`[explorer-proxy] Fetching block ${height}`);
+      console.log(`[explorer-proxy] Fetching block ${height} from ${HYPERLIQUID_EXPLORER_API}`);
+      console.log(`[explorer-proxy] Request body:`, JSON.stringify(body));
     } else if (requestType === "tx") {
       const hash = url.searchParams.get("hash");
       if (!hash) {
@@ -38,7 +39,8 @@ serve(async (req) => {
         );
       }
       body = { type: "txDetails", hash };
-      console.log(`[explorer-proxy] Fetching tx ${hash}`);
+      console.log(`[explorer-proxy] Fetching tx ${hash} from ${HYPERLIQUID_EXPLORER_API}`);
+      console.log(`[explorer-proxy] Request body:`, JSON.stringify(body));
     } else if (requestType === "user") {
       const address = url.searchParams.get("address");
       if (!address) {
@@ -48,7 +50,8 @@ serve(async (req) => {
         );
       }
       body = { type: "userDetails", user: address };
-      console.log(`[explorer-proxy] Fetching user ${address}`);
+      console.log(`[explorer-proxy] Fetching user ${address} from ${HYPERLIQUID_EXPLORER_API}`);
+      console.log(`[explorer-proxy] Request body:`, JSON.stringify(body));
     } else {
       return new Response(
         JSON.stringify({ error: "Invalid type. Use: block, tx, or user" }),
@@ -65,8 +68,17 @@ serve(async (req) => {
     });
 
     const responseText = await response.text();
-    console.log(`[explorer-proxy] Response status: ${response.status}, length: ${responseText.length}`);
+    console.log(`[explorer-proxy] Response status: ${response.status}, body preview: ${responseText.substring(0, 500)}`);
     
+    // Handle empty response (404 from explorer typically returns empty body)
+    if (!responseText || responseText.trim() === '') {
+      console.error(`[explorer-proxy] Explorer API returned empty response`);
+      return new Response(
+        JSON.stringify({ error: "Not found on Hyperliquid L1 explorer" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!response.ok) {
       console.error(`[explorer-proxy] API error: ${responseText.substring(0, 500)}`);
       return new Response(
@@ -86,11 +98,14 @@ serve(async (req) => {
       );
     }
 
+    console.log(`[explorer-proxy] Parsed response type: ${data?.type}`);
+
     // Normalize response format
     let normalized;
     if (requestType === "block") {
       const bd = data.blockDetails;
       if (!bd) {
+        console.error(`[explorer-proxy] No blockDetails in response:`, JSON.stringify(data).substring(0, 200));
         return new Response(
           JSON.stringify({ error: "Block not found" }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -115,6 +130,7 @@ serve(async (req) => {
       // API returns "tx" not "txDetails" for the transaction object
       const tx = data.tx || data.txDetails;
       if (!tx) {
+        console.error(`[explorer-proxy] No tx in response:`, JSON.stringify(data).substring(0, 200));
         return new Response(
           JSON.stringify({ error: "Transaction not found" }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
