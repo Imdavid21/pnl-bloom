@@ -402,15 +402,26 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
                   if (typeof holder === 'string') {
                     address = holder;
                   } else if (Array.isArray(holder)) {
-                    address = String(holder[0] || '');
-                    balance = String(holder[1] || '0');
-                  } else if (typeof holder === 'object' && holder !== null) {
-                    if (typeof (holder as Record<string, unknown>).address === 'object' && (holder as Record<string, unknown>).address !== null) {
-                      address = ((holder as Record<string, unknown>).address as Record<string, string>).address || JSON.stringify((holder as Record<string, unknown>).address);
+                    // Array format: [address, balance] or [[addressObj, balance]]
+                    const first = holder[0];
+                    if (first && typeof first === 'object' && !Array.isArray(first)) {
+                      const firstObj = first as Record<string, unknown>;
+                      address = String(firstObj.address ?? '');
                     } else {
-                      address = String((holder as Record<string, unknown>).address || '');
+                      address = String(first ?? '');
                     }
-                    balance = String((holder as Record<string, unknown>).evm_extra_wei_decimals || (holder as Record<string, unknown>).balance || '0');
+                    balance = String(holder[1] ?? '0');
+                  } else if (typeof holder === 'object' && holder !== null) {
+                    const holderObj = holder as Record<string, unknown>;
+                    // Handle nested address object: { address: { address: "0x...", evm_extra_wei_decimals: 0 } }
+                    if (typeof holderObj.address === 'object' && holderObj.address !== null) {
+                      const addrObj = holderObj.address as Record<string, unknown>;
+                      address = String(addrObj.address || '');
+                    } else if (typeof holderObj.address === 'string') {
+                      address = holderObj.address;
+                    }
+                    // Balance could be in various fields
+                    balance = String(holderObj.balance || holderObj.amount || '0');
                   }
                   
                   if (!address) return null;
