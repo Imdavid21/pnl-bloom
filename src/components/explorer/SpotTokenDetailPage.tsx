@@ -432,41 +432,64 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
               <TableHeader>
                 <TableRow className="border-b border-border/50 hover:bg-transparent">
                   <TableHead className="text-xs h-9 px-4">Pair</TableHead>
-                  <TableHead className="text-xs h-9 px-4">Index</TableHead>
+                  <TableHead className="text-xs h-9 px-4 text-right">Price</TableHead>
+                  <TableHead className="text-xs h-9 px-4 text-right">24h Change</TableHead>
+                  <TableHead className="text-xs h-9 px-4 text-right">24h Volume</TableHead>
                   <TableHead className="text-xs h-9 px-4">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pairs.map((pair) => (
-                  <TableRow key={pair.index} className="border-b border-border/30 hover:bg-muted/20">
-                    <TableCell className="text-xs font-mono py-2.5 px-4">
-                      {pair.name.startsWith('@') ? (
-                        <button
-                          onClick={() => {
-                            const tokenIndex = parseInt(pair.name.slice(1), 10);
-                            const foundToken = allTokens.find(t => t.index === tokenIndex);
-                            if (foundToken) {
-                              onNavigate('spot-token', foundToken.name);
-                            }
-                          }}
-                          className="text-primary hover:text-primary/80 hover:underline transition-colors"
-                        >
-                          {resolvePairName(pair.name)}
-                        </button>
-                      ) : (
-                        <span className="text-foreground">{resolvePairName(pair.name)}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground py-2.5 px-4">{pair.index}</TableCell>
-                    <TableCell className="text-xs py-2.5 px-4">
-                      {pair.isCanonical ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">Canonical</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px]">User Deployed</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {pairs.map((pair) => {
+                  const price = pair.midPx ? parseFloat(pair.midPx) : null;
+                  const prevPrice = pair.prevDayPx ? parseFloat(pair.prevDayPx) : null;
+                  const volume = pair.dayNtlVlm ? parseFloat(pair.dayNtlVlm) : null;
+                  const priceChange = price && prevPrice && prevPrice > 0 
+                    ? ((price - prevPrice) / prevPrice) * 100 
+                    : null;
+                  
+                  return (
+                    <TableRow key={pair.index} className="border-b border-border/30 hover:bg-muted/20">
+                      <TableCell className="text-xs font-mono py-2.5 px-4">
+                        {pair.name.startsWith('@') ? (
+                          <button
+                            onClick={() => {
+                              const tokenIndex = parseInt(pair.name.slice(1), 10);
+                              const foundToken = allTokens.find(t => t.index === tokenIndex);
+                              if (foundToken) {
+                                onNavigate('spot-token', foundToken.name);
+                              }
+                            }}
+                            className="text-primary hover:text-primary/80 hover:underline transition-colors"
+                          >
+                            {resolvePairName(pair.name)}
+                          </button>
+                        ) : (
+                          <span className="text-foreground">{resolvePairName(pair.name)}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-right py-2.5 px-4">
+                        {price !== null ? `$${price < 0.01 ? price.toFixed(6) : price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '—'}
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-xs font-mono text-right py-2.5 px-4",
+                        priceChange !== null && priceChange > 0 && "text-emerald-400",
+                        priceChange !== null && priceChange < 0 && "text-red-400"
+                      )}>
+                        {priceChange !== null ? `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%` : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground text-right py-2.5 px-4">
+                        {volume !== null ? `$${volume >= 1000000 ? (volume / 1000000).toFixed(2) + 'M' : volume >= 1000 ? (volume / 1000).toFixed(1) + 'K' : volume.toFixed(0)}` : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs py-2.5 px-4">
+                        {pair.isCanonical ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">Canonical</span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px]">User Deployed</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
