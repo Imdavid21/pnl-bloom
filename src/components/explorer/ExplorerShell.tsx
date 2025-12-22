@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, X, Share2, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,6 @@ import { getSearchPlaceholder, formatEntityId, getEntityLabel } from '@/lib/expl
 import { findSpotTokenByName } from '@/lib/hyperliquidApi';
 import type { EntityMode, ChainSource, LoadingStage } from '@/lib/explorer/types';
 import { toast } from 'sonner';
-
 // Chain toggle component
 function ChainToggle({ 
   value, 
@@ -99,6 +99,7 @@ interface ExplorerShellProps {
 }
 
 export function ExplorerShell({ children, loadingStage, showHeader = true }: ExplorerShellProps) {
+  const navigate = useNavigate();
   const { 
     query, 
     mode, 
@@ -176,6 +177,15 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     setLocalSearch('');
     clear();
   }, [clear]);
+
+  const handleBack = useCallback(() => {
+    // Use browser history for proper back navigation
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      clear();
+    }
+  }, [navigate, clear]);
   
   const handleShare = useCallback(() => {
     const url = getShareableUrl();
@@ -208,10 +218,10 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5 text-xs">
               <button 
-                onClick={handleClear}
+                onClick={handleBack}
                 className="text-primary hover:text-primary/80 transition-colors font-medium"
               >
-                ← Explorer
+                ← Back
               </button>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="text-foreground">{getEntityLabel(mode || 'wallet')}</span>
