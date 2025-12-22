@@ -1280,11 +1280,6 @@ useEffect(() => {
                   badges={['Explorer', 'State']}
                 />
 
-                <Definition
-                  term="useWatchlist (src/hooks/useWatchlist.ts)"
-                  description="Local storage persistence for watched wallet addresses. Returns watchlist array and add/remove functions."
-                  badges={['Explorer', 'Local Storage']}
-                />
 
                 <Definition
                   term="useWhaleTracking (src/hooks/useWhaleTracking.ts)"
