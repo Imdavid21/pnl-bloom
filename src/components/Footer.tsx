@@ -23,9 +23,10 @@ const statusConfig = {
 function StatusDot({ status, label }: { status: StatusType; label: string }) {
   const config = statusConfig[status];
   const Icon = config.icon;
+  const statusLabel = status === 'healthy' ? '●' : status === 'degraded' ? '◐' : status === 'down' ? '○' : '◌';
   return (
-    <div className="flex items-center gap-1">
-      <Icon className={cn('h-2.5 w-2.5', config.color, status === 'checking' && 'animate-spin')} />
+    <div className="flex items-center gap-1.5">
+      <span className={cn('text-[10px]', config.color)}>{statusLabel}</span>
       <span className="text-[10px] text-muted-foreground">{label}</span>
     </div>
   );
