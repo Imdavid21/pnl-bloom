@@ -132,16 +132,30 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
   );
 
   return (
-    <div className="rounded-lg border border-border bg-card/30">
-      <div className="flex items-center justify-between p-4 border-b border-border">
+    <div className={cn(
+      "relative overflow-hidden",
+      "rounded-2xl",
+      "bg-gradient-to-br from-card/80 via-card/60 to-card/40",
+      "border border-border/40",
+      "backdrop-blur-xl",
+      "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)]",
+    )}>
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-warning/[0.02] via-transparent to-transparent pointer-events-none" />
+      
+      <div className="relative flex items-center justify-between p-4 border-b border-border/20">
         <div className="flex items-center gap-2">
-          <Crown className="h-4 w-4 text-warning" />
-          <h3 className="text-sm font-semibold text-foreground">Top Accounts</h3>
-          <span className="text-[10px] text-muted-foreground">HYPE holders</span>
+          <div className="p-1.5 rounded-lg bg-warning/10 border border-warning/20">
+            <Crown className="h-4 w-4 text-warning" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Top Accounts</h3>
+            <span className="text-[10px] text-muted-foreground/60">HYPE holders</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {lastFullRefresh > 0 && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatTimeAgo(lastFullRefresh)}
             </span>
@@ -151,7 +165,7 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
             size="sm" 
             onClick={() => refreshAll()}
             disabled={isRefreshing}
-            className="h-7 px-2"
+            className="h-7 px-2 hover:bg-muted/30"
           >
             <RefreshCw className={cn("h-3 w-3", isRefreshing && "animate-spin")} />
           </Button>
@@ -159,7 +173,7 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
       </div>
 
       {/* Account List - Show top 5 */}
-      <div className="divide-y divide-border">
+      <div className="relative divide-y divide-border/20">
         {displayedAccounts.map((account, index) => (
           <AccountRow key={account.address} account={account} index={index} />
         ))}
@@ -167,13 +181,13 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
 
       {/* View All button */}
       {accounts.length > INITIAL_SHOW && (
-        <div className="p-3 border-t border-border">
+        <div className="relative p-3 border-t border-border/20">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full h-8 text-xs"
+                className="w-full h-8 text-xs border-border/30 hover:bg-muted/20"
               >
                 View all {accounts.length} accounts
               </Button>
