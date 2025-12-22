@@ -1,5 +1,6 @@
 // Token logo mapping with contract addresses for HyperEVM tokens
 // Uses multiple fallback sources for logos
+// Includes comprehensive registry with verified contract addresses
 
 export interface TokenInfo {
   symbol: string;
@@ -7,11 +8,13 @@ export interface TokenInfo {
   address?: string;
   logoUrl: string;
   decimals?: number;
+  type?: 'native' | 'erc20' | 'spot' | 'lst' | 'stablecoin';
 }
 
 // CDN sources for token logos
 const TRUST_WALLET_ASSETS = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains';
 const COINGECKO_CDN = 'https://assets.coingecko.com/coins/images';
+const HYPERLIQUID_ICONS = 'https://app.hyperliquid.xyz/icons/tokens';
 
 // Primary tokens with verified addresses on HyperEVM
 export const TOKEN_REGISTRY: Record<string, TokenInfo> = {
@@ -19,13 +22,15 @@ export const TOKEN_REGISTRY: Record<string, TokenInfo> = {
   HYPE: {
     symbol: 'HYPE',
     name: 'Hyperliquid',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: `${HYPERLIQUID_ICONS}/hype.svg`,
+    type: 'native',
   },
   WHYPE: {
     symbol: 'WHYPE',
     name: 'Wrapped HYPE',
     address: '0x5555555555555555555555555555555555555555',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: `${HYPERLIQUID_ICONS}/hype.svg`,
+    type: 'erc20',
   },
   
   // Major Crypto

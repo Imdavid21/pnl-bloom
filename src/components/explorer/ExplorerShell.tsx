@@ -46,7 +46,13 @@ function QuickButton({ label, onClick }: { label: string; onClick: () => void })
   return (
     <button
       onClick={onClick}
-      className="px-2.5 py-1 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs"
+      className={cn(
+        "px-2.5 py-1 rounded-lg text-xs",
+        "bg-muted/20 border border-border/30",
+        "text-muted-foreground/70 hover:text-foreground",
+        "hover:bg-muted/40 hover:border-border/50",
+        "transition-all duration-200"
+      )}
     >
       {label}
     </button>
@@ -243,7 +249,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         {/* Search bar - always visible */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
             <Input
               placeholder={getSearchPlaceholder(chain)}
               value={localSearch}
@@ -252,8 +258,11 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               className={cn(
-                "pl-12 pr-10 h-12 text-base font-mono bg-muted/30 border-border/50 transition-all",
-                isSearchFocused && "border-primary ring-1 ring-primary/20"
+                "pl-12 pr-10 h-12 text-base font-mono",
+                "bg-card/50 border-border/40",
+                "placeholder:text-muted-foreground/40",
+                "transition-all duration-200",
+                isSearchFocused && "border-primary/40 ring-1 ring-primary/10 bg-card/80"
               )}
             />
             {(localSearch || isResolving) && (
@@ -272,7 +281,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
           <Button
             onClick={handleSearchSubmit}
             disabled={!localSearch.trim() || isResolving}
-            className="h-12 px-6"
+            className="h-12 px-6 bg-primary/90 hover:bg-primary"
           >
             {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
@@ -280,7 +289,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
             <Button
               variant="outline"
               onClick={handleShare}
-              className="h-12 px-3"
+              className="h-12 px-3 border-border/40 hover:bg-muted/30"
               title="Copy shareable link"
             >
               <Share2 className="h-4 w-4" />
@@ -291,7 +300,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         {/* Quick searches - only on home */}
         {!hasActiveQuery && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Try:</span>
+            <span className="text-muted-foreground/60">Try:</span>
             <QuickButton label="Sample Wallet" onClick={() => handleQuickSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')} />
             <QuickButton label="PURR" onClick={() => handleQuickSearch('PURR')} />
             <QuickButton label="HYPE" onClick={() => handleQuickSearch('HYPE')} />

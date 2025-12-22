@@ -64,14 +64,25 @@ export function LiveBlockActivity() {
   };
 
   return (
-    <div className="p-5 rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between mb-4">
+    <div className={cn(
+      "relative overflow-hidden",
+      "rounded-2xl",
+      "bg-gradient-to-br from-card/80 via-card/60 to-card/40",
+      "border border-border/40",
+      "backdrop-blur-xl",
+      "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)]",
+      "p-5"
+    )}>
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-transparent pointer-events-none" />
+      
+      <div className="relative flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">Live Block Activity</h2>
-          <p className="text-xs text-muted-foreground">Real-time visualization of network activity</p>
+          <p className="text-xs text-muted-foreground/60">Real-time visualization of network activity</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
             <span>Low</span>
             <div className="flex gap-0.5">
               {[0, 1, 2, 3, 4, 5].map(i => (
@@ -80,13 +91,13 @@ export function LiveBlockActivity() {
             </div>
             <span>High</span>
           </div>
-          <div className="px-2.5 py-1 rounded-full border border-border bg-background text-[11px] font-mono text-muted-foreground">
+          <div className="px-2.5 py-1 rounded-full border border-border/30 bg-muted/10 text-[11px] font-mono text-muted-foreground/70">
             {latency} ms
           </div>
         </div>
       </div>
 
-      <div className="grid gap-1" style={{
+      <div className="relative grid gap-1" style={{
         gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`
       }}>
         {cells.map((cell, i) => (

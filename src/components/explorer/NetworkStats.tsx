@@ -149,13 +149,23 @@ function StatCard({
   valueColor?: string;
 }) {
   return (
-    <div className="p-4 rounded-lg border border-border bg-card/30 hover:bg-card/50 transition-colors">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-        <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium">{label}</span>
+    <div className={cn(
+      "group relative overflow-hidden",
+      "p-4 rounded-xl",
+      "bg-gradient-to-br from-card/80 via-card/60 to-card/40",
+      "border border-border/40",
+      "backdrop-blur-sm",
+      "transition-all duration-300",
+      "hover:border-border/60 hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1)]"
+    )}>
+      <div className="flex items-center gap-2 text-muted-foreground/60 mb-1.5">
+        <div className="p-1.5 rounded-lg bg-muted/10 border border-border/30 group-hover:bg-muted/20 transition-colors">
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-[11px] font-medium uppercase tracking-wider">{label}</span>
       </div>
-      <p className={cn("text-lg font-semibold", valueColor || "text-foreground")}>{value}</p>
-      <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>
+      <p className={cn("text-lg font-semibold tabular-nums", valueColor || "text-foreground")}>{value}</p>
+      <p className="text-[10px] text-muted-foreground/50 mt-0.5">{subtitle}</p>
     </div>
   );
 }

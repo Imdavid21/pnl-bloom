@@ -122,7 +122,12 @@ export function LiveActivityFeed({ onRowClick }: LiveActivityFeedProps) {
       </div>
 
       {/* Content */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className={cn(
+        "rounded-xl overflow-hidden",
+        "bg-gradient-to-br from-card/80 via-card/60 to-card/40",
+        "border border-border/40",
+        "backdrop-blur-xl",
+      )}>
         {activeTab === 'blocks' && (
           <BlockList blocks={blocks} onRowClick={onRowClick} formatTime={formatTime} truncateHash={truncateHash} />
         )}
