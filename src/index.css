@@ -6,36 +6,36 @@
 
 @layer base {
   :root {
-    /* Light theme - soft pastels */
-    --background: 210 40% 98%;
-    --foreground: 222 15% 25%;
+    /* Light theme - Hyperlens aquamarine palette */
+    --background: 173 82% 98%;
+    --foreground: 171 58% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 15% 25%;
+    --card-foreground: 171 58% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 15% 25%;
+    --popover-foreground: 171 58% 14%;
 
-    --primary: 250 60% 70%;
-    --primary-foreground: 250 10% 98%;
+    --primary: 166 94% 65%;
+    --primary-foreground: 171 58% 10%;
 
-    --secondary: 210 30% 94%;
-    --secondary-foreground: 222 15% 30%;
+    --secondary: 171 30% 92%;
+    --secondary-foreground: 171 58% 20%;
 
-    --muted: 210 25% 92%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 171 20% 90%;
+    --muted-foreground: 171 15% 45%;
 
-    --accent: 180 40% 90%;
-    --accent-foreground: 180 30% 25%;
+    --accent: 166 50% 88%;
+    --accent-foreground: 166 40% 20%;
 
-    --destructive: 0 60% 70%;
+    --destructive: 0 60% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 88%;
-    --input: 210 25% 94%;
-    --ring: 250 50% 70%;
+    --border: 171 20% 85%;
+    --input: 171 20% 92%;
+    --ring: 166 70% 55%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Semantic PnL Colors - Soft Pastels */
     --loss-4: 0 55% 65%;
@@ -43,117 +43,117 @@
     --loss-2: 0 45% 75%;
     --loss-1: 0 40% 80%;
 
-    --profit-1: 145 45% 70%;
-    --profit-2: 145 50% 65%;
-    --profit-3: 145 55% 60%;
-    --profit-4: 145 60% 55%;
+    --profit-1: 166 45% 70%;
+    --profit-2: 166 50% 60%;
+    --profit-3: 166 55% 50%;
+    --profit-4: 166 60% 45%;
 
     /* Warning - soft amber */
-    --warning: 45 80% 70%;
-    --warning-foreground: 45 60% 20%;
+    --warning: 45 80% 65%;
+    --warning-foreground: 45 60% 15%;
 
-    /* Interaction (soft blue) */
-    --info: 210 60% 70%;
-    --info-foreground: 210 40% 20%;
+    /* Interaction (aquamarine tint) */
+    --info: 166 55% 60%;
+    --info-foreground: 166 50% 15%;
 
     /* Neutral */
-    --neutral: 210 15% 88%;
-    --no-data: 210 20% 94%;
+    --neutral: 171 15% 88%;
+    --no-data: 171 20% 94%;
 
     /* Soft pastel palette for charts */
-    --pastel-green: 145 50% 75%;
-    --pastel-red: 0 50% 78%;
-    --pastel-yellow: 45 70% 80%;
-    --pastel-purple: 270 50% 78%;
-    --pastel-blue: 210 55% 78%;
-    --pastel-pink: 330 50% 80%;
+    --pastel-green: 166 50% 70%;
+    --pastel-red: 0 50% 75%;
+    --pastel-yellow: 45 70% 75%;
+    --pastel-purple: 270 50% 75%;
+    --pastel-blue: 210 55% 75%;
+    --pastel-pink: 330 50% 78%;
 
     /* Shadows */
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
 
-    --sidebar-background: 210 35% 96%;
-    --sidebar-foreground: 222 12% 35%;
-    --sidebar-primary: 250 55% 68%;
+    --sidebar-background: 173 35% 96%;
+    --sidebar-foreground: 171 40% 30%;
+    --sidebar-primary: 166 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 25% 92%;
-    --sidebar-accent-foreground: 222 15% 25%;
-    --sidebar-border: 210 20% 88%;
-    --sidebar-ring: 250 50% 70%;
+    --sidebar-accent: 171 25% 90%;
+    --sidebar-accent-foreground: 171 58% 14%;
+    --sidebar-border: 171 20% 85%;
+    --sidebar-ring: 166 70% 55%;
   }
 
   .dark {
-    /* Dark theme - soft pastels on dark */
-    --background: 222 25% 8%;
-    --foreground: 210 20% 90%;
+    /* Dark theme - Hyperlens ebony/firefly palette */
+    --background: 225 50% 3%;
+    --foreground: 173 82% 95%;
 
-    --card: 222 22% 11%;
-    --card-foreground: 210 20% 90%;
+    --card: 171 40% 6%;
+    --card-foreground: 173 82% 95%;
 
-    --popover: 222 22% 13%;
-    --popover-foreground: 210 20% 90%;
+    --popover: 171 35% 8%;
+    --popover-foreground: 173 82% 95%;
 
-    --primary: 270 45% 72%;
-    --primary-foreground: 270 20% 10%;
+    --primary: 166 94% 79%;
+    --primary-foreground: 171 58% 8%;
 
-    --secondary: 222 18% 15%;
-    --secondary-foreground: 210 15% 80%;
+    --secondary: 171 40% 12%;
+    --secondary-foreground: 173 50% 85%;
 
-    --muted: 222 18% 18%;
-    --muted-foreground: 210 12% 55%;
+    --muted: 171 35% 15%;
+    --muted-foreground: 171 20% 55%;
 
-    --accent: 180 30% 20%;
-    --accent-foreground: 180 35% 85%;
+    --accent: 166 35% 18%;
+    --accent-foreground: 166 80% 85%;
 
-    --destructive: 0 50% 65%;
+    --destructive: 0 50% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 18% 18%;
-    --input: 222 18% 16%;
-    --ring: 270 45% 70%;
+    --border: 171 30% 14%;
+    --input: 171 30% 12%;
+    --ring: 166 80% 70%;
 
-    /* Dark PnL Colors - Soft pastels */
-    --loss-4: 0 50% 60%;
-    --loss-3: 0 48% 65%;
-    --loss-2: 0 45% 70%;
-    --loss-1: 0 42% 72%;
+    /* Dark PnL Colors - Aquamarine tints */
+    --loss-4: 0 50% 55%;
+    --loss-3: 0 48% 60%;
+    --loss-2: 0 45% 65%;
+    --loss-1: 0 42% 68%;
 
-    --profit-1: 145 40% 55%;
-    --profit-2: 145 45% 58%;
-    --profit-3: 145 50% 62%;
-    --profit-4: 145 55% 65%;
+    --profit-1: 166 45% 50%;
+    --profit-2: 166 50% 55%;
+    --profit-3: 166 55% 60%;
+    --profit-4: 166 60% 65%;
 
     /* Warning - muted amber */
-    --warning: 45 65% 65%;
+    --warning: 45 65% 60%;
     --warning-foreground: 45 50% 10%;
 
     /* Interaction */
-    --info: 210 55% 65%;
+    --info: 166 60% 60%;
     --info-foreground: 0 0% 100%;
 
     /* Neutral */
-    --neutral: 222 18% 22%;
-    --no-data: 222 18% 12%;
+    --neutral: 171 30% 18%;
+    --no-data: 171 35% 10%;
 
     /* Soft pastel palette for charts */
-    --pastel-green: 145 45% 60%;
-    --pastel-red: 0 45% 65%;
-    --pastel-yellow: 45 60% 68%;
-    --pastel-purple: 270 45% 68%;
-    --pastel-blue: 210 50% 65%;
-    --pastel-pink: 330 45% 68%;
+    --pastel-green: 166 50% 55%;
+    --pastel-red: 0 45% 60%;
+    --pastel-yellow: 45 60% 62%;
+    --pastel-purple: 270 45% 62%;
+    --pastel-blue: 210 50% 60%;
+    --pastel-pink: 330 45% 62%;
 
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.2);
-    --shadow-md: 0 4px 8px -1px rgb(0 0 0 / 0.25);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 8px -1px rgb(0 0 0 / 0.4);
 
-    --sidebar-background: 222 25% 6%;
-    --sidebar-foreground: 210 15% 65%;
-    --sidebar-primary: 270 45% 72%;
-    --sidebar-primary-foreground: 270 20% 10%;
-    --sidebar-accent: 222 18% 16%;
-    --sidebar-accent-foreground: 210 20% 85%;
-    --sidebar-border: 222 18% 18%;
-    --sidebar-ring: 270 45% 70%;
+    --sidebar-background: 225 50% 2%;
+    --sidebar-foreground: 173 30% 70%;
+    --sidebar-primary: 166 94% 79%;
+    --sidebar-primary-foreground: 171 58% 8%;
+    --sidebar-accent: 171 30% 12%;
+    --sidebar-accent-foreground: 173 50% 88%;
+    --sidebar-border: 171 30% 14%;
+    --sidebar-ring: 166 80% 70%;
   }
 }
 
@@ -236,7 +236,7 @@
 
   /* Panel styles */
   .panel {
-    @apply rounded-md border border-border bg-card;
+    @apply rounded-xl border border-border bg-card;
   }
 
   .panel-header {
@@ -255,5 +255,22 @@
   /* Skeleton loader */
   .skeleton {
     @apply animate-pulse bg-muted rounded;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-subtle {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--secondary) / 0.5) 100%
+    );
+  }
+
+  .bg-gradient-glow {
+    background: radial-gradient(
+      ellipse at top,
+      hsl(var(--primary) / 0.1) 0%,
+      transparent 50%
+    );
   }
 }

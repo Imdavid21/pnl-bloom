@@ -1,14 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, X, Share2, ChevronRight } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Loader2, Share2, ChevronRight, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { getSearchPlaceholder, formatEntityId, getEntityLabel } from '@/lib/explorer/searchResolver';
+import { getSearchPlaceholder, getEntityLabel } from '@/lib/explorer/searchResolver';
 import { findSpotTokenByName } from '@/lib/hyperliquidApi';
-import type { EntityMode, ChainSource, LoadingStage } from '@/lib/explorer/types';
+import type { ChainSource, LoadingStage } from '@/lib/explorer/types';
 import { toast } from 'sonner';
+import { TokenSearchAutocomplete, type SearchResult } from './TokenSearchAutocomplete';
+
 // Chain toggle component
 function ChainToggle({ 
   value, 
@@ -18,7 +19,7 @@ function ChainToggle({
   onChange: (v: ChainSource | undefined) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50">
+    <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50 border border-border/30">
       {[
         { key: undefined, label: 'All' },
         { key: 'hyperevm' as ChainSource, label: 'EVM' },
@@ -31,7 +32,7 @@ function ChainToggle({
             "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
             value === key
               ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
           )}
         >
           {label}
@@ -48,9 +49,9 @@ function QuickButton({ label, onClick }: { label: string; onClick: () => void })
       onClick={onClick}
       className={cn(
         "px-2.5 py-1 rounded-lg text-xs",
-        "bg-muted/20 border border-border/30",
+        "bg-secondary/30 border border-border/20",
         "text-muted-foreground/70 hover:text-foreground",
-        "hover:bg-muted/40 hover:border-border/50",
+        "hover:bg-secondary/50 hover:border-primary/30",
         "transition-all duration-200"
       )}
     >
@@ -72,7 +73,11 @@ function LoadingIndicator({ stage }: { stage: LoadingStage }) {
   };
   
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+    <div className={cn(
+      "flex items-center gap-3 p-3 rounded-xl",
+      "bg-gradient-to-r from-secondary/40 to-secondary/20",
+      "border border-border/30"
+    )}>
       {stage.stage !== 'error' && (
         <Loader2 className="h-4 w-4 animate-spin text-primary" />
       )}
@@ -87,7 +92,7 @@ function LoadingIndicator({ stage }: { stage: LoadingStage }) {
         )}
       </div>
       {stage.progress !== undefined && (
-        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="w-20 h-1.5 bg-muted/50 rounded-full overflow-hidden">
           <div 
             className="h-full bg-primary transition-all duration-300"
             style={{ width: `${stage.progress}%` }}
@@ -118,7 +123,6 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   } = useExplorerUrl();
   
   const [localSearch, setLocalSearch] = useState(query);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   
   // Sync local search with URL query
@@ -153,6 +157,19 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     
     setQuery(trimmed);
   }, [localSearch, setQuery, navigateTo]);
+
+  // Handle autocomplete selection
+  const handleSelect = useCallback((result: SearchResult) => {
+    if (result.type === 'token') {
+      navigateTo('token', result.id, 'hypercore');
+    } else if (result.type === 'wallet') {
+      navigateTo('wallet', result.address || result.id);
+    } else if (result.address) {
+      setQuery(result.address);
+    } else {
+      setQuery(result.id);
+    }
+  }, [navigateTo, setQuery]);
   
   // Quick search handler - auto-submits
   const handleQuickSearch = useCallback(async (value: string) => {
@@ -210,7 +227,10 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         {showHeader && !hasActiveQuery && (
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Hyperliquid Explorer</h1>
+              <div className="flex items-center gap-2">
+                <Eye className="h-6 w-6 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">Hyperlens</h1>
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 Search wallets, transactions, blocks, and tokens across Hypercore & HyperEVM
               </p>
@@ -235,7 +255,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
                 <span className={cn(
                   "ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium",
                   chain === 'hyperevm' 
-                    ? "bg-emerald-500/20 text-emerald-400"
+                    ? "bg-profit/20 text-profit"
                     : "bg-primary/20 text-primary"
                 )}>
                   {chain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
@@ -246,42 +266,21 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
           </div>
         )}
         
-        {/* Search bar - always visible */}
+        {/* Search bar with autocomplete */}
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-            <Input
-              placeholder={getSearchPlaceholder(chain)}
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              className={cn(
-                "pl-12 pr-10 h-12 text-base font-mono",
-                "bg-card/50 border-border/40",
-                "placeholder:text-muted-foreground/40",
-                "transition-all duration-200",
-                isSearchFocused && "border-primary/40 ring-1 ring-primary/10 bg-card/80"
-              )}
-            />
-            {(localSearch || isResolving) && (
-              <button
-                onClick={handleClear}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {isResolving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <X className="h-4 w-4" />
-                )}
-              </button>
-            )}
-          </div>
+          <TokenSearchAutocomplete
+            value={localSearch}
+            onChange={setLocalSearch}
+            onSelect={handleSelect}
+            onSubmit={handleSearchSubmit}
+            placeholder={getSearchPlaceholder(chain)}
+            isLoading={isResolving}
+            className="flex-1"
+          />
           <Button
             onClick={handleSearchSubmit}
             disabled={!localSearch.trim() || isResolving}
-            className="h-12 px-6 bg-primary/90 hover:bg-primary"
+            className="h-12 px-6 bg-primary hover:bg-primary/90"
           >
             {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
@@ -289,7 +288,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
             <Button
               variant="outline"
               onClick={handleShare}
-              className="h-12 px-3 border-border/40 hover:bg-muted/30"
+              className="h-12 px-3 border-border/40 hover:bg-secondary/50"
               title="Copy shareable link"
             >
               <Share2 className="h-4 w-4" />
