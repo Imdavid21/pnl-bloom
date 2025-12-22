@@ -1,4 +1,4 @@
-import { Search, RefreshCw, Zap } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -18,17 +18,11 @@ export function ExplorerSearch({
   return (
     <div className="space-y-4">
       {/* Title */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Hyperliquid Explorer</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Search wallet addresses, transaction hashes, or block numbers
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-profit-3/10 border border-profit-3/20">
-          <Zap className="h-3.5 w-3.5 text-profit-3" />
-          <span className="text-xs font-medium text-profit-3">200k TPS</span>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Hyperliquid Explorer</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Search wallet addresses, transaction hashes, or block numbers
+        </p>
       </div>
 
       {/* Search Bar */}
@@ -54,18 +48,24 @@ export function ExplorerSearch({
 
       {/* Example searches */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span>Examples:</span>
+        <span>Try:</span>
         <button 
-          onClick={() => onSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')}
+          onClick={() => { onSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47'); }}
           className="font-mono px-2 py-0.5 rounded bg-muted/50 hover:bg-muted transition-colors"
         >
           0xdd59...8d47
         </button>
         <button 
-          onClick={() => onSearch('836176486')}
+          onClick={() => { onSearch('836176486'); }}
           className="font-mono px-2 py-0.5 rounded bg-muted/50 hover:bg-muted transition-colors"
         >
-          836176486
+          Block 836176486
+        </button>
+        <button 
+          onClick={() => { onSearch('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'); }}
+          className="font-mono px-2 py-0.5 rounded bg-muted/50 hover:bg-muted transition-colors"
+        >
+          Tx Hash
         </button>
       </div>
     </div>
