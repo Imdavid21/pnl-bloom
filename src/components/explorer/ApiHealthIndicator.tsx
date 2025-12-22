@@ -48,7 +48,7 @@ export function ApiHealthIndicator({ health, onRefresh }: ApiHealthIndicatorProp
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>EVM-compatible L1 for smart contracts</p>
+              <p>HyperEVM - EVM-compatible chain for smart contracts</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -62,7 +62,7 @@ export function ApiHealthIndicator({ health, onRefresh }: ApiHealthIndicatorProp
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Hypercore L1 for perpetuals trading</p>
+              <p>Hypercore - Perpetuals and spot trading</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

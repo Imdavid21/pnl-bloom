@@ -172,7 +172,7 @@ export function WalletActivityTimeline({ episodes, onNavigate, maxItems = 10 }: 
                     "text-xs px-1.5 py-0.5 rounded",
                     episode.chain === 'hypercore' ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-400'
                   )}>
-                    {episode.chain === 'hypercore' ? 'L1' : 'EVM'}
+                    {episode.chain === 'hypercore' ? 'Hypercore' : 'HyperEVM'}
                   </span>
                 </div>
               </div>

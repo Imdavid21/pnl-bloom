@@ -86,7 +86,7 @@ function getPlaceholder(filter: ChainFilter): string {
     case 'hyperevm':
       return 'Search EVM address, tx hash, or block...';
     case 'hypercore-perps':
-      return 'Search L1 address, tx hash, or block...';
+      return 'Search Hypercore address, tx hash, or block...';
     case 'hypercore-spot':
       return 'Search token (PURR, HYPE) or address...';
     default:
