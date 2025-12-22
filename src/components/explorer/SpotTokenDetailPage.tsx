@@ -12,6 +12,7 @@ import {
 } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
 import { ProvenanceIndicator } from './ProvenanceIndicator';
+import { ExplorerActions } from './ExplorerActions';
 import type { LoadingStage, Provenance } from '@/lib/explorer/types';
 
 interface SpotTokenDetailPageProps {

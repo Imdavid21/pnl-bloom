@@ -6,6 +6,7 @@ import { getL1TxDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi'
 import { cn } from '@/lib/utils';
 import { ProvenanceIndicator } from './ProvenanceIndicator';
 import { AssetDeltaDisplay } from './AssetDeltaDisplay';
+import { ExplorerActions } from './ExplorerActions';
 import { generateTxNarrative, getActionType } from '@/lib/explorer/narratives';
 import type { TransactionView, AssetDelta, Provenance, LoadingStage, ChainSource } from '@/lib/explorer/types';
 
@@ -199,6 +200,16 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
+      {/* Action Bar */}
+      <ExplorerActions
+        entityType="tx"
+        entityId={hash}
+        title={txView.narrative}
+        onBack={onBack}
+        externalUrl={verifyUrl}
+        className="mb-4"
+      />
+      
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
         <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>

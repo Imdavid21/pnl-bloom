@@ -7,6 +7,7 @@ import { getEVMBlock, formatTimestamp, timeAgo, truncateHash as truncateHashEVM,
 import { getL1BlockDetails, type L1BlockDetails } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
 import { ProvenanceIndicator } from './ProvenanceIndicator';
+import { ExplorerActions } from './ExplorerActions';
 import { generateBlockNarrative } from '@/lib/explorer/narratives';
 import type { LoadingStage, Provenance, ChainSource } from '@/lib/explorer/types';
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Coins, Zap } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Coins, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { proxyRequest, getL1UserDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi';
@@ -8,6 +8,8 @@ import { WalletInsights } from './WalletInsights';
 import { SpotBalances } from './SpotBalances';
 import { WalletSummaryHero } from './WalletSummaryHero';
 import { WalletActivityTimeline, fillsToEpisodes } from './WalletActivityTimeline';
+import { ExplorerActions } from './ExplorerActions';
+
 interface WalletDetailPageProps {
   address: string;
   onBack: () => void;
@@ -379,8 +381,23 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   // Convert fills to episodes for timeline
   const episodes = useMemo(() => fillsToEpisodes(fills), [fills]);
 
+  const handleCompare = useCallback((compareAddress: string) => {
+    window.open(`${window.location.origin}/explorer?q=${compareAddress}&mode=wallet`, '_blank');
+  }, []);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
+      {/* Action Bar */}
+      <ExplorerActions
+        entityType="wallet"
+        entityId={address}
+        title={`Wallet ${address.slice(0, 8)}...`}
+        onBack={onBack}
+        onCompare={handleCompare}
+        externalUrl={`https://purrsec.com/address/${address}`}
+        className="mb-4"
+      />
+      
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
         <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
