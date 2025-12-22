@@ -45,9 +45,14 @@ export function LiveActivityFeed({ onRowClick }: LiveActivityFeedProps) {
 
   return (
     <div className="space-y-4">
-      {/* Live Status Bar */}
+      {/* Live Activity Header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-foreground">Live Activity</h2>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-profit-3/10 border border-profit-3/20">
+            <Zap className="h-3 w-3 text-profit-3" />
+            <span className="text-[10px] font-medium text-profit-3">200k TPS</span>
+          </div>
           <div className="relative flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-profit-3 opacity-75"></span>
@@ -61,7 +66,7 @@ export function LiveActivityFeed({ onRowClick }: LiveActivityFeedProps) {
             {blocks.length > 0 ? (
               <>
                 <Wifi className="h-3 w-3 text-profit-3" />
-                <span className="text-profit-3">Explorer API</span>
+                <span className="text-profit-3">Connected</span>
               </>
             ) : (
               <>
@@ -74,11 +79,7 @@ export function LiveActivityFeed({ onRowClick }: LiveActivityFeedProps) {
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            Updated {formatTimeAgo(lastBlockTime)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Zap className="h-3 w-3" />
-            ~400ms blocks
+            {formatTimeAgo(lastBlockTime)}
           </span>
         </div>
       </div>
