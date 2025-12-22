@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const NAV_LINKS = [
-  { to: '/', label: 'PnL' },
-  { to: '/explorer', label: 'Explorer' },
+  { to: '/', label: 'Explorer' },
+  { to: '/analytics', label: 'Analytics' },
   { to: '/assets', label: 'Assets' },
   { to: '/api', label: 'API' },
   { to: '/docs', label: 'Docs' },

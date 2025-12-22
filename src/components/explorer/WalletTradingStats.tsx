@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TrendingUp, TrendingDown, Target, DollarSign, Activity, BarChart2, Loader2, RefreshCw, CheckCircle2, Database, Calendar, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { TrendingUp, TrendingDown, Target, DollarSign, Activity, BarChart2, Loader2, RefreshCw, CheckCircle2, Database, Calendar, Zap, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -415,6 +416,13 @@ export function WalletTradingStats({ walletAddress }: WalletTradingStatsProps) {
           )}
           {isSyncing ? 'Syncing...' : 'Refresh'}
         </Button>
+        <Link 
+          to={`/analytics?wallet=${walletAddress}`}
+          className="h-7 px-2 text-xs gap-1 inline-flex items-center rounded-md border border-border bg-background hover:bg-muted transition-colors"
+        >
+          Full Analytics
+          <ArrowRight className="h-3 w-3" />
+        </Link>
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
