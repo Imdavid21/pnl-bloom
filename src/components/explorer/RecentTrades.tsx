@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHyperliquidWebSocket, type Fill } from '@/hooks/useHyperliquidWebSocket';
+import { TokenLogo } from './TokenLogo';
 
 interface RecentTradesProps {
   onNavigate?: (type: 'wallet', id: string) => void;
@@ -67,15 +68,18 @@ export function RecentTrades({ onNavigate }: RecentTradesProps) {
               )}
             >
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "h-7 w-7 rounded flex items-center justify-center",
-                  isBuy ? "bg-profit-3/10" : "bg-loss-3/10"
-                )}>
-                  {isBuy ? (
-                    <TrendingUp className="h-3.5 w-3.5 text-profit-3" />
-                  ) : (
-                    <TrendingDown className="h-3.5 w-3.5 text-loss-3" />
-                  )}
+                <div className="relative">
+                  <TokenLogo symbol={fill.coin} size="sm" />
+                  <div className={cn(
+                    "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded flex items-center justify-center",
+                    isBuy ? "bg-profit-3" : "bg-loss-3"
+                  )}>
+                    {isBuy ? (
+                      <TrendingUp className="h-2 w-2 text-white" />
+                    ) : (
+                      <TrendingDown className="h-2 w-2 text-white" />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

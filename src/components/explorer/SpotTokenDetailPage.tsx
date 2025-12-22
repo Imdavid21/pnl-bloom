@@ -13,6 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ProvenanceIndicator } from './ProvenanceIndicator';
 import { ExplorerActions } from './ExplorerActions';
+import { TokenLogo } from './TokenLogo';
 import type { LoadingStage, Provenance } from '@/lib/explorer/types';
 
 interface SpotTokenDetailPageProps {
@@ -303,11 +304,9 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
       {/* Hero Section */}
       <div className="rounded-xl border border-border bg-card/50 p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-xl bg-warning/10 flex items-center justify-center">
-              <Coins className="h-7 w-7 text-warning" />
-            </div>
-            <div>
+            <div className="flex items-center gap-4">
+              <TokenLogo symbol={token.name} size="xl" />
+              <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-2xl font-bold text-foreground">{token.name}</h1>
                 {token.fullName && (

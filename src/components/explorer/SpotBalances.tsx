@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Coins, TrendingUp, TrendingDown, Loader2, ExternalLink } from 'lucide-react';
 import { getSpotClearinghouseState, getSpotMetaAndAssetCtxs, type SpotBalance, type SpotMeta, type SpotAssetContext } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
-
+import { TokenLogo } from './TokenLogo';
 interface SpotBalancesProps {
   address: string;
   onNavigate?: (type: 'spot-token', id: string) => void;
@@ -147,11 +147,7 @@ export function SpotBalances({ address, onNavigate }: SpotBalancesProps) {
             onClick={() => onNavigate?.('spot-token', balance.coin)}
           >
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <span className="text-xs font-bold text-amber-500">
-                  {balance.coin.slice(0, 2)}
-                </span>
-              </div>
+              <TokenLogo symbol={balance.coin} size="lg" />
               <div>
                 <p className="text-sm font-medium">{balance.coin}</p>
                 <p className="text-xs text-muted-foreground font-mono">
