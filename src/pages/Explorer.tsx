@@ -2,11 +2,12 @@ import { useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useExplorerState } from '@/hooks/useExplorerState';
 import { useApiHealthCheck } from '@/hooks/useApiHealthCheck';
-import { ExplorerSearch, ChainFilter } from '@/components/explorer/ExplorerSearch';
+import { ExplorerSearch, type ChainFilter } from '@/components/explorer/ExplorerSearch';
 import { ApiHealthIndicator } from '@/components/explorer/ApiHealthIndicator';
 import { NetworkStats } from '@/components/explorer/NetworkStats';
 import { TopMarkets } from '@/components/explorer/TopMarkets';
-import { RecentTrades } from '@/components/explorer/RecentTrades';
+import { WhaleTracker } from '@/components/explorer/WhaleTracker';
+import { Watchlist } from '@/components/explorer/Watchlist';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
@@ -16,9 +17,7 @@ export default function ExplorerPage() {
   const {
     searchQuery,
     setSearch,
-    drawer,
     openDrawer,
-    closeDrawer,
   } = useExplorerState();
 
   const { health, refresh: refreshHealth } = useApiHealthCheck();
@@ -98,7 +97,7 @@ export default function ExplorerPage() {
     setSearch('');
   }, [setSearch]);
 
-  const handleNavigate = useCallback((type: 'block' | 'tx' | 'wallet', id: string) => {
+  const handleNavigate = useCallback((type: 'block' | 'tx' | 'wallet' | 'spot-token', id: string) => {
     setDetailView({ type, id });
   }, []);
 
@@ -172,14 +171,21 @@ export default function ExplorerPage() {
         {/* Network Stats */}
         <NetworkStats />
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Markets */}
-          <TopMarkets onNavigate={(type, id) => handleRowClick(type, id, null)} />
+        {/* Main Content Grid - 3 columns on large screens */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Top Markets - spans 2 columns */}
+          <div className="lg:col-span-2">
+            <TopMarkets onNavigate={(type, id) => handleRowClick(type, id, null)} />
+          </div>
 
-          {/* Live Trades */}
-          <RecentTrades onNavigate={(type, id) => handleRowClick('wallet', id, { address: id })} />
+          {/* Right sidebar - Watchlist */}
+          <div className="space-y-6">
+            <Watchlist onNavigate={(type, id) => handleNavigate(type, id)} />
+          </div>
         </div>
+
+        {/* Whale Tracker - Full width */}
+        <WhaleTracker onNavigate={(type, id) => handleRowClick('wallet', id, { address: id })} />
       </div>
     </Layout>
   );
