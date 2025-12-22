@@ -1,12 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { 
-  create402Response, 
-  verifyPayment, 
-  recordPaymentReceipt,
-  parsePaymentHeader
-} from "../_shared/x402.ts";
-import { 
   calculateDailyMetrics, 
   calculateMonthlyMetrics,
   EconomicEvent 
@@ -14,7 +8,7 @@ import {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-payment-tx, x-bypass-payment',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info';
@@ -228,58 +222,6 @@ serve(async (req) => {
       );
     }
 
-    // Check for bypass header (testing only - remove later)
-    const bypassPayment = req.headers.get('x-bypass-payment') === 'true';
-    
-    // Check for payment
-    const paymentTxHash = req.headers.get('x-payment-tx');
-    
-    // Payment result tracking (null for bypassed payments)
-    let paymentResult: { valid: boolean; txHash?: string; amount?: number; chain?: string; from?: string; error?: string } | null = null;
-    
-    if (!paymentTxHash && !bypassPayment) {
-      console.log(`[sync-wallet] No payment provided, returning 402`);
-      return create402Response('wallet_sync', corsHeaders);
-    }
-
-    if (bypassPayment) {
-      console.log(`[sync-wallet] Payment bypassed for testing`);
-    } else {
-      // Parse payment header (txHash:chainKey format)
-      const parsed = parsePaymentHeader(paymentTxHash!);
-      if (!parsed) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid payment header format. Expected txHash:chainKey' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Verify payment
-      paymentResult = await verifyPayment(parsed.txHash, parsed.chainKey, 'wallet_sync', supabase);
-      
-      if (!paymentResult.valid) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Payment verification failed', 
-            details: paymentResult.error 
-          }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log(`[sync-wallet] Payment verified: ${paymentResult.amount} USDC from ${paymentResult.from} on ${paymentResult.chain}`);
-
-      // Record payment receipt
-      await recordPaymentReceipt(
-        supabase, 
-        paymentResult.txHash!, 
-        walletLower, 
-        paymentResult.amount!, 
-        paymentResult.chain!,
-        'wallet_sync'
-      );
-    }
-
     // Get or create wallet
     let { data: walletData } = await supabase
       .from('wallets')
@@ -305,7 +247,6 @@ serve(async (req) => {
       .insert({
         wallet_id: walletId,
         status: 'running',
-        payment_tx_hash: paymentResult?.txHash || null,
       })
       .select('id')
       .single();
@@ -500,15 +441,11 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         wallet: walletLower,
-        payment: paymentResult ? {
-          txHash: paymentResult.txHash,
-          amount: paymentResult.amount,
-        } : null,
         sync: {
           fills: fills.length,
           funding: funding.length,
-          eventsInserted: economicEventsInserted,
-          daysProcessed: affectedDaysArray.length,
+          events: economicEventsInserted,
+          days: affectedDaysArray.length,
           volume: totalVolume,
         },
       }),
