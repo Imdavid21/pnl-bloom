@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Search, Loader2, X, Share2, ChevronRight, Star, ChevronDown } from 'lucide-react';
+import { Search, Loader2, X, Share2, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -8,12 +8,6 @@ import { getSearchPlaceholder, formatEntityId, getEntityLabel } from '@/lib/expl
 import { findSpotTokenByName } from '@/lib/hyperliquidApi';
 import type { EntityMode, ChainSource, LoadingStage } from '@/lib/explorer/types';
 import { toast } from 'sonner';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { useWatchlist } from '@/hooks/useWatchlist';
 
 // Chain toggle component
 function ChainToggle({ 
@@ -56,71 +50,6 @@ function QuickButton({ label, onClick }: { label: string; onClick: () => void })
     >
       {label}
     </button>
-  );
-}
-
-// Compact watchlist popover
-function WatchlistPopover({ onNavigate }: { onNavigate?: (type: 'wallet' | 'spot-token', id: string) => void }) {
-  const { wallets, tokens, remove } = useWatchlist();
-  const totalItems = wallets.length + tokens.length;
-
-  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-          <Star className="h-3.5 w-3.5 text-warning" />
-          <span className="hidden sm:inline">Watchlist</span>
-          {totalItems > 0 && (
-            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{totalItems}</span>
-          )}
-          <ChevronDown className="h-3 w-3" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="end">
-        <div className="p-3 border-b border-border">
-          <h4 className="text-sm font-medium">Your Watchlist</h4>
-        </div>
-        <div className="max-h-64 overflow-y-auto divide-y divide-border">
-          {wallets.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate?.('wallet', item.address!)}
-              className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors text-left"
-            >
-              <span className="text-xs font-mono text-foreground">{truncateAddress(item.address!)}</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); remove(item.id); }}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </button>
-          ))}
-          {tokens.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate?.('spot-token', item.symbol!)}
-              className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors text-left"
-            >
-              <span className="text-xs font-medium text-foreground">{item.symbol}</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); remove(item.id); }}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </button>
-          ))}
-          {totalItems === 0 && (
-            <div className="p-4 text-center text-xs text-muted-foreground">
-              No items yet. Add from wallet/token pages.
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -254,13 +183,6 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     toast.success('Link copied to clipboard');
   }, [getShareableUrl]);
   
-  const handleNavigate = useCallback((type: 'wallet' | 'spot-token', id: string) => {
-    if (type === 'wallet') {
-      navigateTo('wallet', id);
-    } else {
-      navigateTo('token', id, 'hypercore');
-    }
-  }, [navigateTo]);
   
   const hasActiveQuery = !!query;
   
@@ -276,11 +198,8 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
               <p className="text-sm text-muted-foreground mt-1">
                 Search wallets, transactions, blocks, and tokens across Hypercore & HyperEVM
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <WatchlistPopover onNavigate={handleNavigate} />
-              <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
-            </div>
+          </div>
+            <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
           </div>
         )}
         
@@ -304,13 +223,10 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
                     : "bg-primary/20 text-primary"
                 )}>
                   {chain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
-                </span>
+              </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <WatchlistPopover onNavigate={handleNavigate} />
-              <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
-            </div>
+            <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
           </div>
         )}
         
