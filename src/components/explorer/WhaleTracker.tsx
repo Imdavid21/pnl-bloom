@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { Loader2, TrendingUp, ExternalLink, ChevronDown, ChevronUp, RefreshCw, Crown, Clock } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, Crown, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTopAccounts } from '@/hooks/useTopAccounts';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface WhaleTrackerProps {
   onNavigate?: (type: 'wallet', id: string) => void;
@@ -10,13 +18,12 @@ interface WhaleTrackerProps {
 
 export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
   const { accounts, isRefreshing, refreshAll, onAccountClick, lastFullRefresh } = useTopAccounts();
-  const [showAll, setShowAll] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   
-  const INITIAL_SHOW = 25;
-  const displayedAccounts = showAll ? accounts : accounts.slice(0, INITIAL_SHOW);
+  const INITIAL_SHOW = 5;
+  const displayedAccounts = accounts.slice(0, INITIAL_SHOW);
 
   const formatBalance = (balance: string) => {
-    // Parse the balance string like "955,580,376.23 HYPE"
     const match = balance.match(/^([\d,.]+)\s*(.*)$/);
     if (!match) return balance;
     
@@ -57,7 +64,72 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
   const handleAccountClick = (address: string) => {
     onAccountClick(address);
     onNavigate?.('wallet', address);
+    setDialogOpen(false);
   };
+
+  const AccountRow = ({ account, index }: { account: typeof accounts[0]; index: number }) => (
+    <button
+      key={account.address}
+      onClick={() => handleAccountClick(account.address)}
+      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-all text-left group"
+    >
+      <div className="flex items-center gap-3">
+        <div className={cn(
+          "h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
+          index === 0 ? "bg-warning/20 text-warning" :
+          index < 3 ? "bg-primary/20 text-primary" :
+          "bg-muted text-muted-foreground"
+        )}>
+          {index + 1}
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-foreground group-hover:text-primary transition-colors">
+              {truncateAddress(account.address)}
+            </span>
+            {account.nameTag && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium truncate max-w-[120px]">
+                {account.nameTag}
+              </span>
+            )}
+            {account.isLoading && (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-muted-foreground">
+              {formatBalance(account.staticBalance)}
+            </span>
+            {account.staticPercentage !== "-" && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-[10px] text-profit">{account.staticPercentage}</span>
+              </>
+            )}
+            {account.staticTxnCount > 0 && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {account.staticTxnCount.toLocaleString()} txns
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {account.liveBalance && (
+          <div className="text-right">
+            <span className="text-[10px] text-muted-foreground block">EVM Balance</span>
+            <span className="text-xs font-mono text-foreground">
+              {formatWeiBalance(account.liveBalance)}
+            </span>
+          </div>
+        )}
+        <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </button>
+  );
 
   return (
     <div className="rounded-lg border border-border bg-card/30">
@@ -86,92 +158,45 @@ export function WhaleTracker({ onNavigate }: WhaleTrackerProps) {
         </div>
       </div>
 
-      {/* Account List */}
-      <div className="divide-y divide-border max-h-[500px] overflow-y-auto scrollbar-thin">
+      {/* Account List - Show top 5 */}
+      <div className="divide-y divide-border">
         {displayedAccounts.map((account, index) => (
-          <button
-            key={account.address}
-            onClick={() => handleAccountClick(account.address)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-all text-left group"
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold",
-                index === 0 ? "bg-warning/20 text-warning" :
-                index < 3 ? "bg-primary/20 text-primary" :
-                "bg-muted text-muted-foreground"
-              )}>
-                {index + 1}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-foreground group-hover:text-primary transition-colors">
-                    {truncateAddress(account.address)}
-                  </span>
-                  {account.nameTag && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium">
-                      {account.nameTag}
-                    </span>
-                  )}
-                  {account.isLoading && (
-                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatBalance(account.staticBalance)}
-                  </span>
-                  {account.staticPercentage !== "-" && (
-                    <>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="text-[10px] text-profit">{account.staticPercentage}</span>
-                    </>
-                  )}
-                  {account.staticTxnCount > 0 && (
-                    <>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {account.staticTxnCount.toLocaleString()} txns
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {account.liveBalance && (
-                <div className="text-right">
-                  <span className="text-[10px] text-muted-foreground block">EVM Balance</span>
-                  <span className="text-xs font-mono text-foreground">
-                    {formatWeiBalance(account.liveBalance)}
-                  </span>
-                </div>
-              )}
-              <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </button>
+          <AccountRow key={account.address} account={account} index={index} />
         ))}
       </div>
 
-      {/* Expand/Collapse button */}
+      {/* View All button */}
       {accounts.length > INITIAL_SHOW && (
         <div className="p-3 border-t border-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAll(!showAll)}
-            className="w-full h-8 text-xs gap-1"
-          >
-            {showAll ? (
-              <>
-                Show Less <ChevronUp className="h-3 w-3" />
-              </>
-            ) : (
-              <>
-                Show All {accounts.length} Accounts <ChevronDown className="h-3 w-3" />
-              </>
-            )}
-          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs"
+              >
+                View all {accounts.length} accounts
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-warning" />
+                  Top HYPE Holders
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({accounts.length} accounts)
+                  </span>
+                </DialogTitle>
+              </DialogHeader>
+              <ScrollArea className="h-[60vh]">
+                <div className="divide-y divide-border">
+                  {accounts.map((account, index) => (
+                    <AccountRow key={account.address} account={account} index={index} />
+                  ))}
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>
