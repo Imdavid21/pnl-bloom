@@ -56,9 +56,10 @@ const MAX_BUFFER_SIZE = 100;
 export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | 'trades')[]) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
   const reconnectAttemptRef = useRef(0);
   const isConnectingRef = useRef(false);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 3;
   
   const [state, setState] = useState<WebSocketState>({
     connected: false,
@@ -71,125 +72,146 @@ export function useHyperliquidWebSocket(subscriptions: ('blocks' | 'allMids' | '
   });
 
   // Memoize subscriptions to prevent dependency changes
-  const subscriptionsKey = subscriptions.sort().join(',');
+  const subscriptionsKey = useRef(subscriptions.sort().join(','));
+
+  // Safe setState that checks if mounted
+  const safeSetState = useCallback((updater: (prev: WebSocketState) => WebSocketState) => {
+    if (isMountedRef.current) {
+      setState(updater);
+    }
+  }, []);
 
   const addFill = useCallback((fill: Fill) => {
-    setState(prev => ({
+    safeSetState(prev => ({
       ...prev,
       fills: [fill, ...prev.fills].slice(0, MAX_BUFFER_SIZE),
       lastFillTime: new Date(),
     }));
-  }, []);
-
-  const connect = useCallback(() => {
-    // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) return;
-    
-    // Limit reconnection attempts
-    if (reconnectAttemptRef.current >= maxReconnectAttempts) {
-      console.warn('[WS] Max reconnection attempts reached, stopping.');
-      return;
-    }
-
-    isConnectingRef.current = true;
-
-    try {
-      console.log('[WS] Connecting to Hyperliquid WebSocket...');
-      const ws = new WebSocket(WS_URL);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('[WS] Connected to Hyperliquid');
-        reconnectAttemptRef.current = 0;
-        isConnectingRef.current = false;
-        setState(prev => ({ ...prev, connected: true }));
-
-        // Subscribe to trades for major coins
-        if (subscriptionsKey.includes('trades')) {
-          const coins = ['BTC', 'ETH', 'SOL', 'ARB', 'DOGE', 'WIF', 'PEPE'];
-          coins.forEach(coin => {
-            ws.send(JSON.stringify({
-              method: 'subscribe',
-              subscription: { type: 'trades', coin },
-            }));
-          });
-          console.log('[WS] Subscribed to trade feeds');
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          // Handle trades channel - real-time fill data
-          if (data.channel === 'trades' && data.data) {
-            const trades = Array.isArray(data.data) ? data.data : [data.data];
-            trades.forEach((trade: any) => {
-              const fill: Fill = {
-                coin: trade.coin || data.subscription?.coin || 'BTC',
-                side: trade.side || 'B',
-                sz: String(Math.abs(parseFloat(trade.sz || '0'))),
-                px: String(trade.px || 0),
-                time: trade.time || Date.now(),
-                tid: trade.tid,
-                user: trade.users?.[0] || undefined,
-              };
-              addFill(fill);
-            });
-          }
-        } catch (err) {
-          console.error('[WS] Parse error:', err);
-        }
-      };
-
-      ws.onerror = () => {
-        console.error('[WS] WebSocket error');
-        isConnectingRef.current = false;
-      };
-
-      ws.onclose = () => {
-        console.log('[WS] Disconnected');
-        isConnectingRef.current = false;
-        setState(prev => ({ ...prev, connected: false }));
-        
-        // Only reconnect if under limit
-        reconnectAttemptRef.current++;
-        if (reconnectAttemptRef.current < maxReconnectAttempts) {
-          const delay = Math.min(3000 * reconnectAttemptRef.current, 15000);
-          console.log(`[WS] Reconnecting in ${delay/1000}s (attempt ${reconnectAttemptRef.current}/${maxReconnectAttempts})...`);
-          reconnectTimeoutRef.current = setTimeout(connect, delay);
-        }
-      };
-    } catch (err) {
-      console.error('[WS] Connection error:', err);
-      isConnectingRef.current = false;
-    }
-  }, [subscriptionsKey, addFill]);
-
-  const disconnect = useCallback(() => {
-    reconnectAttemptRef.current = maxReconnectAttempts; // Prevent auto-reconnect
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    setState(prev => ({ ...prev, connected: false }));
-  }, []);
+  }, [safeSetState]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
+    const connect = () => {
+      // Prevent multiple simultaneous connection attempts
+      if (!isMountedRef.current || isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) return;
+      
+      // Limit reconnection attempts
+      if (reconnectAttemptRef.current >= maxReconnectAttempts) {
+        console.warn('[WS] Max reconnection attempts reached, stopping.');
+        return;
+      }
+
+      isConnectingRef.current = true;
+
+      try {
+        console.log('[WS] Connecting to Hyperliquid WebSocket...');
+        const ws = new WebSocket(WS_URL);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          if (!isMountedRef.current) {
+            ws.close();
+            return;
+          }
+          console.log('[WS] Connected to Hyperliquid');
+          reconnectAttemptRef.current = 0;
+          isConnectingRef.current = false;
+          safeSetState(prev => ({ ...prev, connected: true }));
+
+          // Subscribe to trades for major coins
+          if (subscriptionsKey.current.includes('trades')) {
+            const coins = ['BTC', 'ETH', 'SOL', 'ARB', 'DOGE', 'WIF', 'PEPE'];
+            coins.forEach(coin => {
+              ws.send(JSON.stringify({
+                method: 'subscribe',
+                subscription: { type: 'trades', coin },
+              }));
+            });
+            console.log('[WS] Subscribed to trade feeds');
+          }
+        };
+
+        ws.onmessage = (event) => {
+          if (!isMountedRef.current) return;
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Handle trades channel - real-time fill data
+            if (data.channel === 'trades' && data.data) {
+              const trades = Array.isArray(data.data) ? data.data : [data.data];
+              trades.forEach((trade: any) => {
+                const fill: Fill = {
+                  coin: trade.coin || data.subscription?.coin || 'BTC',
+                  side: trade.side || 'B',
+                  sz: String(Math.abs(parseFloat(trade.sz || '0'))),
+                  px: String(trade.px || 0),
+                  time: trade.time || Date.now(),
+                  tid: trade.tid,
+                  user: trade.users?.[0] || undefined,
+                };
+                addFill(fill);
+              });
+            }
+          } catch (err) {
+            console.error('[WS] Parse error:', err);
+          }
+        };
+
+        ws.onerror = () => {
+          console.error('[WS] WebSocket error');
+          isConnectingRef.current = false;
+        };
+
+        ws.onclose = () => {
+          console.log('[WS] Disconnected');
+          isConnectingRef.current = false;
+          
+          if (!isMountedRef.current) return;
+          
+          safeSetState(prev => ({ ...prev, connected: false }));
+          
+          // Only reconnect if under limit and still mounted
+          reconnectAttemptRef.current++;
+          if (isMountedRef.current && reconnectAttemptRef.current < maxReconnectAttempts) {
+            const delay = Math.min(3000 * reconnectAttemptRef.current, 15000);
+            console.log(`[WS] Reconnecting in ${delay/1000}s (attempt ${reconnectAttemptRef.current}/${maxReconnectAttempts})...`);
+            reconnectTimeoutRef.current = setTimeout(connect, delay);
+          }
+        };
+      } catch (err) {
+        console.error('[WS] Connection error:', err);
+        isConnectingRef.current = false;
+      }
+    };
+
     connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
+
+    return () => {
+      isMountedRef.current = false;
+      reconnectAttemptRef.current = maxReconnectAttempts; // Prevent auto-reconnect
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [addFill, safeSetState]);
+
+  const reconnect = useCallback(() => {
+    if (!isMountedRef.current) return;
+    reconnectAttemptRef.current = 0;
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+  }, []);
 
   return {
     ...state,
-    reconnect: () => {
-      reconnectAttemptRef.current = 0;
-      connect();
-    },
+    reconnect,
   };
 }
 
