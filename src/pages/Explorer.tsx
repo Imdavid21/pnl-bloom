@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useExplorerState } from '@/hooks/useExplorerState';
 import { ExplorerSearch } from '@/components/explorer/ExplorerSearch';
 import { LiveActivityFeed } from '@/components/explorer/LiveActivityFeed';
+import { LiveBlockActivity } from '@/components/explorer/LiveBlockActivity';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
@@ -24,22 +25,27 @@ export default function ExplorerPage() {
   }>({ type: null, id: '' });
 
   const handleSearchSubmit = useCallback(async () => {
-    const query = localSearch.trim().toLowerCase();
+    const query = localSearch.trim();
     if (!query) return;
 
     setIsLoading(true);
     setSearch(query);
     
     // Detect query type based on length and format
-    if (query.startsWith('0x') && query.length === 42) {
-      // Wallet address
-      setDetailView({ type: 'wallet', id: query });
-    } else if (query.startsWith('0x') && query.length === 66) {
-      // Tx hash
-      setDetailView({ type: 'tx', id: query });
+    const lowerQuery = query.toLowerCase();
+    
+    if (lowerQuery.startsWith('0x') && lowerQuery.length === 42) {
+      // Wallet address (42 chars including 0x)
+      setDetailView({ type: 'wallet', id: lowerQuery });
+    } else if (lowerQuery.startsWith('0x') && lowerQuery.length === 66) {
+      // Tx hash (66 chars including 0x)
+      setDetailView({ type: 'tx', id: lowerQuery });
     } else if (/^\d+$/.test(query)) {
-      // Block number
+      // Block number (only digits)
       setDetailView({ type: 'block', id: query });
+    } else if (lowerQuery.startsWith('0x')) {
+      // Partial or other 0x prefix - try as tx hash first
+      setDetailView({ type: 'tx', id: lowerQuery });
     }
     
     setIsLoading(false);
@@ -114,6 +120,11 @@ export default function ExplorerPage() {
           onSearchSubmit={handleSearchSubmit}
           isLoading={isLoading}
         />
+
+        {/* Live Block Activity Visualizer */}
+        <div className="mt-6">
+          <LiveBlockActivity />
+        </div>
 
         {/* Live Activity Feed */}
         <div className="mt-6">

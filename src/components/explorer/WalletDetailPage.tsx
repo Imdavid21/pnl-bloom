@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { proxyRequest } from '@/lib/hyperliquidApi';
 import { cn } from '@/lib/utils';
+import { WalletInsights } from './WalletInsights';
 
 interface WalletDetailPageProps {
   address: string;
@@ -161,6 +162,11 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
           </div>
         </div>
       </div>
+
+      {/* Trading Insights - Unique analytics not found on typical explorers */}
+      {fills.length > 0 && (
+        <WalletInsights fills={fills} accountValue={accountValue} />
+      )}
 
       {/* Tab Switcher */}
       <div className="flex gap-1 p-1 bg-muted/50 rounded-lg mb-4">
