@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Calculator, TrendingUp, AlertTriangle, Wallet, Database, Globe, Zap, Code, Server, Shield, Layers, Activity, Search, BarChart3, Clock, Link as LinkIcon, FileCode, FolderTree, GitBranch, Cpu, Package, Settings, Key, RefreshCw, Table, Workflow, Download } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calculator, TrendingUp, AlertTriangle, Database, Globe, Zap, Code, Server, Shield, Layers, Activity, Search, BarChart3, Clock, Link as LinkIcon, FileCode, FolderTree, GitBranch, Cpu, Package, Settings, Key, RefreshCw, Table, Workflow, Download } from 'lucide-react';
 
 function generateMarkdownContent(): string {
   return `# HyperPNL Documentation
@@ -338,7 +338,6 @@ SUPABASE_SERVICE_ROLE_KEY
 - [Hyperliquid API Docs](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api)
 - [Hyperliquid Explorer](https://explorer.hyperliquid.xyz)
 - [Supabase Docs](https://supabase.com/docs)
-- [Wagmi Documentation](https://wagmi.sh)
 - [shadcn/ui](https://ui.shadcn.com)
 - [Recharts](https://recharts.org)
 `;
@@ -562,7 +561,7 @@ export default function DocsPage() {
                   position analytics, blockchain exploration, and trading insights. The platform operates across both Hyperliquid L1 
                   (the native perps DEX) and HyperEVM (the EVM-compatible layer).
                 </p>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="p-4 rounded-lg border border-border bg-card">
                     <BarChart3 className="h-5 w-5 text-primary mb-2" />
                     <h4 className="font-medium text-foreground mb-1">PnL Analytics</h4>
@@ -577,11 +576,6 @@ export default function DocsPage() {
                     <Activity className="h-5 w-5 text-primary mb-2" />
                     <h4 className="font-medium text-foreground mb-1">Live Positions</h4>
                     <p className="text-xs text-muted-foreground">Real-time position tracking with liquidation scores and risk metrics</p>
-                  </div>
-                  <div className="p-4 rounded-lg border border-border bg-card">
-                    <Wallet className="h-5 w-5 text-primary mb-2" />
-                    <h4 className="font-medium text-foreground mb-1">Wallet Connect</h4>
-                    <p className="text-xs text-muted-foreground">MetaMask, WalletConnect, Coinbase Wallet integration</p>
                   </div>
                 </div>
               </div>
@@ -605,11 +599,6 @@ export default function DocsPage() {
                   badges={['PostgreSQL', 'Deno', 'Edge Functions', 'RLS']}
                 />
                 <Definition
-                  term="Web3 Integration"
-                  description="Wagmi v3 for wallet state management, Viem for Ethereum interactions, WalletConnect v2 for multi-wallet support, custom HyperEVM RPC integration."
-                  badges={['Wagmi v3', 'Viem', 'WalletConnect']}
-                />
-                <Definition
                   term="Real-time Data"
                   description="WebSocket connections to Hyperliquid for live prices and trades, Supabase Realtime for database change subscriptions."
                   badges={['WebSocket', 'Supabase Realtime']}
@@ -626,8 +615,6 @@ export default function DocsPage() {
     "react-router-dom": "^6.30.1",
     "@tanstack/react-query": "^5.90.12",
     "@supabase/supabase-js": "^2.89.0",
-    "wagmi": "^3.1.0",
-    "viem": "^2.43.2",
     "recharts": "^2.15.4",
     "tailwindcss": "^3.x",
     "lucide-react": "^0.462.0",
@@ -736,20 +723,18 @@ export default function DocsPage() {
 {`App.tsx
 ├── QueryClientProvider (React Query)
 ├── ThemeProvider (next-themes)
-├── WagmiProvider (Web3)
-│   ├── RainbowKitProvider
-│   └── Routes
-│       ├── Layout (NavBar + Footer wrapper)
-│       │   ├── Index (PnL page)
-│       │   ├── Explorer
-│       │   │   ├── WalletDetailPage
-│       │   │   ├── BlockDetailPage
-│       │   │   ├── TxDetailPage
-│       │   │   └── SpotTokenDetailPage
-│       │   ├── Assets
-│       │   ├── Api
-│       │   └── Docs
-│       └── NotFound
+├── Routes
+│   ├── Layout (NavBar + Footer wrapper)
+│   │   ├── Index (PnL page)
+│   │   ├── Explorer
+│   │   │   ├── WalletDetailPage
+│   │   │   ├── BlockDetailPage
+│   │   │   ├── TxDetailPage
+│   │   │   └── SpotTokenDetailPage
+│   │   ├── Assets
+│   │   ├── Api
+│   │   └── Docs
+│   └── NotFound
 └── Toaster (sonner)`}
               </CodeBlock>
             </Section>
@@ -1331,11 +1316,6 @@ useEffect(() => {
                   description="Maps Hyperliquid token indices to symbols and metadata. Used for display names and token resolution."
                   badges={['Utility']}
                 />
-                <Definition
-                  term="src/lib/wagmi.ts"
-                  description="Wagmi configuration for Web3. Defines chains (HyperEVM), transports, connectors (MetaMask, WalletConnect, Coinbase)."
-                  badges={['Web3', 'Config']}
-                />
               </div>
             </Section>
           </TabsContent>
@@ -1383,7 +1363,6 @@ npm install
 
 # Install core dependencies
 npm install @tanstack/react-query react-router-dom @supabase/supabase-js
-npm install wagmi viem
 npm install recharts date-fns
 npm install tailwindcss postcss autoprefixer
 npm install lucide-react sonner
@@ -1423,7 +1402,7 @@ npx supabase functions deploy hyperliquid-proxy
                     <li><code>src/lib/utils.ts</code> - cn() helper for Tailwind class merging</li>
                     <li><code>src/lib/hyperliquidApi.ts</code> - API client for Hyperliquid</li>
                     <li><code>src/lib/hyperevmApi.ts</code> - API client for HyperEVM</li>
-                    <li><code>src/lib/wagmi.ts</code> - Web3 configuration</li>
+                    <li><code>src/lib/pnlApi.ts</code> - PnL data API client</li>
                     <li><code>src/hooks/usePnlData.ts</code> - Main data hook</li>
                     <li><code>src/hooks/useHyperliquidWebSocket.ts</code> - WebSocket hook</li>
                   </ol>
@@ -1457,7 +1436,6 @@ npx supabase functions deploy hyperliquid-proxy
                     <li>Create Layout with NavBar and Footer</li>
                     <li>Build PnL page with Heatmap and AnalyticsSection</li>
                     <li>Build Explorer with search, detail pages, live feeds</li>
-                    <li>Add wallet connection with ConnectButton</li>
                   </ol>
                 </div>
 
@@ -1465,7 +1443,6 @@ npx supabase functions deploy hyperliquid-proxy
                   <h4 className="font-medium text-foreground mb-2">Step 6: Wire Up Data Flow</h4>
                   <CodeBlock title="App.tsx structure">
 {`import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
 import { ThemeProvider } from 'next-themes';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
@@ -1474,20 +1451,18 @@ const queryClient = new QueryClient();
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WagmiProvider config={wagmiConfig}>
-        <ThemeProvider attribute="class" defaultTheme="dark">
-          <BrowserRouter>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route path="/" element={<Index />} />
-                <Route path="/explorer" element={<Explorer />} />
-                {/* ... other routes */}
-              </Route>
-            </Routes>
-          </BrowserRouter>
-          <Toaster />
-        </ThemeProvider>
-      </WagmiProvider>
+      <ThemeProvider attribute="class" defaultTheme="dark">
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/explorer" element={<Explorer />} />
+              {/* ... other routes */}
+            </Route>
+          </Routes>
+        </BrowserRouter>
+        <Toaster />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }`}
@@ -1557,11 +1532,6 @@ export default function App() {
                    className="p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors">
                   <h4 className="font-medium text-foreground mb-1">Supabase Docs</h4>
                   <p className="text-xs text-muted-foreground">Database and Edge Functions</p>
-                </a>
-                <a href="https://wagmi.sh" target="_blank" rel="noopener noreferrer"
-                   className="p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors">
-                  <h4 className="font-medium text-foreground mb-1">Wagmi Documentation</h4>
-                  <p className="text-xs text-muted-foreground">React hooks for Ethereum</p>
                 </a>
                 <a href="https://ui.shadcn.com" target="_blank" rel="noopener noreferrer"
                    className="p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors">
