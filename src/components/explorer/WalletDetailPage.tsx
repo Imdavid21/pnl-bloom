@@ -10,7 +10,7 @@ import { WalletSummaryHero } from './WalletSummaryHero';
 import { WalletActivityTimeline, fillsToEpisodes } from './WalletActivityTimeline';
 import { ExplorerActions } from './ExplorerActions';
 
-type ChainView = 'all' | 'hypercore' | 'hyperevm';
+type ChainView = 'hypercore' | 'hyperevm';
 
 interface WalletDetailPageProps {
   address: string;
@@ -123,7 +123,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     internalTxs: 'pending',
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [chainView, setChainView] = useState<ChainView>('all');
+  const [chainView, setChainView] = useState<ChainView>('hypercore');
   const [activeTab, setActiveTab] = useState<'positions' | 'fills' | 'l1-txs' | 'evm-txs' | 'tokens' | 'internal-txs'>('positions');
   const [chainAvailability, setChainAvailability] = useState<ChainAvailability>({
     hypercore: false,
@@ -578,7 +578,6 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
           <span className="text-xs font-medium text-muted-foreground">View:</span>
           <div className="flex items-center gap-1 p-1 rounded-lg bg-background/50">
             {[
-              { key: 'all' as ChainView, label: 'All' },
               { key: 'hypercore' as ChainView, label: 'Hypercore', icon: <Layers className="h-3 w-3" /> },
               { key: 'hyperevm' as ChainView, label: 'HyperEVM', icon: <Wallet className="h-3 w-3" /> },
             ].map(({ key, label, icon }) => (
@@ -632,69 +631,9 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         </div>
       </div>
 
-      {/* Chain-specific Overview Cards */}
-      {chainView === 'all' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Hypercore (Perps) Data */}
-          <div className="rounded-lg border border-border bg-card/50 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Layers className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-medium text-foreground">Hypercore</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Account Value</p>
-                <p className="text-lg font-semibold">${parseFloat(accountValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Open Positions</p>
-                <p className="text-lg font-semibold">{positions.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Recent Fills</p>
-                <p className="text-lg font-semibold">{fills.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Transactions</p>
-                <p className="text-lg font-semibold">{l1Txs.length}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* HyperEVM Data */}
-          <div className="rounded-lg border border-border bg-card/50 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Wallet className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-medium text-foreground">HyperEVM</h2>
-            </div>
-            {evmData ? (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Native Balance</p>
-                  <p className="text-lg font-semibold">{parseFloat(evmData.balance).toFixed(4)} HYPE</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">ERC-20 Tokens</p>
-                  <p className="text-lg font-semibold">{tokenBalances.length}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Type</p>
-                  <p className="text-lg font-semibold">{evmData.isContract ? 'Contract' : 'EOA'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Internal Txs</p>
-                  <p className="text-lg font-semibold">{internalTxs.length}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No EVM data available</p>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Trading Analytics - from PnL backend (Hypercore only) */}
-      {chainView !== 'hyperevm' && (
+      {chainView === 'hypercore' && (
         <WalletTradingStats 
           walletAddress={address} 
           onSyncRequest={() => window.open(`/?wallet=${address}`, '_blank')}
@@ -702,7 +641,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       )}
 
       {/* Spot Token Holdings (Hypercore only) */}
-      {chainView !== 'hyperevm' && (
+      {chainView === 'hypercore' && (
         <SpotBalances 
           address={address} 
           onNavigate={(type, id) => onNavigate(type, id)}
@@ -710,7 +649,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       )}
 
       {/* Hypercore Section */}
-      {chainView !== 'hyperevm' && (chainAvailability.hypercore || chainView === 'hypercore') && (
+      {chainView === 'hypercore' && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Layers className="h-4 w-4 text-primary" />
@@ -750,7 +689,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       )}
 
       {/* HyperEVM Section */}
-      {chainView !== 'hypercore' && (chainAvailability.hyperevm || chainView === 'hyperevm') && (
+      {chainView === 'hyperevm' && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Wallet className="h-4 w-4 text-emerald-400" />
