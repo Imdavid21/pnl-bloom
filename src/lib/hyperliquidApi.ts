@@ -172,24 +172,28 @@ export interface L1UserDetails {
 /**
  * Call the explorer-proxy edge function (for Hypercore L1)
  */
-async function callL1ExplorerProxy(params: Record<string, string>): Promise<any> {
+async function callL1ExplorerProxy(params: Record<string, string>): Promise<any | null> {
   const url = new URL(`${SUPABASE_URL}/functions/v1/explorer-proxy`);
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, value);
   });
-  
+
   const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
-      'apikey': SUPABASE_ANON_KEY,
+      apikey: SUPABASE_ANON_KEY,
       'Content-Type': 'application/json',
     },
   });
 
+  // "Not found" is expected when a tx/hash belongs to the other chain.
+  // Treat it as a normal miss (null) instead of throwing.
+  if (response.status === 404) return null;
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('[L1 Explorer API] Error:', error);
-    throw new Error(error.error || 'API request failed');
+    const errJson = await response.json().catch(() => null);
+    console.error('[L1 Explorer API] Non-OK response:', response.status, errJson);
+    return null;
   }
 
   return response.json();

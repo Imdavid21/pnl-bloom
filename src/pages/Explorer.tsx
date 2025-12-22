@@ -33,9 +33,16 @@ export default function ExplorerPage() {
 
     setIsLoading(true);
     setSearch(query);
-    
+
     const lowerQuery = query.toLowerCase();
-    
+
+    const preferredChain =
+      chainFilter === 'hyperevm'
+        ? 'hyperevm'
+        : chainFilter === 'hypercore-perps'
+          ? 'hypercore'
+          : undefined;
+
     // If searching in Spot mode, treat as token search
     if (chainFilter === 'hypercore-spot') {
       // Could be token name or tokenId
@@ -43,20 +50,17 @@ export default function ExplorerPage() {
       setIsLoading(false);
       return;
     }
-    
+
     // Detect query type based on length and format
     if (lowerQuery.startsWith('0x') && lowerQuery.length === 42) {
       // Wallet address (42 chars including 0x)
       setDetailView({ type: 'wallet', id: lowerQuery });
     } else if (lowerQuery.startsWith('0x') && lowerQuery.length === 66) {
       // Tx hash (66 chars including 0x)
-      setDetailView({ type: 'tx', id: lowerQuery });
+      setDetailView({ type: 'tx', id: lowerQuery, chain: preferredChain });
     } else if (/^\d+$/.test(query)) {
       // Block number (only digits)
-      // Use chain filter to determine which chain to query
-      const chain = chainFilter === 'hyperevm' ? 'hyperevm' : 
-                    chainFilter === 'hypercore-perps' ? 'hypercore' : undefined;
-      setDetailView({ type: 'block', id: query, chain });
+      setDetailView({ type: 'block', id: query, chain: preferredChain });
     } else if (lowerQuery.startsWith('0x')) {
       // Could be tokenId or partial hash
       if (lowerQuery.length === 34) {
@@ -64,13 +68,13 @@ export default function ExplorerPage() {
         setDetailView({ type: 'spot-token', id: lowerQuery });
       } else {
         // Try as tx hash
-        setDetailView({ type: 'tx', id: lowerQuery });
+        setDetailView({ type: 'tx', id: lowerQuery, chain: preferredChain });
       }
     } else {
       // Likely a token name search
       setDetailView({ type: 'spot-token', id: query });
     }
-    
+
     setIsLoading(false);
   }, [localSearch, setSearch, chainFilter]);
 
@@ -78,7 +82,10 @@ export default function ExplorerPage() {
     if (type === 'block') {
       setDetailView({ type: 'block', id });
     } else if (type === 'tx') {
-      setDetailView({ type: 'tx', id: data?.hash || id });
+      const txHash = data?.hash || id;
+      // Transactions coming from the live "transactions" tab are Hypercore L1.
+      const chain = data?.user && data?.block ? 'hypercore' : undefined;
+      setDetailView({ type: 'tx', id: txHash, chain });
     } else if (type === 'wallet') {
       setDetailView({ type: 'wallet', id: data?.address || id });
     } else {
@@ -113,10 +120,11 @@ export default function ExplorerPage() {
   if (detailView.type === 'tx') {
     return (
       <Layout>
-        <TxDetailPage 
-          hash={detailView.id} 
+        <TxDetailPage
+          hash={detailView.id}
           onBack={handleBack}
           onNavigate={handleNavigate}
+          preferredChain={detailView.chain}
         />
       </Layout>
     );

@@ -9,9 +9,10 @@ interface TxDetailPageProps {
   hash: string;
   onBack: () => void;
   onNavigate: (type: 'block' | 'tx' | 'wallet', id: string) => void;
+  preferredChain?: 'hyperevm' | 'hypercore';
 }
 
-export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
+export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDetailPageProps) {
   const [evmTx, setEvmTx] = useState<EVMTransaction | null>(null);
   const [l1Tx, setL1Tx] = useState<L1TransactionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,30 +23,72 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchTx = async () => {
       setIsLoading(true);
       setError(null);
-      
-      // Try both in parallel
-      const [evmData, l1Data] = await Promise.all([
-        getEVMTransaction(hash),
-        getL1TxDetails(hash),
-      ]);
+      setEvmTx(null);
+      setL1Tx(null);
+      setSource('unknown');
 
-      if (evmData) {
-        setEvmTx(evmData);
-        setSource('evm');
-      } else if (l1Data) {
-        setL1Tx(l1Data);
-        setSource('l1');
-      } else {
+      try {
+        const tryL1First = preferredChain === 'hypercore';
+
+        if (tryL1First) {
+          const l1Data = await getL1TxDetails(hash);
+          if (cancelled) return;
+          if (l1Data) {
+            setL1Tx(l1Data);
+            setSource('l1');
+            return;
+          }
+
+          // fall back to EVM if chain isn't forced
+          if (preferredChain !== 'hypercore') {
+            const evmData = await getEVMTransaction(hash);
+            if (cancelled) return;
+            if (evmData) {
+              setEvmTx(evmData);
+              setSource('evm');
+              return;
+            }
+          }
+        } else {
+          // Default: try HyperEVM first to avoid triggering L1 404s for EVM tx hashes
+          const evmData = await getEVMTransaction(hash);
+          if (cancelled) return;
+          if (evmData) {
+            setEvmTx(evmData);
+            setSource('evm');
+            return;
+          }
+
+          if (preferredChain !== 'hyperevm') {
+            const l1Data = await getL1TxDetails(hash);
+            if (cancelled) return;
+            if (l1Data) {
+              setL1Tx(l1Data);
+              setSource('l1');
+              return;
+            }
+          }
+        }
+
         setError('Transaction not found on HyperEVM or Hypercore L1');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to load transaction';
+        setError(msg);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
+
     fetchTx();
-  }, [hash]);
+    return () => {
+      cancelled = true;
+    };
+  }, [hash, preferredChain]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
