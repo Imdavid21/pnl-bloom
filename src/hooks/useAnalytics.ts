@@ -124,6 +124,19 @@ async function fetchAnalytics(
     },
   });
 
+  // Handle 404 (wallet not found) gracefully - return empty data
+  if (response.status === 404) {
+    return {
+      summary: undefined,
+      equity_curve: [],
+      closed_trades: [],
+      market_stats: [],
+      drawdowns: [],
+      trade_size_leverage: undefined,
+      positions: [],
+    };
+  }
+
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || 'Failed to fetch analytics');
