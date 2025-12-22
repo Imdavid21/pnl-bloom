@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { ArrowLeft, User, Copy, Check, ExternalLink, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, Code, Layers, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Coins, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { proxyRequest, getL1UserDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi';
@@ -53,6 +53,26 @@ interface EvmTx {
   contractAddress: string | null;
 }
 
+interface TokenBalance {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  balance: string;
+}
+
+interface InternalTx {
+  txHash: string;
+  blockNumber: number;
+  timestamp: number;
+  type: string;
+  from: string;
+  to: string;
+  valueEth: string;
+  direction: 'in' | 'out';
+  depth: number;
+}
+
 interface ChainAvailability {
   hypercore: boolean;
   hyperevm: boolean;
@@ -60,6 +80,8 @@ interface ChainAvailability {
   hasL1Txs: boolean;
   hasEvmBalance: boolean;
   hasEvmTxs: boolean;
+  hasTokens: boolean;
+  hasInternalTxs: boolean;
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -72,9 +94,11 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   const [l1Txs, setL1Txs] = useState<L1TransactionDetails[]>([]);
   const [evmData, setEvmData] = useState<EvmData | null>(null);
   const [evmTxs, setEvmTxs] = useState<EvmTx[]>([]);
+  const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
+  const [internalTxs, setInternalTxs] = useState<InternalTx[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'positions' | 'fills' | 'l1-txs' | 'evm-txs'>('positions');
+  const [activeTab, setActiveTab] = useState<'positions' | 'fills' | 'l1-txs' | 'evm-txs' | 'tokens' | 'internal-txs'>('positions');
   const [chainAvailability, setChainAvailability] = useState<ChainAvailability>({
     hypercore: false,
     hyperevm: false,
@@ -82,6 +106,8 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     hasL1Txs: false,
     hasEvmBalance: false,
     hasEvmTxs: false,
+    hasTokens: false,
+    hasInternalTxs: false,
   });
 
   useEffect(() => {
@@ -90,16 +116,13 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       
       // Fetch from all sources in parallel
       const results = await Promise.allSettled([
-        // Hypercore Perps - clearinghouse state
         proxyRequest({ type: 'clearinghouseState', user: address }),
-        // Hypercore Perps - user fills
         proxyRequest({ type: 'userFills', user: address }),
-        // Hypercore L1 - user transactions
         getL1UserDetails(address),
-        // HyperEVM - balance and contract info
         fetchEvmData(address),
-        // HyperEVM - transaction history
         fetchEvmTxs(address),
+        fetchTokenBalances(address),
+        fetchInternalTxs(address),
       ]);
 
       const availability: ChainAvailability = {
@@ -109,6 +132,8 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         hasL1Txs: false,
         hasEvmBalance: false,
         hasEvmTxs: false,
+        hasTokens: false,
+        hasInternalTxs: false,
       };
 
       // Process Hypercore clearinghouse state
@@ -169,6 +194,24 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         }
       }
 
+      // Process token balances
+      if (results[5].status === 'fulfilled' && results[5].value) {
+        setTokenBalances(results[5].value);
+        if (results[5].value.length > 0) {
+          availability.hasTokens = true;
+          availability.hyperevm = true;
+        }
+      }
+
+      // Process internal transactions
+      if (results[6].status === 'fulfilled' && results[6].value) {
+        setInternalTxs(results[6].value);
+        if (results[6].value.length > 0) {
+          availability.hasInternalTxs = true;
+          availability.hyperevm = true;
+        }
+      }
+
       setChainAvailability(availability);
       setIsLoading(false);
     };
@@ -198,6 +241,34 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       if (!res.ok) return [];
       const data = await res.json();
       return data.transactions || [];
+    } catch {
+      return [];
+    }
+  };
+
+  const fetchTokenBalances = async (addr: string): Promise<TokenBalance[]> => {
+    try {
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${addr}&blocks=5000`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.tokens || [];
+    } catch {
+      return [];
+    }
+  };
+
+  const fetchInternalTxs = async (addr: string): Promise<InternalTx[]> => {
+    try {
+      const url = `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressInternalTxs&address=${addr}&limit=20`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.internalTxs || [];
     } catch {
       return [];
     }
@@ -298,9 +369,9 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
       </div>
 
       {/* Chain Availability Indicator */}
-      <div className="flex items-center gap-3 mb-6 p-3 rounded-lg bg-muted/30 border border-border/50">
+      <div className="flex flex-wrap items-center gap-3 mb-6 p-3 rounded-lg bg-muted/30 border border-border/50">
         <span className="text-xs font-medium text-muted-foreground">Data Available:</span>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5">
             {chainAvailability.hypercore ? (
               <CheckCircle2 className="h-3.5 w-3.5 text-profit" />
@@ -339,7 +410,9 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
               <span className="text-[10px] text-muted-foreground">
                 ({[
                   chainAvailability.hasEvmBalance && 'Balance',
-                  chainAvailability.hasEvmTxs && 'Txs'
+                  chainAvailability.hasEvmTxs && 'Txs',
+                  chainAvailability.hasTokens && 'Tokens',
+                  chainAvailability.hasInternalTxs && 'Internal'
                 ].filter(Boolean).join(', ')})
               </span>
             )}
@@ -388,17 +461,17 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
                 <p className="text-lg font-semibold">{parseFloat(evmData.balance).toFixed(4)} ETH</p>
               </div>
               <div>
+                <p className="text-xs text-muted-foreground">ERC-20 Tokens</p>
+                <p className="text-lg font-semibold">{tokenBalances.length}</p>
+              </div>
+              <div>
                 <p className="text-xs text-muted-foreground">Type</p>
                 <p className="text-lg font-semibold">{evmData.isContract ? 'Contract' : 'EOA'}</p>
               </div>
-              {evmData.isContract && (
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">Bytecode</p>
-                  <p className="text-xs font-mono text-muted-foreground truncate">
-                    {evmData.code?.slice(0, 50)}...
-                  </p>
-                </div>
-              )}
+              <div>
+                <p className="text-xs text-muted-foreground">Internal Txs</p>
+                <p className="text-lg font-semibold">{internalTxs.length}</p>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No EVM data available</p>
@@ -406,7 +479,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         </div>
       </div>
 
-      {/* Trading Insights - Unique analytics not found on typical explorers */}
+      {/* Trading Insights */}
       {fills.length > 0 && (
         <WalletInsights fills={fills} accountValue={accountValue} />
       )}
@@ -422,7 +495,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         <button
           onClick={() => setActiveTab('positions')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
+            "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'positions' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -431,29 +504,49 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         <button
           onClick={() => setActiveTab('fills')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
+            "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'fills' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Perp Fills ({fills.length})
+          Fills ({fills.length})
         </button>
         <button
           onClick={() => setActiveTab('l1-txs')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
+            "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'l1-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
-          L1 Txs ({l1Txs.length})
+          L1 ({l1Txs.length})
         </button>
         <button
           onClick={() => setActiveTab('evm-txs')}
           className={cn(
-            "flex-1 px-4 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
+            "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap",
             activeTab === 'evm-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
         >
-          EVM Txs ({evmTxs.length})
+          EVM ({evmTxs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('tokens')}
+          className={cn(
+            "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5",
+            activeTab === 'tokens' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Coins className="h-3.5 w-3.5" />
+          Tokens ({tokenBalances.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('internal-txs')}
+          className={cn(
+            "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5",
+            activeTab === 'internal-txs' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          Internal ({internalTxs.length})
         </button>
       </div>
 
@@ -716,6 +809,144 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No EVM transactions found in recent blocks
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {activeTab === 'tokens' && (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border/50 hover:bg-transparent">
+                <TableHead className="text-xs h-9 px-4">Token</TableHead>
+                <TableHead className="text-xs h-9 px-4">Symbol</TableHead>
+                <TableHead className="text-xs h-9 px-4">Balance</TableHead>
+                <TableHead className="text-xs h-9 px-4">Contract</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tokenBalances.map((token, i) => (
+                <TableRow key={i} className="border-b border-border/30">
+                  <TableCell className="text-sm font-medium py-2.5 px-4">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-4 w-4 text-primary" />
+                      {token.name || 'Unknown Token'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm font-mono py-2.5 px-4">
+                    <span className="px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary font-medium">
+                      {token.symbol}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm font-mono py-2.5 px-4">
+                    {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  </TableCell>
+                  <TableCell className="py-2.5 px-4">
+                    <button
+                      onClick={() => onNavigate('wallet', token.address)}
+                      className="text-xs font-mono text-primary hover:underline"
+                    >
+                      {truncateHash(token.address)}
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {tokenBalances.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No ERC-20 tokens found (scanning last 5000 blocks)
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {activeTab === 'internal-txs' && (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border/50 hover:bg-transparent">
+                <TableHead className="text-xs h-9 px-4">Parent Tx</TableHead>
+                <TableHead className="text-xs h-9 px-4">Block</TableHead>
+                <TableHead className="text-xs h-9 px-4">Type</TableHead>
+                <TableHead className="text-xs h-9 px-4">Direction</TableHead>
+                <TableHead className="text-xs h-9 px-4">From/To</TableHead>
+                <TableHead className="text-xs h-9 px-4">Value</TableHead>
+                <TableHead className="text-xs h-9 px-4">Depth</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {internalTxs.map((tx, i) => {
+                const isOutgoing = tx.direction === 'out';
+                const counterparty = isOutgoing ? tx.to : tx.from;
+                return (
+                  <TableRow 
+                    key={i} 
+                    className="border-b border-border/30 hover:bg-muted/30 cursor-pointer"
+                    onClick={() => onNavigate('tx', tx.txHash)}
+                  >
+                    <TableCell className="text-sm font-mono py-2.5 px-4 text-primary">
+                      {truncateHash(tx.txHash)}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono py-2.5 px-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onNavigate('block', String(tx.blockNumber)); }}
+                        className="text-primary hover:underline"
+                      >
+                        {tx.blockNumber}
+                      </button>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4">
+                      <span className="px-1.5 py-0.5 rounded text-xs bg-muted font-mono">
+                        {tx.type}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        {isOutgoing ? (
+                          <ArrowUpRight className="h-3.5 w-3.5 text-loss" />
+                        ) : (
+                          <ArrowDownLeft className="h-3.5 w-3.5 text-profit" />
+                        )}
+                        <span className={cn(
+                          "text-xs font-medium",
+                          isOutgoing ? "text-loss" : "text-profit"
+                        )}>
+                          {isOutgoing ? 'OUT' : 'IN'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-4">
+                      {counterparty && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNavigate('wallet', counterparty); }}
+                          className="text-xs font-mono text-primary hover:underline"
+                        >
+                          {truncateHash(counterparty)}
+                        </button>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono py-2.5 px-4">
+                      {parseFloat(tx.valueEth).toFixed(6)} ETH
+                    </TableCell>
+                    <TableCell className="text-sm py-2.5 px-4">
+                      <span className="px-1.5 py-0.5 rounded text-xs bg-muted">
+                        {tx.depth}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {internalTxs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No internal transactions found (requires debug_traceTransaction support)
                   </TableCell>
                 </TableRow>
               )}
