@@ -31,11 +31,25 @@ function DeltaRow({ delta, compact }: { delta: AssetDelta; compact: boolean }) {
   
   const isPositive = direction === 'in';
   const isNeutral = direction === 'neutral';
-  const absChange = Math.abs(parseFloat(change));
   
-  // Format value based on magnitude
-  const formatValue = (val: string | number): string => {
-    const num = typeof val === 'string' ? parseFloat(val) : val;
+  // Safe parse that handles placeholders like '—', '?', empty strings, and NaN
+  const safeParse = (val: string | number | undefined | null): number => {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const str = String(val).trim();
+    if (!str || str === '—' || str === '-' || str === '?' || str === 'NaN') return 0;
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  };
+  
+  const absChange = Math.abs(safeParse(change));
+  
+  // Format value based on magnitude, with NaN protection
+  const formatValue = (val: string | number | undefined | null): string => {
+    const num = safeParse(val);
+    if (num === 0 && (val === '—' || val === '?' || val === undefined || val === null)) {
+      return '—';
+    }
     if (Math.abs(num) >= 1000000) {
       return `${(num / 1000000).toFixed(2)}M`;
     }
@@ -48,8 +62,15 @@ function DeltaRow({ delta, compact }: { delta: AssetDelta; compact: boolean }) {
     if (Math.abs(num) >= 0.0001) {
       return num.toFixed(4);
     }
+    if (num === 0) {
+      return '0';
+    }
     return num.toFixed(8);
   };
+  
+  // Check if USD value is valid and displayable
+  const hasValidUsdValue = deltaUsd !== undefined && deltaUsd !== null && 
+    deltaUsd !== '—' && deltaUsd !== '?' && !isNaN(safeParse(deltaUsd)) && safeParse(deltaUsd) !== 0;
   
   if (compact) {
     return (
@@ -61,11 +82,11 @@ function DeltaRow({ delta, compact }: { delta: AssetDelta; compact: boolean }) {
           !isPositive && !isNeutral && "text-loss-3",
           isNeutral && "text-muted-foreground"
         )}>
-          {isPositive ? '+' : isNeutral ? '' : '-'}{formatValue(absChange)} {symbol}
+          {absChange === 0 ? '—' : `${isPositive ? '+' : isNeutral ? '' : '-'}${formatValue(absChange)} ${symbol}`}
         </span>
-        {deltaUsd && parseFloat(deltaUsd) !== 0 && (
+        {hasValidUsdValue && (
           <span className="text-muted-foreground">
-            (${formatValue(Math.abs(parseFloat(deltaUsd)))})
+            (${formatValue(Math.abs(safeParse(deltaUsd)))})
           </span>
         )}
       </div>
@@ -100,16 +121,16 @@ function DeltaRow({ delta, compact }: { delta: AssetDelta; compact: boolean }) {
           !isPositive && !isNeutral && "text-loss-3",
           isNeutral && "text-muted-foreground"
         )}>
-          {isPositive ? '+' : isNeutral ? '' : '-'}{formatValue(absChange)}
+          {absChange === 0 ? '—' : `${isPositive ? '+' : isNeutral ? '' : '-'}${formatValue(absChange)}`}
         </div>
-        {deltaUsd && parseFloat(deltaUsd) !== 0 && (
+        {hasValidUsdValue && (
           <div className={cn(
             "text-xs",
             isPositive && "text-profit-3/70",
             !isPositive && !isNeutral && "text-loss-3/70",
             isNeutral && "text-muted-foreground"
           )}>
-            {isPositive ? '+' : '-'}${formatValue(Math.abs(parseFloat(deltaUsd)))}
+            {isPositive ? '+' : '-'}${formatValue(Math.abs(safeParse(deltaUsd)))}
           </div>
         )}
       </div>
@@ -153,13 +174,29 @@ export function AssetDeltaSummary({ deltas }: { deltas: AssetDelta[] }) {
   const incoming = deltas.filter(d => d.direction === 'in');
   const outgoing = deltas.filter(d => d.direction === 'out');
   
+  // Safe parse helper
+  const safeParse = (val: string | number | undefined | null): number => {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const str = String(val).trim();
+    if (!str || str === '—' || str === '-' || str === '?' || str === 'NaN') return 0;
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  };
+  
+  const formatDeltaAmount = (d: AssetDelta) => {
+    const val = safeParse(d.delta);
+    if (val === 0) return `— ${d.symbol}`;
+    return `${Math.abs(val).toFixed(4)} ${d.symbol}`;
+  };
+  
   return (
     <div className="flex items-center gap-4 text-sm">
       {outgoing.length > 0 && (
         <div className="flex items-center gap-1 text-loss-3">
           <ArrowDown className="h-4 w-4" />
           <span className="font-medium">
-            {outgoing.map(d => `${Math.abs(parseFloat(d.delta)).toFixed(4)} ${d.symbol}`).join(', ')}
+            {outgoing.map(formatDeltaAmount).join(', ')}
           </span>
         </div>
       )}
@@ -170,7 +207,7 @@ export function AssetDeltaSummary({ deltas }: { deltas: AssetDelta[] }) {
         <div className="flex items-center gap-1 text-profit-3">
           <ArrowUp className="h-4 w-4" />
           <span className="font-medium">
-            {incoming.map(d => `${parseFloat(d.delta).toFixed(4)} ${d.symbol}`).join(', ')}
+            {incoming.map(formatDeltaAmount).join(', ')}
           </span>
         </div>
       )}

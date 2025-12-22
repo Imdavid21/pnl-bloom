@@ -601,14 +601,32 @@ function transformEVMToView(tx: EVMTransaction, hash: string): TransactionView {
       if (decoded.decoded?.eventName?.includes('Transfer')) {
         const args = decoded.decoded.args;
         const isIncoming = args.to?.toLowerCase() === tx.from.toLowerCase();
-        const amount = args.amount ? (BigInt(args.amount) / BigInt(10 ** 18)).toString() : '?';
+        
+        // Handle amount safely - ERC721 won't have amount, ERC20 will
+        let amount = '—';
+        if (args.amount !== undefined && args.amount !== null) {
+          try {
+            // Try to parse as BigInt and convert (assuming 18 decimals, common default)
+            const amountBigInt = BigInt(args.amount);
+            const amountNum = Number(amountBigInt) / 1e18;
+            amount = amountNum > 0 ? amountNum.toFixed(8) : '0';
+          } catch {
+            amount = '—';
+          }
+        } else if (args.tokenId !== undefined) {
+          // ERC721 transfer - show token ID instead
+          amount = '1'; // NFT count
+        }
+        
+        // Truncate contract address for display
+        const tokenSymbol = `Token`;
         
         deltas.push({
           asset: log.address,
-          symbol: 'TOKEN',
+          symbol: tokenSymbol,
           before: '—',
           after: '—',
-          delta: isIncoming ? amount : `-${amount}`,
+          delta: isIncoming ? amount : (amount === '—' ? '—' : `-${amount}`),
           deltaUsd: '—',
           direction: isIncoming ? 'in' : 'out',
           chain: 'hyperevm',
