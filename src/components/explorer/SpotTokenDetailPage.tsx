@@ -312,8 +312,27 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
               </TableHeader>
               <TableBody>
                 {tokenDetails.genesis.userBalances.slice(0, 10).map((holder: any, idx: number) => {
-                  const address = typeof holder === 'object' ? holder.address : (Array.isArray(holder) ? holder[0] : String(holder));
-                  const balance = typeof holder === 'object' ? holder.evm_extra_wei_decimals : (Array.isArray(holder) ? holder[1] : '0');
+                  // Handle different possible data structures
+                  let address = '';
+                  let balance = '0';
+                  
+                  if (typeof holder === 'string') {
+                    address = holder;
+                  } else if (Array.isArray(holder)) {
+                    address = String(holder[0] || '');
+                    balance = String(holder[1] || '0');
+                  } else if (typeof holder === 'object' && holder !== null) {
+                    // Check if address itself is an object
+                    if (typeof holder.address === 'object' && holder.address !== null) {
+                      address = holder.address.address || JSON.stringify(holder.address);
+                    } else {
+                      address = String(holder.address || '');
+                    }
+                    balance = String(holder.evm_extra_wei_decimals || holder.balance || '0');
+                  }
+                  
+                  if (!address) return null;
+                  
                   return (
                     <TableRow 
                       key={idx} 
@@ -322,7 +341,7 @@ export function SpotTokenDetailPage({ tokenQuery, onBack, onNavigate }: SpotToke
                     >
                       <TableCell className="text-xs font-mono text-primary py-3 px-5">{truncateAddress(address)}</TableCell>
                       <TableCell className="text-xs font-mono text-foreground py-3 px-5 text-right">
-                        {balance ? parseFloat(String(balance).replace(/,/g, '')).toLocaleString() : '-'}
+                        {balance !== '0' ? parseFloat(balance.replace(/,/g, '')).toLocaleString() : '-'}
                       </TableCell>
                     </TableRow>
                   );
