@@ -1,1 +1,46 @@
 project_id = "bnyyzxymfppnfflewgfn"
+
+[functions.hyperliquid-proxy]
+verify_jwt = false
+
+[functions.explorer-proxy]
+verify_jwt = false
+
+[functions.pnl-calendar]
+verify_jwt = false
+
+[functions.pnl-day]
+verify_jwt = false
+
+[functions.pnl-analytics]
+verify_jwt = false
+
+[functions.sync-wallet]
+verify_jwt = false
+
+[functions.recompute-pnl]
+verify_jwt = false
+
+[functions.ingest-goldrush]
+verify_jwt = false
+
+[functions.ingest-hypercore]
+verify_jwt = false
+
+[functions.poll-hypercore]
+verify_jwt = false
+
+[functions.live-positions]
+verify_jwt = false
+
+[functions.compute-analytics]
+verify_jwt = false
+
+[functions.admin-backfill]
+verify_jwt = false
+
+[functions.admin-recompute]
+verify_jwt = false
+
+[functions.run-tests]
+verify_jwt = false

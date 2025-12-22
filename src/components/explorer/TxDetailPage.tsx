@@ -71,12 +71,15 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
   }
 
   const action = tx.action || {};
+  
+  // Get all action fields to display
+  const actionFields = Object.entries(action).filter(([key]) => key !== 'type');
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-        <button onClick={onBack} className="hover:text-foreground transition-colors">Explorer</button>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
+        <button onClick={onBack} className="hover:text-foreground transition-colors text-primary">Explorer</button>
         <ChevronRight className="h-3 w-3" />
         <span className="text-foreground">Transaction Details</span>
       </div>
@@ -84,30 +87,22 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
       {/* Title */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Hash className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Hash {truncateHash(hash)}</h1>
-            <a 
-              href={verifyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-            >
-              Verify <ExternalLink className="h-2 w-2" />
-            </a>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">Hash {truncateHash(hash)}</h1>
+          <a 
+            href={verifyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            Verify <ExternalLink className="h-2.5 w-2.5" />
+          </a>
         </div>
-        <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-3.5 w-3.5" /> Back
-        </Button>
       </div>
 
       {/* Overview */}
-      <div className="rounded-lg border border-border bg-card/50 p-4 mb-6">
-        <h2 className="text-sm font-medium text-foreground mb-3">Overview</h2>
-        <div className="space-y-3">
+      <div className="rounded-lg border border-border bg-card/30 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-foreground mb-4">Overview</h2>
+        <div className="space-y-0">
           <DetailRow 
             label="Hash" 
             value={hash}
@@ -115,12 +110,15 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
             onCopy={handleCopy}
             copiedId={copiedId}
             id="hash"
+            isLink
+            linkColor="primary"
           />
           <DetailRow 
             label="Block" 
             value={tx.block.toLocaleString()}
             onClick={() => onNavigate('block', String(tx.block))}
             isLink
+            linkColor="primary"
           />
           <DetailRow label="Time" value={formatTime(tx.time)} />
           <DetailRow 
@@ -132,41 +130,45 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
             id="user"
             onClick={() => onNavigate('wallet', tx.user)}
             isLink
+            linkColor="primary"
           />
-        </div>
-      </div>
-
-      {/* Action Details */}
-      <div className="rounded-lg border border-border bg-card/50 p-4">
-        <h2 className="text-sm font-medium text-foreground mb-3">Action Details</h2>
-        <div className="space-y-3">
+          
+          {/* Action type */}
           {action.type && (
-            <DetailRow label="type" value={`"${action.type}"`} />
-          )}
-          {action.signatureChainId && (
-            <DetailRow label="signatureChainId" value={`"${action.signatureChainId}"`} />
-          )}
-          {action.hyperliquidChain && (
-            <DetailRow label="hyperliquidChain" value={`"${action.hyperliquidChain}"`} />
-          )}
-          {action.agentAddress && (
             <DetailRow 
-              label="agentAddress" 
-              value={`"${action.agentAddress}"`}
-              copyable={action.agentAddress}
-              onCopy={handleCopy}
-              copiedId={copiedId}
-              id="agent"
+              label="type" 
+              value={`"${action.type}"`} 
+              valueColor="emerald"
             />
           )}
-          {action.agentName && (
-            <DetailRow label="agentName" value={`"${action.agentName}"`} />
-          )}
-          {action.nonce && (
-            <DetailRow label="nonce" value={String(action.nonce)} />
-          )}
+          
+          {/* All other action fields */}
+          {actionFields.map(([key, value]) => {
+            const displayValue = typeof value === 'object' 
+              ? JSON.stringify(value) 
+              : typeof value === 'string' 
+                ? `"${value}"`
+                : String(value);
+            
+            const isAddress = typeof value === 'string' && value.startsWith('0x') && value.length === 42;
+            const isNumber = typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value));
+            
+            return (
+              <DetailRow 
+                key={key}
+                label={key} 
+                value={displayValue}
+                valueColor={isNumber ? 'primary' : isAddress ? 'primary' : 'emerald'}
+                copyable={isAddress ? value : undefined}
+                onCopy={handleCopy}
+                copiedId={copiedId}
+                id={key}
+              />
+            );
+          })}
+          
           {tx.error && (
-            <DetailRow label="error" value={tx.error} />
+            <DetailRow label="error" value={tx.error} valueColor="red" />
           )}
         </div>
       </div>
@@ -174,7 +176,18 @@ export function TxDetailPage({ hash, onBack, onNavigate }: TxDetailPageProps) {
   );
 }
 
-function DetailRow({ label, value, copyable, onCopy, copiedId, id, onClick, isLink }: {
+function DetailRow({ 
+  label, 
+  value, 
+  copyable, 
+  onCopy, 
+  copiedId, 
+  id, 
+  onClick, 
+  isLink,
+  linkColor = 'primary',
+  valueColor
+}: {
   label: string;
   value: string;
   copyable?: string;
@@ -183,27 +196,37 @@ function DetailRow({ label, value, copyable, onCopy, copiedId, id, onClick, isLi
   id?: string;
   onClick?: () => void;
   isLink?: boolean;
+  linkColor?: 'primary' | 'emerald';
+  valueColor?: 'primary' | 'emerald' | 'red';
 }) {
+  const colorClasses = {
+    primary: 'text-primary',
+    emerald: 'text-emerald-400',
+    red: 'text-red-400',
+  };
+  
   return (
-    <div className="flex items-start justify-between py-2 border-b border-border/20 last:border-0 gap-4">
+    <div className="flex items-start py-3 border-b border-border/20 last:border-0 gap-6">
       <span className="text-xs text-muted-foreground shrink-0 min-w-[120px]">{label}</span>
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
         {isLink && onClick ? (
           <button 
             onClick={onClick}
-            className="text-sm font-mono text-primary hover:text-primary/80 truncate text-right"
+            className={`text-sm font-mono hover:opacity-80 truncate ${colorClasses[linkColor]}`}
           >
             {value}
           </button>
         ) : (
-          <span className="text-sm font-mono text-foreground truncate text-right">{value}</span>
+          <span className={`text-sm font-mono break-all ${valueColor ? colorClasses[valueColor] : 'text-foreground'}`}>
+            {value}
+          </span>
         )}
         {copyable && onCopy && id && (
           <button 
             onClick={() => onCopy(copyable, id)} 
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
           >
-            {copiedId === id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copiedId === id ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
         )}
       </div>
