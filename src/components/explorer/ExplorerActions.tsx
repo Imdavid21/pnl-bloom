@@ -1,4 +1,4 @@
-import { ArrowLeft, RefreshCw, ExternalLink, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ExternalLink, MoreHorizontal, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,9 +8,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ShareableView } from './ShareableView';
-import { BookmarkButton } from './BookmarkButton';
-import { EntityCompare } from './EntityCompare';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface ExplorerActionsProps {
   entityType: 'wallet' | 'tx' | 'block' | 'token';
@@ -20,7 +19,6 @@ interface ExplorerActionsProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   externalUrl?: string;
-  onCompare?: (id: string) => void;
   className?: string;
 }
 
@@ -32,43 +30,68 @@ export function ExplorerActions({
   onRefresh,
   isRefreshing,
   externalUrl,
-  onCompare,
   className,
 }: ExplorerActionsProps) {
+  const navigate = useNavigate();
+
+  const getEntityLabel = () => {
+    switch (entityType) {
+      case 'wallet': return 'Wallet';
+      case 'tx': return 'Transaction';
+      case 'block': return 'Block';
+      case 'token': return 'Token';
+      default: return '';
+    }
+  };
+
   return (
     <div className={cn("flex items-center gap-2 flex-wrap", className)}>
-      {/* Back button */}
-      {onBack && (
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back
+      {/* Left side: Home, Back, Entity type */}
+      <div className="flex items-center gap-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/explorer')}
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <Home className="h-4 w-4" />
         </Button>
-      )}
+        
+        <span className="text-muted-foreground/50">/</span>
+        
+        {onBack && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onBack} 
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        )}
+        
+        <span className="text-muted-foreground/50">·</span>
+        
+        <span className="text-sm text-muted-foreground">{getEntityLabel()}</span>
+      </div>
       
       <div className="flex-1" />
       
-      {/* Primary actions */}
+      {/* Right side: Share and More */}
       <div className="flex items-center gap-2">
         {/* Refresh */}
         {onRefresh && (
           <Button 
-            variant="outline" 
+            variant="ghost" 
             size="sm" 
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="gap-2"
+            className="gap-2 text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-            Refresh
           </Button>
         )}
-        
-        {/* Bookmark */}
-        <BookmarkButton 
-          entityType={entityType} 
-          entityId={entityId}
-          label={title}
-        />
         
         {/* Share */}
         <ShareableView 
@@ -76,15 +99,6 @@ export function ExplorerActions({
           entityId={entityId}
           title={title}
         />
-        
-        {/* Compare (for wallets and tokens) */}
-        {(entityType === 'wallet' || entityType === 'token') && onCompare && (
-          <EntityCompare
-            currentType={entityType}
-            currentId={entityId}
-            onCompare={onCompare}
-          />
-        )}
         
         {/* More actions dropdown */}
         <DropdownMenu>
