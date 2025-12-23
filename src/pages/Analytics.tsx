@@ -17,12 +17,10 @@ import { syncWalletFree } from "@/lib/pnlApi";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
 const Analytics = () => {
   const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const allMockData = getAllMockData();
-  
   const [selectedYear, setSelectedYear] = useState(2025);
   const [viewMode, setViewMode] = useState<'total' | 'closed' | 'funding'>('total');
   const [timezoneMode, setTimezoneMode] = useState('local');
@@ -39,20 +37,16 @@ const Analytics = () => {
       setTargetWallet(walletParam);
     }
   }, [searchParams, targetWallet]);
-
   const activeWallet = targetWallet || null;
-  
   const {
     data: calendarData,
     isLoading,
     error,
     refetch
   } = usePnlCalendar(activeWallet, selectedYear, viewMode, 'perps', timezoneMode === 'utc' ? 'utc' : 'local');
-
   const handleWalletChange = useCallback((wallet: string) => {
     setTargetWallet(wallet);
   }, []);
-
   const currentData = useMemo(() => {
     if (activeWallet && calendarData) {
       return {
@@ -83,9 +77,12 @@ const Analytics = () => {
       };
     }
     const mockData = allMockData[selectedYear];
-    return { ...mockData, total_volume: 0, closed_trades_count: 0 };
+    return {
+      ...mockData,
+      total_volume: 0,
+      closed_trades_count: 0
+    };
   }, [activeWallet, calendarData, allMockData, selectedYear]);
-
   const kpis = useMemo(() => {
     const summary = currentData.monthly_summary;
     const totalTrades = currentData.closed_trades_count || 0;
@@ -101,13 +98,11 @@ const Analytics = () => {
       totalTrades
     };
   }, [currentData]);
-
   const handleDayClick = (date: string, data?: DailyPnl) => {
     setSelectedDate(date);
     setSelectedDayData(data);
     setDrawerOpen(true);
   };
-
   const handleSync = async () => {
     if (!activeWallet) return;
     setIsSyncing(true);
@@ -125,11 +120,8 @@ const Analytics = () => {
       setIsSyncing(false);
     }
   };
-
   const years = [2025];
-
-  return (
-    <Layout showFooter={false}>
+  return <Layout showFooter={false}>
       <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6 lg:px-6">
         
         {/* Wallet Panel */}
@@ -141,21 +133,14 @@ const Analytics = () => {
                 <label className="text-xs text-muted-foreground mb-1.5 block uppercase tracking-wider">
                   Wallet Address
                 </label>
-                <WalletInput 
-                  value={targetWallet} 
-                  onChange={handleWalletChange} 
-                />
+                <WalletInput value={targetWallet} onChange={handleWalletChange} />
               </div>
             </div>
 
             {/* Status Row */}
-            {activeWallet && (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border pt-4">
+            {activeWallet && <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border pt-4">
                 <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    isLoading ? "bg-info animate-pulse" : "bg-profit-3"
-                  )} />
+                  <div className={cn("h-1.5 w-1.5 rounded-full", isLoading ? "bg-info animate-pulse" : "bg-profit-3")} />
                   <code className="text-xs font-mono text-foreground tabular-nums">
                     {activeWallet.slice(0, 8)}...{activeWallet.slice(-6)}
                   </code>
@@ -163,97 +148,45 @@ const Analytics = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleSync} 
-                    disabled={isSyncing || !activeWallet}
-                    className="h-7 text-xs gap-1.5"
-                  >
+                  <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing || !activeWallet} className="h-7 text-xs gap-1.5">
                     <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
                     Sync
                   </Button>
                 </div>
-              </div>
-            )}
+              </div>}
           </div>
         </div>
 
         {/* KPI Grid - Responsive */}
         <div className="mb-4 sm:mb-6 grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          <KpiCard 
-            title="PnL" 
-            value={kpis.pnl} 
-            icon={kpis.pnl >= 0 ? TrendingUp : TrendingDown} 
-            trend={kpis.pnl >= 0 ? 'profit' : 'loss'} 
-            subtitle="YTD" 
-            className="col-span-2 sm:col-span-1" 
-          />
-          <KpiCard 
-            title="Volume" 
-            value={`$${(kpis.volume / 1000000).toFixed(2)}M`} 
-            icon={BarChart3} 
-            trend="neutral" 
-            subtitle="Traded" 
-          />
-          <KpiCard 
-            title="Trades" 
-            value={kpis.totalTrades.toLocaleString()} 
-            icon={Hash} 
-            trend="neutral" 
-            subtitle="Total" 
-          />
-          <KpiCard 
-            title="Win Rate" 
-            value={`${Math.round(kpis.profitableDays / kpis.tradingDays * 100) || 0}%`} 
-            icon={Calendar} 
-            trend="neutral" 
-            subtitle={`${kpis.profitableDays}/${kpis.tradingDays}`} 
-          />
-          <KpiCard 
-            title="Funding" 
-            value={kpis.funding} 
-            icon={Banknote} 
-            trend={kpis.funding >= 0 ? 'profit' : 'loss'} 
-            subtitle="Net" 
-          />
+          <KpiCard title="PnL" value={kpis.pnl} icon={kpis.pnl >= 0 ? TrendingUp : TrendingDown} trend={kpis.pnl >= 0 ? 'profit' : 'loss'} subtitle="YTD" className="col-span-2 sm:col-span-1" />
+          <KpiCard title="Volume" value={`$${(kpis.volume / 1000000).toFixed(2)}M`} icon={BarChart3} trend="neutral" subtitle="Traded" />
+          <KpiCard title="Trades" value={kpis.totalTrades.toLocaleString()} icon={Hash} trend="neutral" subtitle="Total" />
+          <KpiCard title="Win Rate" value={`${Math.round(kpis.profitableDays / kpis.tradingDays * 100) || 0}%`} icon={Calendar} trend="neutral" subtitle={`${kpis.profitableDays}/${kpis.tradingDays}`} />
+          <KpiCard title="Funding" value={kpis.funding} icon={Banknote} trend={kpis.funding >= 0 ? 'profit' : 'loss'} subtitle="Net" />
         </div>
 
         {/* Current Positions - moved above Activity Grid */}
-        {activeWallet && (
-          <CurrentPositions wallet={activeWallet} className="mb-6" />
-        )}
+        {activeWallet && <CurrentPositions wallet={activeWallet} className="mb-6" />}
 
         {/* View Controls */}
         <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-4">
-          <ToggleGroup 
-            label="" 
-            options={[
-              { value: 'total', label: 'Total' },
-              { value: 'closed', label: 'Realized' },
-              { value: 'funding', label: 'Funding' }
-            ]} 
-            value={viewMode} 
-            onChange={v => setViewMode(v as 'total' | 'closed' | 'funding')} 
-          />
+          <ToggleGroup label="" options={[{
+          value: 'total',
+          label: 'Total'
+        }, {
+          value: 'closed',
+          label: 'Realized'
+        }, {
+          value: 'funding',
+          label: 'Funding'
+        }]} value={viewMode} onChange={v => setViewMode(v as 'total' | 'closed' | 'funding')} />
           <div className="flex items-center gap-1 text-xs">
-            <button 
-              onClick={() => setTimezoneMode('local')} 
-              className={cn(
-                "px-2 py-1 rounded transition-micro",
-                timezoneMode === 'local' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+            <button onClick={() => setTimezoneMode('local')} className={cn("px-2 py-1 rounded transition-micro", timezoneMode === 'local' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
               Local
             </button>
             <span className="text-muted-foreground">/</span>
-            <button 
-              onClick={() => setTimezoneMode('utc')} 
-              className={cn(
-                "px-2 py-1 rounded transition-micro",
-                timezoneMode === 'utc' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+            <button onClick={() => setTimezoneMode('utc')} className={cn("px-2 py-1 rounded transition-micro", timezoneMode === 'utc' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
               UTC
             </button>
           </div>
@@ -264,12 +197,7 @@ const Analytics = () => {
           <div className="panel-body">
             <div className="overflow-x-auto scrollbar-thin">
               <div className="min-w-full">
-                <Heatmap 
-                  data={currentData.daily} 
-                  year={selectedYear} 
-                  viewMode={viewMode} 
-                  onDayClick={handleDayClick} 
-                />
+                <Heatmap data={currentData.daily} year={selectedYear} viewMode={viewMode} onDayClick={handleDayClick} />
               </div>
             </div>
 
@@ -283,34 +211,14 @@ const Analytics = () => {
         </div>
 
         {/* Analytics Section */}
-        {activeWallet && (
-          <AnalyticsSection wallet={activeWallet} className="mt-6" />
-        )}
+        {activeWallet && <AnalyticsSection wallet={activeWallet} className="mt-6" />}
 
         {/* Footer Stats */}
-        {activeWallet && !error && currentData.daily.length > 0 && (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
-            <span>{currentData.daily.length} days</span>
-            <span className="text-border">·</span>
-            <span>{kpis.totalTrades.toLocaleString()} trades</span>
-            <span className="text-border">·</span>
-            <span>${(kpis.volume / 1000000).toFixed(2)}M vol</span>
-          </div>
-        )}
+        {activeWallet && !error && currentData.daily.length > 0}
       </div>
 
       {/* Day Detail Drawer */}
-      <DayDetailDrawer 
-        isOpen={drawerOpen} 
-        onClose={() => setDrawerOpen(false)} 
-        date={selectedDate} 
-        data={selectedDayData} 
-        isMobile={isMobile} 
-        wallet={activeWallet} 
-        tz={timezoneMode === 'utc' ? 'utc' : 'local'} 
-      />
-    </Layout>
-  );
+      <DayDetailDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} date={selectedDate} data={selectedDayData} isMobile={isMobile} wallet={activeWallet} tz={timezoneMode === 'utc' ? 'utc' : 'local'} />
+    </Layout>;
 };
-
 export default Analytics;
