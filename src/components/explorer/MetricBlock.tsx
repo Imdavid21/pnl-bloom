@@ -15,6 +15,11 @@ interface MetricBlockProps {
   isLoading?: boolean;
 }
 
+// Check if value is a placeholder (contains dashes as placeholders)
+function isPlaceholder(value: string): boolean {
+  return /^[\$@\(\)]*[-]+[\.\-\,\s\w]*$/.test(value) || value.includes('--');
+}
+
 // Animated value that preserves previous state
 function AnimatedValue({ 
   value, 
@@ -26,16 +31,20 @@ function AnimatedValue({
   const [displayValue, setDisplayValue] = useState(value);
   const [isUpdating, setIsUpdating] = useState(false);
   const prevRef = useRef(value);
+  const placeholder = isPlaceholder(value);
 
   useEffect(() => {
-    if (value !== prevRef.current && value !== '-' && value !== '') {
+    if (value !== prevRef.current && !isPlaceholder(value)) {
       setIsUpdating(true);
       setDisplayValue(value);
       prevRef.current = value;
       
       const timeout = setTimeout(() => setIsUpdating(false), 400);
       return () => clearTimeout(timeout);
-    } else if (value !== '-' && value !== '') {
+    } else if (!isPlaceholder(value)) {
+      setDisplayValue(value);
+    } else if (isPlaceholder(prevRef.current)) {
+      // Both are placeholders, update display
       setDisplayValue(value);
     }
   }, [value]);
@@ -45,6 +54,7 @@ function AnimatedValue({
       className={cn(
         "transition-all duration-400 ease-out",
         isUpdating && "text-foreground",
+        placeholder && "animate-pulse text-muted-foreground/40",
         className
       )}
     >
