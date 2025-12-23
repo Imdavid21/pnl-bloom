@@ -7,28 +7,41 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1.5rem", // 24px per spec
       screens: {
-        "2xl": "1400px",
+        "2xl": "1280px", // max-width per spec
       },
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       fontSize: {
-        // Strict type scale
+        // 2026 Typography Scale
+        'caption': ['0.75rem', { lineHeight: '1rem' }],      // 12/16
+        'body': ['0.875rem', { lineHeight: '1.25rem' }],     // 14/20
+        'lg': ['1.125rem', { lineHeight: '1.5rem' }],        // 18/24
+        'h3': ['1.125rem', { lineHeight: '1.5rem' }],        // 18/24
+        'h2': ['1.5rem', { lineHeight: '2rem' }],            // 24/32
+        'h1': ['2rem', { lineHeight: '2.5rem' }],            // 32/40
+        // Keep defaults for compatibility
         'xs': ['0.75rem', { lineHeight: '1rem' }],
         'sm': ['0.8125rem', { lineHeight: '1.25rem' }],
-        'base': ['0.875rem', { lineHeight: '1.5rem' }],
-        'lg': ['1rem', { lineHeight: '1.5rem' }],
-        'xl': ['1.125rem', { lineHeight: '1.75rem' }],
+        'base': ['0.875rem', { lineHeight: '1.25rem' }],
+        'xl': ['1.125rem', { lineHeight: '1.5rem' }],
         '2xl': ['1.5rem', { lineHeight: '2rem' }],
-        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '3xl': ['2rem', { lineHeight: '2.5rem' }],
       },
       spacing: {
-        // 8px grid system
+        // 8px grid system (strict)
+        'xs': '0.25rem',   // 4px
+        'sm': '0.5rem',    // 8px
+        'md': '1rem',      // 16px
+        'lg': '1.5rem',    // 24px
+        'xl': '2rem',      // 32px
+        'xxl': '3rem',     // 48px
+        // Keep numeric for compatibility
         '0.5': '0.125rem',
         '1': '0.25rem',
         '1.5': '0.375rem',
@@ -58,6 +71,8 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        surface: "hsl(var(--surface))",
+        "sub-surface": "hsl(var(--sub-surface))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -86,14 +101,28 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Semantic colors
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+        },
+        error: {
+          DEFAULT: "hsl(var(--error))",
+          foreground: "hsl(var(--error-foreground))",
         },
         info: {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        // PnL colors
+        profit: "hsl(var(--profit))",
+        loss: "hsl(var(--loss))",
+        neutral: "hsl(var(--neutral))",
+        // Sidebar
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -104,32 +133,6 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        pnl: {
-          loss: {
-            1: "hsl(var(--loss-1))",
-            2: "hsl(var(--loss-2))",
-            3: "hsl(var(--loss-3))",
-            4: "hsl(var(--loss-4))",
-          },
-          profit: {
-            1: "hsl(var(--profit-1))",
-            2: "hsl(var(--profit-2))",
-            3: "hsl(var(--profit-3))",
-            4: "hsl(var(--profit-4))",
-          },
-          neutral: "hsl(var(--neutral))",
-          nodata: "hsl(var(--no-data))",
-        },
-        pastel: {
-          green: "hsl(var(--pastel-green))",
-          red: "hsl(var(--pastel-red))",
-          yellow: "hsl(var(--pastel-yellow))",
-          purple: "hsl(var(--pastel-purple))",
-          blue: "hsl(var(--pastel-blue))",
-          pink: "hsl(var(--pastel-pink))",
-        },
-        profit: "hsl(var(--profit-3))",
-        loss: "hsl(var(--loss-3))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -149,20 +152,21 @@ export default {
           from: { opacity: "0" },
           to: { opacity: "1" },
         },
-        "slide-in-right": {
-          from: { transform: "translateX(100%)" },
-          to: { transform: "translateX(0)" },
-        },
       },
       animation: {
+        // Max 150ms per spec
         "accordion-down": "accordion-down 0.15s ease-out",
         "accordion-up": "accordion-up 0.15s ease-out",
         "fade-in": "fade-in 0.15s ease-out",
-        "slide-in-right": "slide-in-right 0.2s ease-out",
       },
       boxShadow: {
-        'sm': 'var(--shadow-sm)',
-        'md': 'var(--shadow-md)',
+        // Elevation levels - no colored shadows
+        '1': 'var(--shadow-1)',
+        '2': 'var(--shadow-2)',
+        '3': 'var(--shadow-3)',
+        'sm': 'var(--shadow-1)',
+        'md': 'var(--shadow-2)',
+        'lg': 'var(--shadow-3)',
       },
     },
   },
