@@ -105,10 +105,10 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const chainLabel = getChainLabel(chain);
   
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8 flex flex-col items-center">
       {/* Hero section - only on home */}
       {showHeader && !hasActiveQuery && (
-        <div className="text-center space-y-3 pt-8 pb-4">
+        <div className="text-center space-y-3 pt-8 pb-4 w-full">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground/90">
             Hyperliquid Explorer
           </h1>
@@ -120,7 +120,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
       
       {/* Compact breadcrumb when viewing entity */}
       {hasActiveQuery && (
-        <div className="flex items-center justify-center gap-2 text-xs pt-2">
+        <div className="flex items-center justify-center gap-2 text-xs pt-2 w-full">
           <button 
             onClick={handleBack}
             className="text-primary/70 hover:text-primary transition-colors font-medium"
@@ -203,7 +203,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
       
       {/* Main content with spacing */}
       <div className={cn(
-        "transition-all duration-500",
+        "transition-all duration-500 w-full flex flex-col items-center",
         !hasActiveQuery && "pt-4"
       )}>
         {children}
