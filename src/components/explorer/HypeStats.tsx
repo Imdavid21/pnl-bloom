@@ -240,44 +240,48 @@ export function HypeStats() {
     };
   }, [fetchPriceData, fetchInitialBlock, connectWebSocket, isLive]);
 
-  // Formatters
+  // Check if specific data is still loading
+  const isPriceLoading = stats.hypePrice === null;
+  const isBlockLoading = stats.latestBlock === null;
+
+  // Formatters with fallback defaults
   const formatPrice = (price: number | null) => {
-    if (price === null) return '-';
+    if (price === null) return '$--.-';
     return `$${price.toFixed(2)}`;
   };
 
   const formatBtcPrice = (price: number | null) => {
-    if (price === null) return '';
+    if (price === null) return '@ --.---- BTC';
     return `@ ${price.toFixed(5)} BTC`;
   };
 
   const formatMarketCap = (cap: number | null): string => {
-    if (cap === null) return '-';
+    if (cap === null) return '$--,---,---';
     return `$${cap.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatSupply = (supply: number | null): string => {
-    if (supply === null) return '';
+    if (supply === null) return '(--- HYPE)';
     return `(${supply.toLocaleString()} HYPE)`;
   };
 
   const formatTxns = (txns: number | null): string => {
-    if (txns === null) return '-';
+    if (txns === null) return '---.--M';
     return txns >= 1e6 ? `${(txns / 1e6).toFixed(2)}M` : txns.toLocaleString();
   };
 
   const formatTps = (tps: number | null): string => {
-    if (tps === null) return '';
+    if (tps === null) return '(-.-- TPS)';
     return `(${tps.toFixed(1)} TPS)`;
   };
 
   const formatBlock = (block: number | null): string => {
-    if (block === null) return '-';
+    if (block === null) return '--,---,---';
     return block.toLocaleString();
   };
 
   const formatBlockTime = (time: number | null): string => {
-    if (time === null) return '';
+    if (time === null) return '(-.--s ago)';
     return `(${time.toFixed(2)}s ago)`;
   };
 
@@ -323,7 +327,7 @@ export function HypeStats() {
             value: stats.priceChange24h,
             formatted: `${stats.priceChange24h.toFixed(2)}%`
           } : undefined}
-          isLoading={isLoading}
+          isLoading={isLoading && isPriceLoading}
           className="border-b md:border-b-0 md:border-r border-border/20 lg:border-r"
         />
 
@@ -333,7 +337,7 @@ export function HypeStats() {
           primaryValue={formatMarketCap(stats.marketCap)}
           secondaryValue={formatSupply(stats.circSupply)}
           icon={Globe}
-          isLoading={isLoading}
+          isLoading={isLoading && isPriceLoading}
           className="border-b lg:border-b-0 lg:border-r border-border/20"
         />
 
@@ -343,7 +347,7 @@ export function HypeStats() {
           primaryValue={formatTxns(stats.totalTxns)}
           secondaryValue={formatTps(stats.tps)}
           icon={Layers}
-          isLoading={isLoading}
+          isLoading={isLoading && isBlockLoading}
           className="border-b md:border-b-0 md:border-r lg:border-r border-border/20"
         />
 
@@ -353,7 +357,7 @@ export function HypeStats() {
           primaryValue={formatBlock(stats.latestBlock)}
           secondaryValue={formatBlockTime(stats.blockTime)}
           icon={Box}
-          isLoading={isLoading}
+          isLoading={isLoading && isBlockLoading}
         />
       </div>
     </div>
