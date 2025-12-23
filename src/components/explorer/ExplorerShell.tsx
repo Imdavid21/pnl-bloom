@@ -1,45 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { getSearchPlaceholder, getEntityLabel } from '@/lib/explorer/searchResolver';
+import { getSearchPlaceholder, getEntityLabel, getChainLabel } from '@/lib/explorer/searchResolver';
 import { TokenSearchAutocomplete, type SearchResult } from './TokenSearchAutocomplete';
-import type { ChainSource, LoadingStage } from '@/lib/explorer/types';
-import { toast } from 'sonner';
-
-// Chain toggle component
-function ChainToggle({ 
-  value, 
-  onChange 
-}: { 
-  value: ChainSource | undefined; 
-  onChange: (v: ChainSource | undefined) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50">
-      {[
-        { key: undefined, label: 'All' },
-        { key: 'hyperevm' as ChainSource, label: 'EVM' },
-        { key: 'hypercore' as ChainSource, label: 'L1' },
-      ].map(({ key, label }) => (
-        <button
-          key={label}
-          onClick={() => onChange(key)}
-          className={cn(
-            "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-            value === key
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
+import type { LoadingStage } from '@/lib/explorer/types';
 
 // Quick search suggestion button - now auto-submits
 function QuickButton({ label, onClick }: { label: string; onClick: () => void }) {
@@ -111,9 +78,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     mode, 
     chain,
     setQuery, 
-    setChain, 
     clear,
-    getShareableUrl,
     navigateTo,
   } = useExplorerUrl();
   
@@ -128,11 +93,11 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   // Handle autocomplete selection
   const handleSelect = useCallback((result: SearchResult) => {
     if (result.type === 'token') {
-      navigateTo('token', result.id, 'hypercore');
+      navigateTo('token', result.id);
     } else if (result.type === 'wallet') {
       navigateTo('wallet', result.address || result.id);
     } else if (result.type === 'contract' || result.type === 'dapp') {
-      navigateTo('wallet', result.address || result.id, 'hyperevm');
+      navigateTo('wallet', result.address || result.id);
     }
     setLocalSearch('');
   }, [navigateTo]);
@@ -164,9 +129,8 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     }
   }, [navigate, clear]);
   
-  
-  
   const hasActiveQuery = !!query;
+  const chainLabel = getChainLabel(chain);
   
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
@@ -180,8 +144,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
               <p className="text-sm text-muted-foreground mt-1">
                 Search wallets, transactions, blocks, and tokens across Hypercore & HyperEVM
               </p>
-          </div>
-            <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
+            </div>
           </div>
         )}
         
@@ -195,20 +158,19 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
               >
                 ← Back
               </button>
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground mx-1">›</span>
               <span className="text-foreground">{getEntityLabel(mode || 'wallet')}</span>
-              {chain && (
+              {chainLabel && (
                 <span className={cn(
                   "ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium",
                   chain === 'hyperevm' 
                     ? "bg-emerald-500/20 text-emerald-400"
                     : "bg-primary/20 text-primary"
                 )}>
-                  {chain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
-              </span>
+                  {chainLabel}
+                </span>
               )}
             </div>
-            <ChainToggle value={chain} onChange={(c) => setChain(c || null)} />
           </div>
         )}
         
@@ -219,7 +181,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
             onChange={setLocalSearch}
             onSelect={handleSelect}
             onSubmit={handleSearchSubmit}
-            placeholder={getSearchPlaceholder(chain)}
+            placeholder={getSearchPlaceholder()}
             className="flex-1"
             isLoading={isResolving}
           />

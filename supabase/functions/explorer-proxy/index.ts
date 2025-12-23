@@ -8,19 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Infer domain from input format
-function inferTxDomain(input: string): 'hyperevm' | 'hypercore' | 'unknown' {
-  // Standard EVM tx hash: 0x + 64 hex chars = 66 total
-  if (input.startsWith("0x") && input.length === 66) {
-    return "hyperevm";
-  }
-  // Shorter hashes are likely Hypercore L1
-  if (input.startsWith("0x") && input.length < 66) {
-    return "hypercore";
-  }
-  return "unknown";
-}
-
 // Try to fetch tx from HyperEVM RPC
 async function tryHyperEvmTx(hash: string): Promise<{ found: boolean; data?: any }> {
   try {
@@ -74,6 +61,96 @@ async function tryHypercoreTx(hash: string): Promise<{ found: boolean; data?: an
   }
 }
 
+// Try to fetch wallet from HyperEVM
+async function tryHyperEvmAddress(address: string): Promise<{ found: boolean; data?: any }> {
+  try {
+    console.log(`[explorer-proxy] Trying HyperEVM for address ${address}`);
+    // Get balance
+    const balanceResponse = await fetch(HYPEREVM_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_getBalance",
+        params: [address, "latest"],
+        id: 1,
+      }),
+    });
+    const balanceResult = await balanceResponse.json();
+    
+    // Get transaction count
+    const nonceResponse = await fetch(HYPEREVM_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_getTransactionCount",
+        params: [address, "latest"],
+        id: 2,
+      }),
+    });
+    const nonceResult = await nonceResponse.json();
+    
+    // Get code to check if contract
+    const codeResponse = await fetch(HYPEREVM_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_getCode",
+        params: [address, "latest"],
+        id: 3,
+      }),
+    });
+    const codeResult = await codeResponse.json();
+    
+    const balance = balanceResult.result || "0x0";
+    const txCount = nonceResult.result ? parseInt(nonceResult.result, 16) : 0;
+    const isContract = codeResult.result && codeResult.result !== "0x";
+    
+    return {
+      found: true,
+      data: {
+        address,
+        balance,
+        txCount,
+        isContract,
+        code: isContract ? codeResult.result : null,
+      },
+    };
+  } catch (error) {
+    console.error(`[explorer-proxy] HyperEVM address error:`, error);
+    return { found: false };
+  }
+}
+
+// Try to fetch wallet from Hypercore L1
+async function tryHypercoreWallet(address: string): Promise<{ found: boolean; data?: any }> {
+  try {
+    console.log(`[explorer-proxy] Trying Hypercore L1 for user ${address}`);
+    const response = await fetch(HYPERLIQUID_EXPLORER_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "userDetails", user: address }),
+    });
+    const responseText = await response.text();
+    if (!responseText || responseText.trim() === '') {
+      return { found: true, data: { txs: [], address } };
+    }
+    const data = JSON.parse(responseText);
+    return {
+      found: true,
+      data: {
+        txs: data.txs || [],
+        address,
+      },
+    };
+  } catch (error) {
+    console.error(`[explorer-proxy] Hypercore L1 user error:`, error);
+    return { found: false };
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -84,7 +161,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const requestType = url.searchParams.get("type");
     
-    // Handle transaction lookups with multi-source resolution
+    // Handle transaction lookups with UNIFIED multi-source resolution
     if (requestType === "tx") {
       const hash = url.searchParams.get("hash");
       if (!hash) {
@@ -94,19 +171,15 @@ serve(async (req) => {
         );
       }
 
-      const inferredDomain = inferTxDomain(hash);
-      console.log(`[explorer-proxy] Tx ${hash} inferred domain: ${inferredDomain}`);
-
+      console.log(`[explorer-proxy] Unified tx resolution for ${hash}`);
       const attempted: string[] = [];
       let result: { found: boolean; data?: any; source?: string } = { found: false };
 
-      // Try sources in order based on inference
-      if (inferredDomain === "hyperevm" || inferredDomain === "unknown") {
-        attempted.push("hyperevm");
-        const evmResult = await tryHyperEvmTx(hash);
-        if (evmResult.found) {
-          result = { found: true, data: evmResult.data, source: "hyperevm" };
-        }
+      // ALWAYS try both sources - EVM first, then Hypercore
+      attempted.push("hyperevm");
+      const evmResult = await tryHyperEvmTx(hash);
+      if (evmResult.found) {
+        result = { found: true, data: evmResult.data, source: "hyperevm" };
       }
 
       // If not found on EVM, try Hypercore
@@ -118,23 +191,13 @@ serve(async (req) => {
         }
       }
 
-      // If inferred as hypercore but we haven't tried it yet
-      if (!result.found && inferredDomain === "hypercore" && !attempted.includes("hypercore")) {
-        attempted.push("hypercore");
-        const coreResult = await tryHypercoreTx(hash);
-        if (coreResult.found) {
-          result = { found: true, data: coreResult.data, source: "hypercore" };
-        }
-      }
-
       if (!result.found) {
-        // Return structured not-found response (not a 404!)
+        // Return unified not-found response - NO suggestions to switch chains
         return new Response(
           JSON.stringify({
             resolved: false,
             attempted,
-            suggested: inferredDomain === "hyperevm" ? ["hypercore"] : ["hyperevm"],
-            message: `Transaction not found on ${attempted.join(" or ")}`,
+            message: `Transaction not found on HyperEVM or Hypercore`,
             hash,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -175,6 +238,36 @@ serve(async (req) => {
       });
     }
 
+    // Handle UNIFIED wallet/address lookups
+    if (requestType === "user" || requestType === "address") {
+      const address = url.searchParams.get("address");
+      if (!address) {
+        return new Response(
+          JSON.stringify({ error: "Missing address parameter" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[explorer-proxy] Unified address resolution for ${address}`);
+      
+      // Fetch from BOTH sources in parallel for wallets
+      const [evmResult, coreResult] = await Promise.all([
+        tryHyperEvmAddress(address),
+        tryHypercoreWallet(address),
+      ]);
+
+      return new Response(JSON.stringify({
+        resolved: true,
+        domain: "unified",
+        address,
+        evm: evmResult.found ? evmResult.data : null,
+        core: coreResult.found ? coreResult.data : null,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Handle block lookups
     if (requestType === "block") {
       const height = url.searchParams.get("height");
@@ -185,7 +278,48 @@ serve(async (req) => {
         );
       }
       
-      const body = { type: "blockDetails", height: parseInt(height, 10) };
+      const blockNum = parseInt(height, 10);
+      const attempted: string[] = [];
+      
+      // Try HyperEVM first for smaller block numbers
+      if (blockNum < 100_000_000) {
+        attempted.push("hyperevm");
+        try {
+          const evmResponse = await fetch(HYPEREVM_RPC, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              method: "eth_getBlockByNumber",
+              params: [`0x${blockNum.toString(16)}`, true],
+              id: 1,
+            }),
+          });
+          const evmResult = await evmResponse.json();
+          if (evmResult.result) {
+            const block = evmResult.result;
+            return new Response(JSON.stringify({
+              resolved: true,
+              blockNumber: parseInt(block.number, 16),
+              hash: block.hash,
+              time: parseInt(block.timestamp, 16) * 1000,
+              txCount: block.transactions?.length || 0,
+              gasUsed: block.gasUsed,
+              gasLimit: block.gasLimit,
+              source: "hyperevm",
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (e) {
+          console.error(`[explorer-proxy] EVM block fetch error:`, e);
+        }
+      }
+      
+      // Try Hypercore
+      attempted.push("hypercore");
+      const body = { type: "blockDetails", height: blockNum };
       console.log(`[explorer-proxy] Fetching block ${height} from ${HYPERLIQUID_EXPLORER_API}`);
 
       const response = await fetch(HYPERLIQUID_EXPLORER_API, {
@@ -197,7 +331,7 @@ serve(async (req) => {
       const responseText = await response.text();
       if (!responseText || responseText.trim() === '') {
         return new Response(
-          JSON.stringify({ resolved: false, message: "Block not found", height }),
+          JSON.stringify({ resolved: false, message: "Block not found", height, attempted }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -206,7 +340,7 @@ serve(async (req) => {
       const bd = data.blockDetails;
       if (!bd) {
         return new Response(
-          JSON.stringify({ resolved: false, message: "Block not found", height }),
+          JSON.stringify({ resolved: false, message: "Block not found", height, attempted }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -235,47 +369,8 @@ serve(async (req) => {
       });
     }
 
-    // Handle user lookups
-    if (requestType === "user") {
-      const address = url.searchParams.get("address");
-      if (!address) {
-        return new Response(
-          JSON.stringify({ error: "Missing address parameter" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const body = { type: "userDetails", user: address };
-      console.log(`[explorer-proxy] Fetching user ${address} from ${HYPERLIQUID_EXPLORER_API}`);
-
-      const response = await fetch(HYPERLIQUID_EXPLORER_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const responseText = await response.text();
-      if (!responseText || responseText.trim() === '') {
-        return new Response(
-          JSON.stringify({ resolved: true, txs: [], address }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const data = JSON.parse(responseText);
-      return new Response(JSON.stringify({
-        resolved: true,
-        txs: data.txs || [],
-        address,
-        source: "hypercore",
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     return new Response(
-      JSON.stringify({ error: "Invalid type. Use: block, tx, or user" }),
+      JSON.stringify({ error: "Invalid type. Use: block, tx, user, or address" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
