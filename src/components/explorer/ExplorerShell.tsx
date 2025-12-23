@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, X, Share2, ChevronRight } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Loader2, Share2, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { getSearchPlaceholder, formatEntityId, getEntityLabel } from '@/lib/explorer/searchResolver';
-import { findSpotTokenByName } from '@/lib/hyperliquidApi';
-import type { EntityMode, ChainSource, LoadingStage } from '@/lib/explorer/types';
+import { getSearchPlaceholder, getEntityLabel } from '@/lib/explorer/searchResolver';
+import { TokenSearchAutocomplete, type SearchResult } from './TokenSearchAutocomplete';
+import type { ChainSource, LoadingStage } from '@/lib/explorer/types';
 import { toast } from 'sonner';
+
 // Chain toggle component
 function ChainToggle({ 
   value, 
@@ -118,7 +118,6 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   } = useExplorerUrl();
   
   const [localSearch, setLocalSearch] = useState(query);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   
   // Sync local search with URL query
@@ -126,58 +125,30 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     setLocalSearch(query);
   }, [query]);
   
-  // Handle search with token name resolution
-  const handleSearchSubmit = useCallback(async () => {
+  // Handle autocomplete selection
+  const handleSelect = useCallback((result: SearchResult) => {
+    if (result.type === 'token') {
+      navigateTo('token', result.id, 'hypercore');
+    } else if (result.type === 'wallet') {
+      navigateTo('wallet', result.address || result.id);
+    } else if (result.type === 'contract' || result.type === 'dapp') {
+      navigateTo('wallet', result.address || result.id, 'hyperevm');
+    }
+    setLocalSearch('');
+  }, [navigateTo]);
+  
+  // Handle search submit (when not selecting from dropdown)
+  const handleSearchSubmit = useCallback(() => {
     const trimmed = localSearch.trim();
     if (!trimmed) return;
-    
-    // Check if it looks like a token name (all letters or alphanumeric, not a hex address)
-    const isLikelyTokenName = /^[A-Za-z][A-Za-z0-9]*$/i.test(trimmed) && !trimmed.startsWith('0x');
-    
-    if (isLikelyTokenName) {
-      setIsResolving(true);
-      try {
-        const token = await findSpotTokenByName(trimmed);
-        if (token) {
-          // Found token - navigate directly to token page
-          navigateTo('token', token.tokenId, 'hypercore');
-          setIsResolving(false);
-          return;
-        }
-        // Token not found - setQuery anyway, let detail page handle error
-      } catch (err) {
-        console.error('Token lookup failed:', err);
-      }
-      setIsResolving(false);
-    }
-    
     setQuery(trimmed);
-  }, [localSearch, setQuery, navigateTo]);
+  }, [localSearch, setQuery]);
   
   // Quick search handler - auto-submits
-  const handleQuickSearch = useCallback(async (value: string) => {
+  const handleQuickSearch = useCallback((value: string) => {
     setLocalSearch(value);
-    
-    // Check if it's a token name
-    const isLikelyTokenName = /^[A-Za-z][A-Za-z0-9]*$/i.test(value) && !value.startsWith('0x');
-    
-    if (isLikelyTokenName) {
-      setIsResolving(true);
-      try {
-        const token = await findSpotTokenByName(value);
-        if (token) {
-          navigateTo('token', token.tokenId, 'hypercore');
-          setIsResolving(false);
-          return;
-        }
-      } catch (err) {
-        console.error('Token lookup failed:', err);
-      }
-      setIsResolving(false);
-    }
-    
     setQuery(value);
-  }, [setQuery, navigateTo]);
+  }, [setQuery]);
   
   const handleClear = useCallback(() => {
     setLocalSearch('');
@@ -246,38 +217,17 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
           </div>
         )}
         
-        {/* Search bar - always visible */}
+        {/* Search bar with autocomplete - always visible */}
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-            <Input
-              placeholder={getSearchPlaceholder(chain)}
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              className={cn(
-                "pl-12 pr-10 h-12 text-base font-mono",
-                "bg-card/50 border-border/40",
-                "placeholder:text-muted-foreground/40",
-                "transition-all duration-200",
-                isSearchFocused && "border-primary/40 ring-1 ring-primary/10 bg-card/80"
-              )}
-            />
-            {(localSearch || isResolving) && (
-              <button
-                onClick={handleClear}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {isResolving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <X className="h-4 w-4" />
-                )}
-              </button>
-            )}
-          </div>
+          <TokenSearchAutocomplete
+            value={localSearch}
+            onChange={setLocalSearch}
+            onSelect={handleSelect}
+            onSubmit={handleSearchSubmit}
+            placeholder={getSearchPlaceholder(chain)}
+            className="flex-1"
+            isLoading={isResolving}
+          />
           <Button
             onClick={handleSearchSubmit}
             disabled={!localSearch.trim() || isResolving}

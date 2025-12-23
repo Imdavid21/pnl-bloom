@@ -9,6 +9,7 @@ import { SpotBalances } from './SpotBalances';
 import { WalletSummaryHero } from './WalletSummaryHero';
 import { WalletActivityTimeline, fillsToEpisodes } from './WalletActivityTimeline';
 import { ExplorerActions } from './ExplorerActions';
+import { ContractBadgeStack } from './ContractTypeBadge';
 
 type ChainView = 'hypercore' | 'hyperevm';
 
@@ -500,6 +501,17 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         externalUrl={`https://purrsec.com/address/${address}`}
         className="mb-4"
       />
+
+      {/* Contract Type Badge - show prominently for contracts */}
+      {evmData && (
+        <div className="mb-4">
+          <ContractBadgeStack 
+            address={address}
+            isContract={evmData.isContract}
+            contractCode={evmData.code}
+          />
+        </div>
+      )}
 
       {/* Enhanced Summary Hero */}
       <WalletSummaryHero
