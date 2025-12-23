@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Share2, ChevronRight } from 'lucide-react';
+import { Loader2, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
@@ -164,11 +164,6 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     }
   }, [navigate, clear]);
   
-  const handleShare = useCallback(() => {
-    const url = getShareableUrl();
-    navigator.clipboard.writeText(url);
-    toast.success('Link copied to clipboard');
-  }, [getShareableUrl]);
   
   
   const hasActiveQuery = !!query;
@@ -235,16 +230,6 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
           >
             {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
-          {hasActiveQuery && (
-            <Button
-              variant="outline"
-              onClick={handleShare}
-              className="h-12 px-3 border-border/40 hover:bg-muted/30"
-              title="Copy shareable link"
-            >
-              <Share2 className="h-4 w-4" />
-            </Button>
-          )}
         </div>
         
         {/* Quick searches - only on home */}
