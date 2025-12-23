@@ -1,4 +1,4 @@
-import { ArrowLeft, RefreshCw, ExternalLink, MoreHorizontal, Home } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ExternalLink, MoreHorizontal, Home, Link2, Download, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,9 +7,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ShareableView } from './ShareableView';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 
 interface ExplorerActionsProps {
   entityType: 'wallet' | 'tx' | 'block' | 'token';
@@ -33,6 +34,7 @@ export function ExplorerActions({
   className,
 }: ExplorerActionsProps) {
   const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
 
   const getEntityLabel = () => {
     switch (entityType) {
@@ -43,6 +45,51 @@ export function ExplorerActions({
       default: return '';
     }
   };
+
+  const getShareUrl = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('t', Date.now().toString());
+    return url.toString();
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(getShareUrl());
+      setCopied(true);
+      toast.success('Link copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  }, [getShareUrl]);
+
+  const handleCopyAddress = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(entityId);
+      toast.success(`${entityType === 'tx' ? 'Hash' : entityType === 'wallet' ? 'Address' : 'ID'} copied`);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }, [entityId, entityType]);
+
+  const handleExportJSON = useCallback(() => {
+    const data = {
+      type: entityType,
+      id: entityId,
+      title,
+      url: getShareUrl(),
+      exportedAt: new Date().toISOString(),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${entityType}-${entityId.slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Data exported');
+  }, [entityType, entityId, title, getShareUrl]);
 
   return (
     <div className={cn("flex items-center gap-2 flex-wrap", className)}>
@@ -78,7 +125,7 @@ export function ExplorerActions({
       
       <div className="flex-1" />
       
-      {/* Right side: Share and More */}
+      {/* Right side: Refresh and unified More dropdown */}
       <div className="flex items-center gap-2">
         {/* Refresh */}
         {onRefresh && (
@@ -93,42 +140,43 @@ export function ExplorerActions({
           </Button>
         )}
         
-        {/* Share */}
-        <ShareableView 
-          entityType={entityType}
-          entityId={entityId}
-          title={title}
-        />
-        
-        {/* More actions dropdown */}
+        {/* Unified actions dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-48">
             {externalUrl && (
-              <>
-                <DropdownMenuItem asChild>
-                  <a 
-                    href={externalUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View on Hyperliquid
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
+              <DropdownMenuItem asChild>
+                <a 
+                  href={externalUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  View on Hyperliquid
+                </a>
+              </DropdownMenuItem>
             )}
-            <DropdownMenuItem 
-              onClick={() => navigator.clipboard.writeText(entityId)}
-              className="gap-2"
-            >
+            <DropdownMenuItem onClick={handleCopyAddress} className="gap-2">
+              <Copy className="h-4 w-4" />
               Copy {entityType === 'tx' ? 'hash' : entityType === 'wallet' ? 'address' : 'ID'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleCopyLink} className="gap-2">
+              {copied ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <Link2 className="h-4 w-4" />
+              )}
+              Copy link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportJSON} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export JSON
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
