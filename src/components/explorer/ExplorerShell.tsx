@@ -105,7 +105,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const chainLabel = getChainLabel(chain);
   
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8 flex flex-col items-center">
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8 flex flex-col items-center w-full">
       {/* Hero section - only on home */}
       {showHeader && !hasActiveQuery && (
         <div className="text-center space-y-3 pt-8 pb-4 w-full">
@@ -118,34 +118,10 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         </div>
       )}
       
-      {/* Compact breadcrumb when viewing entity */}
-      {hasActiveQuery && (
-        <div className="flex items-center justify-center gap-2 text-xs pt-2 w-full">
-          <button 
-            onClick={handleBack}
-            className="text-primary/70 hover:text-primary transition-colors font-medium"
-          >
-            ← Back
-          </button>
-          <span className="text-muted-foreground/30">·</span>
-          <span className="text-muted-foreground/60">{getEntityLabel(mode || 'wallet')}</span>
-          {chainLabel && (
-            <span className={cn(
-              "px-1.5 py-0.5 rounded-full text-[10px] font-medium",
-              chain === 'hyperevm' 
-                ? "bg-emerald-500/10 text-emerald-400/80"
-                : "bg-primary/10 text-primary/80"
-            )}>
-              {chainLabel}
-            </span>
-          )}
-        </div>
-      )}
-      
       {/* Primary CTA: Search bar - 2026 minimal style */}
       <div className={cn(
-        "relative mx-auto transition-all duration-500",
-        hasActiveQuery ? "max-w-2xl" : "max-w-3xl"
+        "relative w-full transition-all duration-500",
+        hasActiveQuery ? "max-w-3xl" : "max-w-4xl"
       )}>
         <div className={cn(
           "relative flex gap-2 p-1.5",
