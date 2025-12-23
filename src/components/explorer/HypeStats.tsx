@@ -13,45 +13,45 @@ interface HypeStatsData {
   addresses24h: number | null;
 }
 
-// Stat block - 2026 minimal design with hierarchy via spacing
+// Visible stat block - center aligned
 function StatBlock({ 
   label, 
   value, 
   subValue,
   change,
-  isLoading,
 }: { 
   label: string;
   value: string;
   subValue?: string;
   change?: number | null;
-  isLoading?: boolean;
 }) {
   const isPlaceholder = value.includes('--');
   
   return (
     <div className={cn(
-      "flex flex-col items-center text-center",
-      "px-lg py-md",
-      "bg-surface",
-      "border border-border rounded-lg",
-      "shadow-1",
-      "transition-state"
+      "flex flex-col items-center justify-center text-center",
+      "px-4 py-4 md:px-6 md:py-5",
+      "bg-card/60 backdrop-blur-sm",
+      "border border-border/30 rounded-xl",
+      "transition-all duration-300",
+      "hover:bg-card/80 hover:border-border/50"
     )}>
-      <span className="text-caption text-muted-foreground uppercase tracking-wide mb-sm">
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium mb-2">
         {label}
       </span>
-      <div className="flex items-baseline gap-xs flex-wrap justify-center">
+      <div className="flex items-center gap-1.5 flex-wrap justify-center">
         <span className={cn(
-          "text-lg font-medium tabular-nums",
-          isPlaceholder ? "text-muted-foreground" : "text-foreground"
+          "text-lg md:text-xl font-semibold tabular-nums transition-all duration-300",
+          isPlaceholder ? "text-muted-foreground/30 animate-pulse" : "text-foreground"
         )}>
           {value}
         </span>
         {change !== undefined && change !== null && !isPlaceholder && (
           <span className={cn(
-            "text-caption tabular-nums",
-            change >= 0 ? "text-success" : "text-error"
+            "text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded-full",
+            change >= 0 
+              ? "text-profit-3 bg-profit-3/10" 
+              : "text-loss-3 bg-loss-3/10"
           )}>
             {change >= 0 ? '+' : ''}{change.toFixed(2)}%
           </span>
@@ -59,7 +59,8 @@ function StatBlock({
       </div>
       {subValue && (
         <span className={cn(
-          "text-caption text-muted-foreground mt-xs tabular-nums"
+          "text-[11px] text-muted-foreground/50 mt-1 tabular-nums",
+          isPlaceholder && "animate-pulse"
         )}>
           {subValue}
         </span>
@@ -82,13 +83,12 @@ export function HypeStats() {
   });
   const [isLive, setIsLive] = useState(false);
   const [lastBlockUpdate, setLastBlockUpdate] = useState<number | null>(null);
-  const [lastFetched, setLastFetched] = useState<Date | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
   const blockTimestampsRef = useRef<number[]>([]);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const txCountRef = useRef<number>(102460000);
-  const addressCountRef = useRef<number>(847500);
+  const addressCountRef = useRef<number>(847500); // Tracked unique addresses
 
   const calculateTps = useCallback(() => {
     const timestamps = blockTimestampsRef.current;
@@ -143,10 +143,10 @@ export function HypeStats() {
             const txCount = block.transactions?.length || parseInt(block.gasUsed, 16) / 21000 || 4;
             txCountRef.current += Math.max(1, Math.floor(txCount));
             
+            // Simulate address growth (realistic ~2-5 new addresses per block)
             addressCountRef.current += Math.floor(Math.random() * 4) + 1;
             
             setLastBlockUpdate(timestamp);
-            setLastFetched(new Date());
             
             setStats(prev => ({
               ...prev,
@@ -200,8 +200,6 @@ export function HypeStats() {
       const circSupply = 336685219;
       const marketCap = hypePrice ? hypePrice * circSupply : null;
       
-      setLastFetched(new Date());
-      
       setStats(prev => ({
         ...prev,
         hypePrice: hypePrice ?? prev.hypePrice,
@@ -229,12 +227,12 @@ export function HypeStats() {
       if (rpcData.result) {
         const blockNumber = parseInt(rpcData.result, 16);
         
+        // Estimate unique addresses based on block height (realistic growth)
         const estimatedAddresses = Math.floor(blockNumber * 0.038);
         addressCountRef.current = estimatedAddresses;
         
+        // Estimate 24h new addresses (~0.5-1% daily growth)
         const addresses24h = Math.floor(estimatedAddresses * 0.008);
-        
-        setLastFetched(new Date());
         
         setStats(prev => ({
           ...prev,
@@ -294,34 +292,21 @@ export function HypeStats() {
     return count.toLocaleString();
   };
 
-  // Format freshness
-  const getFreshness = () => {
-    if (!lastFetched) return null;
-    const seconds = Math.floor((Date.now() - lastFetched.getTime()) / 1000);
-    if (seconds < 5) return 'Just now';
-    if (seconds < 60) return `${seconds}s ago`;
-    return `${Math.floor(seconds / 60)}m ago`;
-  };
-
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      {/* State communication - text labels per spec */}
-      <div className="flex items-center justify-center gap-md mb-lg text-caption text-muted-foreground">
-        {isLive ? (
-          <span className="text-success">Live</span>
-        ) : (
-          <span>Polling</span>
-        )}
-        {lastFetched && (
-          <>
-            <span>·</span>
-            <span>Last fetched {getFreshness()}</span>
-          </>
-        )}
-      </div>
+    <div className="w-full flex flex-col items-center">
+      {/* Live indicator */}
+      {isLive && (
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-profit-3/50 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-profit-3"></span>
+          </span>
+          <span className="text-[10px] text-profit-3/70 font-medium uppercase tracking-wider">Live</span>
+        </div>
+      )}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-md">
+      {/* Stats grid - visible blocks */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 w-full max-w-4xl">
         <StatBlock
           label="HYPE"
           value={formatPrice(stats.hypePrice)}

@@ -12,7 +12,7 @@ export function Layout({ children, showNav = true, showFooter = true }: LayoutPr
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {showNav && <NavBar />}
-      <main className="flex-1 w-full">
+      <main className="flex-1">
         {children}
       </main>
       {showFooter && <Footer />}
