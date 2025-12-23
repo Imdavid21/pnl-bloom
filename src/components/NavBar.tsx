@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Activity, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,25 +32,25 @@ export function NavBar() {
   };
 
   return (
-    <header className="border-b border-border bg-card/50 sticky top-0 z-50 backdrop-blur-sm">
-      <div className="mx-auto max-w-7xl px-4">
+    <header className="border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-50">
+      <div className="mx-auto max-w-[1280px] px-lg">
         <div className="flex items-center justify-between h-14">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded border border-border bg-background">
-              <Activity className="h-3.5 w-3.5 text-foreground" />
+          {/* Logo - minimal, outline style */}
+          <Link to="/" className="flex items-center gap-sm">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background">
+              <span className="text-sm font-semibold text-foreground">H</span>
             </div>
-            <span className="font-semibold text-foreground">HyperPNL</span>
+            <span className="font-medium text-foreground">HyperPNL</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-xl">
             {NAV_LINKS.map(link => (
               <Link
                 key={link.to}
                 to={getLinkTo(link.to)}
                 className={cn(
-                  "text-sm font-medium transition-colors",
+                  "text-body font-medium transition-state",
                   location.pathname === link.to
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -62,7 +62,7 @@ export function NavBar() {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-sm">
             <DarkModeToggle />
             
             {/* Mobile menu toggle */}
@@ -74,9 +74,9 @@ export function NavBar() {
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" strokeWidth={1.5} />
               ) : (
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5" strokeWidth={1.5} />
               )}
             </Button>
           </div>
@@ -84,15 +84,15 @@ export function NavBar() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-border animate-fade-in">
-            <div className="flex flex-col gap-1">
+          <nav className="md:hidden py-md border-t border-border animate-fade-in">
+            <div className="flex flex-col gap-xs">
               {NAV_LINKS.map(link => (
                 <Link
                   key={link.to}
                   to={getLinkTo(link.to)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "px-md py-sm rounded-md text-body font-medium transition-state",
                     location.pathname === link.to
                       ? "text-foreground bg-muted"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
