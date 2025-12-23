@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.unified-resolver]
 verify_jwt = false
+
+[functions.admin-tokens]
+verify_jwt = false
