@@ -10,6 +10,7 @@ import { WalletSummaryHero } from './WalletSummaryHero';
 import { WalletActivityTimeline, fillsToEpisodes } from './WalletActivityTimeline';
 import { ExplorerActions } from './ExplorerActions';
 import { ContractBadgeStack } from './ContractTypeBadge';
+import { FetchProgressDisplay, type FetchProgress, type DataFetchState, type LoadingStatus } from './FetchProgressDisplay';
 
 type ChainView = 'hypercore' | 'hyperevm';
 
@@ -93,18 +94,6 @@ interface ChainAvailability {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-type LoadingStatus = 'pending' | 'loading' | 'done' | 'error' | 'timeout';
-
-interface LoadingState {
-  clearinghouse: LoadingStatus;
-  fills: LoadingStatus;
-  l1Txs: LoadingStatus;
-  evmData: LoadingStatus;
-  evmTxs: LoadingStatus;
-  tokens: LoadingStatus;
-  internalTxs: LoadingStatus;
-}
-
 export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPageProps) {
   const [positions, setPositions] = useState<Position[]>([]);
   const [fills, setFills] = useState<Fill[]>([]);
@@ -114,14 +103,14 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   const [evmTxs, setEvmTxs] = useState<EvmTx[]>([]);
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [internalTxs, setInternalTxs] = useState<InternalTx[]>([]);
-  const [loadingState, setLoadingState] = useState<LoadingState>({
-    clearinghouse: 'pending',
-    fills: 'pending',
-    l1Txs: 'pending',
-    evmData: 'pending',
-    evmTxs: 'pending',
-    tokens: 'pending',
-    internalTxs: 'pending',
+  const [fetchProgress, setFetchProgress] = useState<FetchProgress>({
+    clearinghouse: { status: 'pending' },
+    fills: { status: 'pending' },
+    l1Txs: { status: 'pending' },
+    evmData: { status: 'pending' },
+    evmTxs: { status: 'pending' },
+    tokens: { status: 'pending' },
+    internalTxs: { status: 'pending' },
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [chainView, setChainView] = useState<ChainView>('hypercore');
@@ -137,8 +126,11 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     hasInternalTxs: false,
   });
 
-  const updateLoading = (key: keyof LoadingState, status: LoadingState[keyof LoadingState]) => {
-    setLoadingState(prev => ({ ...prev, [key]: status }));
+  const updateProgress = (key: keyof FetchProgress, state: Partial<DataFetchState>) => {
+    setFetchProgress(prev => ({ 
+      ...prev, 
+      [key]: { ...prev[key], ...state } 
+    }));
   };
 
   const updateAvailability = (updates: Partial<ChainAvailability>) => {
@@ -247,14 +239,14 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     setEvmTxs([]);
     setTokenBalances([]);
     setInternalTxs([]);
-    setLoadingState({
-      clearinghouse: 'loading',
-      fills: 'loading',
-      l1Txs: 'loading',
-      evmData: 'loading',
-      evmTxs: 'loading',
-      tokens: 'loading',
-      internalTxs: 'loading',
+    setFetchProgress({
+      clearinghouse: { status: 'loading' },
+      fills: { status: 'loading' },
+      l1Txs: { status: 'loading' },
+      evmData: { status: 'loading' },
+      evmTxs: { status: 'loading' },
+      tokens: { status: 'loading' },
+      internalTxs: { status: 'loading' },
     });
     setChainAvailability({
       hypercore: false,
@@ -270,6 +262,7 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
     // Fetch clearinghouse state
     proxyRequest({ type: 'clearinghouseState', user: address })
       .then(stateRes => {
+        let posCount = 0;
         if (stateRes?.marginSummary) {
           setAccountValue(stateRes.marginSummary.accountValue);
           if (parseFloat(stateRes.marginSummary.accountValue) > 0) {
@@ -279,27 +272,32 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         if (stateRes?.assetPositions) {
           const pos = stateRes.assetPositions.map((ap: any) => ap.position).filter(Boolean);
           setPositions(pos);
+          posCount = pos.length;
           if (pos.length > 0) {
             updateAvailability({ hasPerps: true, hypercore: true });
           }
         }
-        updateLoading('clearinghouse', 'done');
+        updateProgress('clearinghouse', { 
+          status: posCount > 0 ? 'done' : 'empty', 
+          count: posCount 
+        });
       })
-      .catch(() => updateLoading('clearinghouse', 'error'));
+      .catch(() => updateProgress('clearinghouse', { status: 'error' }));
 
     // Fetch fills
     proxyRequest({ type: 'userFills', user: address })
       .then(fillsData => {
-        if (Array.isArray(fillsData)) {
-          const data = fillsData.slice(0, 50);
-          setFills(data);
-          if (data.length > 0) {
-            updateAvailability({ hasPerps: true, hypercore: true });
-          }
+        const data = Array.isArray(fillsData) ? fillsData.slice(0, 50) : [];
+        setFills(data);
+        if (data.length > 0) {
+          updateAvailability({ hasPerps: true, hypercore: true });
         }
-        updateLoading('fills', 'done');
+        updateProgress('fills', { 
+          status: data.length > 0 ? 'done' : 'empty', 
+          count: data.length 
+        });
       })
-      .catch(() => updateLoading('fills', 'error'));
+      .catch(() => updateProgress('fills', { status: 'error' }));
 
     // Fetch L1 transactions
     getL1UserDetails(address)
@@ -309,22 +307,31 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         if (txs.length > 0) {
           updateAvailability({ hasL1Txs: true, hypercore: true });
         }
-        updateLoading('l1Txs', 'done');
+        updateProgress('l1Txs', { 
+          status: txs.length > 0 ? 'done' : 'empty', 
+          count: txs.length 
+        });
       })
-      .catch(() => updateLoading('l1Txs', 'error'));
+      .catch(() => updateProgress('l1Txs', { status: 'error' }));
 
     // Fetch EVM data
     fetchEvmData(address)
       .then(({ data, timedOut }) => {
         if (data) {
           setEvmData(data);
-          if (parseFloat(data.balance) > 0 || data.isContract) {
+          const hasData = parseFloat(data.balance) > 0 || data.isContract;
+          if (hasData) {
             updateAvailability({ hasEvmBalance: true, hyperevm: true });
           }
+          updateProgress('evmData', { 
+            status: timedOut ? 'timeout' : (hasData ? 'done' : 'empty'),
+            count: hasData ? 1 : 0
+          });
+        } else {
+          updateProgress('evmData', { status: timedOut ? 'timeout' : 'empty' });
         }
-        updateLoading('evmData', timedOut ? 'timeout' : 'done');
       })
-      .catch(() => updateLoading('evmData', 'error'));
+      .catch(() => updateProgress('evmData', { status: 'error' }));
 
     // Fetch EVM transactions
     fetchEvmTxs(address)
@@ -333,9 +340,12 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         if (data.length > 0) {
           updateAvailability({ hasEvmTxs: true, hyperevm: true });
         }
-        updateLoading('evmTxs', timedOut ? 'timeout' : 'done');
+        updateProgress('evmTxs', { 
+          status: timedOut ? 'timeout' : (data.length > 0 ? 'done' : 'empty'), 
+          count: data.length 
+        });
       })
-      .catch(() => updateLoading('evmTxs', 'error'));
+      .catch(() => updateProgress('evmTxs', { status: 'error' }));
 
     // Fetch token balances
     fetchTokenBalances(address)
@@ -344,9 +354,12 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         if (data.length > 0) {
           updateAvailability({ hasTokens: true, hyperevm: true });
         }
-        updateLoading('tokens', timedOut ? 'timeout' : 'done');
+        updateProgress('tokens', { 
+          status: timedOut ? 'timeout' : (data.length > 0 ? 'done' : 'empty'), 
+          count: data.length 
+        });
       })
-      .catch(() => updateLoading('tokens', 'error'));
+      .catch(() => updateProgress('tokens', { status: 'error' }));
 
     // Fetch internal transactions
     fetchInternalTxs(address)
@@ -355,52 +368,70 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         if (data.length > 0) {
           updateAvailability({ hasInternalTxs: true, hyperevm: true });
         }
-        updateLoading('internalTxs', timedOut ? 'timeout' : 'done');
+        updateProgress('internalTxs', { 
+          status: timedOut ? 'timeout' : (data.length > 0 ? 'done' : 'empty'), 
+          count: data.length 
+        });
       })
-      .catch(() => updateLoading('internalTxs', 'error'));
+      .catch(() => updateProgress('internalTxs', { status: 'error' }));
   }, [address, fetchEvmData, fetchEvmTxs, fetchTokenBalances, fetchInternalTxs]);
 
   // Retry functions for individual data types
   const retryEvmData = useCallback(async () => {
-    updateLoading('evmData', 'loading');
+    updateProgress('evmData', { status: 'loading' });
     const { data, timedOut } = await fetchEvmData(address);
     if (data) {
       setEvmData(data);
-      if (parseFloat(data.balance) > 0 || data.isContract) {
+      const hasData = parseFloat(data.balance) > 0 || data.isContract;
+      if (hasData) {
         updateAvailability({ hasEvmBalance: true, hyperevm: true });
       }
+      updateProgress('evmData', { 
+        status: timedOut ? 'timeout' : (hasData ? 'done' : 'empty'),
+        count: hasData ? 1 : 0
+      });
+    } else {
+      updateProgress('evmData', { status: timedOut ? 'timeout' : 'empty' });
     }
-    updateLoading('evmData', timedOut ? 'timeout' : 'done');
   }, [address, fetchEvmData]);
 
   const retryEvmTxs = useCallback(async () => {
-    updateLoading('evmTxs', 'loading');
+    updateProgress('evmTxs', { status: 'loading' });
     const { data, timedOut } = await fetchEvmTxs(address);
     setEvmTxs(data);
     if (data.length > 0) {
       updateAvailability({ hasEvmTxs: true, hyperevm: true });
     }
-    updateLoading('evmTxs', timedOut ? 'timeout' : 'done');
+    updateProgress('evmTxs', { 
+      status: timedOut ? 'timeout' : (data.length > 0 ? 'done' : 'empty'), 
+      count: data.length 
+    });
   }, [address, fetchEvmTxs]);
 
   const retryTokenBalances = useCallback(async () => {
-    updateLoading('tokens', 'loading');
+    updateProgress('tokens', { status: 'loading' });
     const { data, timedOut } = await fetchTokenBalances(address);
     setTokenBalances(data);
     if (data.length > 0) {
       updateAvailability({ hasTokens: true, hyperevm: true });
     }
-    updateLoading('tokens', timedOut ? 'timeout' : 'done');
+    updateProgress('tokens', { 
+      status: timedOut ? 'timeout' : (data.length > 0 ? 'done' : 'empty'), 
+      count: data.length 
+    });
   }, [address, fetchTokenBalances]);
 
   const retryInternalTxs = useCallback(async () => {
-    updateLoading('internalTxs', 'loading');
+    updateProgress('internalTxs', { status: 'loading' });
     const { data, timedOut } = await fetchInternalTxs(address);
     setInternalTxs(data);
     if (data.length > 0) {
       updateAvailability({ hasInternalTxs: true, hyperevm: true });
     }
-    updateLoading('internalTxs', timedOut ? 'timeout' : 'done');
+    updateProgress('internalTxs', { 
+      status: timedOut ? 'timeout' : (data.length > 0 ? 'done' : 'empty'), 
+      count: data.length 
+    });
   }, [address, fetchInternalTxs]);
 
   const handleCopy = (text: string, id: string) => {
@@ -426,47 +457,19 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   const verifyUrl = `https://app.hyperliquid.xyz/explorer/address/${address}`;
   const purrsecUrl = `https://purrsec.com/address/${address}`;
 
-  // Calculate loading progress
-  const loadingItems = Object.values(loadingState);
-  const completedCount = loadingItems.filter(s => s === 'done' || s === 'error' || s === 'timeout').length;
-  const totalCount = loadingItems.length;
-  const isFullyLoaded = completedCount === totalCount;
-  const loadingProgress = Math.round((completedCount / totalCount) * 100);
-
-  // Get which items are still loading
-  const stillLoading = Object.entries(loadingState)
-    .filter(([, status]) => status === 'loading')
-    .map(([key]) => {
-      const labels: Record<string, string> = {
-        clearinghouse: 'Positions',
-        fills: 'Fills',
-        l1Txs: 'Hypercore Txs',
-        evmData: 'HyperEVM Data',
-        evmTxs: 'HyperEVM Txs',
-        tokens: 'Tokens',
-        internalTxs: 'Internal Txs',
-      };
-      return labels[key] || key;
-    });
-
-  // Get items that timed out (for retry UI)
-  const timedOutItems = Object.entries(loadingState)
-    .filter(([, status]) => status === 'timeout')
-    .map(([key]) => key as keyof LoadingState);
-
-  const retryFunctions: Record<string, () => void> = {
-    evmData: retryEvmData,
-    evmTxs: retryEvmTxs,
-    tokens: retryTokenBalances,
-    internalTxs: retryInternalTxs,
-  };
-
-  const retryLabels: Record<string, string> = {
-    evmData: 'HyperEVM Data',
-    evmTxs: 'HyperEVM Transactions',
-    tokens: 'Token Balances',
-    internalTxs: 'Internal Transactions',
-  };
+  // Handle retry callback
+  const handleRetry = useCallback((key: keyof FetchProgress) => {
+    const retryFunctions: Record<keyof FetchProgress, (() => void) | undefined> = {
+      clearinghouse: undefined,
+      fills: undefined,
+      l1Txs: undefined,
+      evmData: retryEvmData,
+      evmTxs: retryEvmTxs,
+      tokens: retryTokenBalances,
+      internalTxs: retryInternalTxs,
+    };
+    retryFunctions[key]?.();
+  }, [retryEvmData, retryEvmTxs, retryTokenBalances, retryInternalTxs]);
 
   // Calculate risk level based on positions
   const riskData = useMemo(() => {
@@ -541,59 +544,12 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         />
       )}
 
-      {/* Loading Progress */}
-      {!isFullyLoaded && (
-        <div className="mb-4 p-3 rounded-lg bg-muted/30 border border-border/50">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">
-                Loading: {stillLoading.join(', ')}
-              </span>
-            </div>
-            <span className="text-xs font-medium text-foreground">{loadingProgress}%</span>
-          </div>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-primary transition-all duration-300 ease-out rounded-full"
-              style={{ width: `${loadingProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Timeout Retry Banner */}
-      {timedOutItems.length > 0 && (
-        <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="h-3.5 w-3.5 text-yellow-500" />
-              <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
-                Some data timed out: {timedOutItems.map(k => retryLabels[k]).join(', ')}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {timedOutItems.map((key) => (
-                <Button
-                  key={key}
-                  variant="outline"
-                  size="sm"
-                  onClick={retryFunctions[key]}
-                  disabled={loadingState[key] === 'loading'}
-                  className="h-6 text-xs px-2 border-yellow-500/50 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10"
-                >
-                  {loadingState[key] === 'loading' ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : (
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                  )}
-                  Retry {retryLabels[key]?.split(' ')[0]}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Fetch Progress Display - replaces old loading/timeout UI */}
+      <FetchProgressDisplay 
+        progress={fetchProgress}
+        onRetry={handleRetry}
+        className="mb-4"
+      />
 
       {/* Chain View Toggle */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-3 rounded-lg bg-muted/30 border border-border/50">
