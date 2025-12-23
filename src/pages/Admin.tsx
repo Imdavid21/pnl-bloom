@@ -7,9 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { TokenLogo } from '@/components/explorer/TokenLogo';
 
 interface TokenInfo {
   symbol: string;
@@ -21,11 +21,15 @@ interface TokenInfo {
   fundingRate: number;
   category: string;
   assetId?: string;
+  logoUrl?: string;
+  marketCap?: number;
+  change24h?: number;
 }
 
 const ADMIN_PASSWORD = '1234';
 
 export default function AdminPage() {
+  const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -58,14 +62,6 @@ export default function AdminPage() {
         ...params,
       });
 
-      const { data, error: fnError } = await supabase.functions.invoke('admin-tokens', {
-        body: null,
-        headers: {
-          'x-admin-password': ADMIN_PASSWORD,
-        },
-      });
-
-      // Use direct fetch for query params
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-tokens?${queryParams}`,
         {
@@ -105,6 +101,10 @@ export default function AdminPage() {
     fetchTokens('by-name', { name: searchName.trim() });
   };
 
+  const handleTokenClick = (symbol: string) => {
+    navigate(`/assets/${symbol}`);
+  };
+
   const formatUsd = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
@@ -119,7 +119,8 @@ export default function AdminPage() {
     return `$${value.toPrecision(4)}`;
   };
 
-  const handleCopy = (text: string) => {
+  const handleCopy = (e: React.MouseEvent, text: string) => {
+    e.stopPropagation();
     navigator.clipboard.writeText(text);
     setCopiedSymbol(text);
     setTimeout(() => setCopiedSymbol(null), 2000);
@@ -166,7 +167,7 @@ export default function AdminPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground">Token Admin</h1>
           <p className="text-sm text-muted-foreground">
-            Query and manage token data from Hyperliquid
+            Query and manage token data from Hyperliquid. Click any token to view details.
           </p>
         </div>
 
@@ -285,22 +286,23 @@ export default function AdminPage() {
                     <th className="px-4 py-3 text-left font-medium">Token</th>
                     <th className="px-4 py-3 text-left font-medium">Category</th>
                     <th className="px-4 py-3 text-right font-medium">Price</th>
+                    <th className="px-4 py-3 text-right font-medium">24h Change</th>
                     <th className="px-4 py-3 text-right font-medium">24h Volume</th>
-                    <th className="px-4 py-3 text-right font-medium">Open Interest</th>
+                    <th className="px-4 py-3 text-right font-medium">Market Cap</th>
                     <th className="px-4 py-3 text-right font-medium">Funding</th>
                     <th className="px-4 py-3 text-center font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {tokens.map((token, idx) => (
-                    <tr key={`${token.symbol}-${idx}`} className="hover:bg-muted/30 transition-colors">
+                    <tr 
+                      key={`${token.symbol}-${idx}`} 
+                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => handleTokenClick(token.symbol)}
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                            <span className="text-xs font-semibold text-primary">
-                              {token.symbol.slice(0, 2).toUpperCase()}
-                            </span>
-                          </div>
+                          <TokenLogo symbol={token.symbol} size="sm" />
                           <div>
                             <p className="font-medium">{token.symbol}</p>
                             <p className="text-xs text-muted-foreground">{token.name}</p>
@@ -320,15 +322,24 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-right font-mono">
                         {formatPrice(token.price)}
                       </td>
+                      <td className={cn(
+                        "px-4 py-3 text-right font-mono",
+                        token.change24h && token.change24h > 0 ? "text-green-500" : 
+                        token.change24h && token.change24h < 0 ? "text-red-500" : ""
+                      )}>
+                        {token.change24h !== undefined ? (
+                          `${token.change24h >= 0 ? '+' : ''}${token.change24h.toFixed(2)}%`
+                        ) : '-'}
+                      </td>
                       <td className="px-4 py-3 text-right font-mono">
                         {formatUsd(token.volume24h)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono">
-                        {formatUsd(token.openInterest)}
+                        {token.marketCap ? formatUsd(token.marketCap) : '-'}
                       </td>
                       <td className={cn(
                         "px-4 py-3 text-right font-mono",
-                        token.fundingRate > 0 ? "text-green-600" : token.fundingRate < 0 ? "text-red-600" : ""
+                        token.fundingRate > 0 ? "text-green-500" : token.fundingRate < 0 ? "text-red-500" : ""
                       )}>
                         {token.fundingRate.toFixed(4)}%
                       </td>
@@ -337,7 +348,7 @@ export default function AdminPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleCopy(token.symbol)}
+                            onClick={(e) => handleCopy(e, token.symbol)}
                           >
                             {copiedSymbol === token.symbol ? (
                               <Check className="h-4 w-4 text-green-500" />
@@ -345,11 +356,16 @@ export default function AdminPage() {
                               <Copy className="h-4 w-4" />
                             )}
                           </Button>
-                          <Link to={`/assets?token=${token.symbol}`}>
-                            <Button variant="ghost" size="sm">
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTokenClick(token.symbol);
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
