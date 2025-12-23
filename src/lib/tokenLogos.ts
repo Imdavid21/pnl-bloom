@@ -383,9 +383,6 @@ const SYMBOL_NORMALIZE: Record<string, string> = {
   'fpi': 'FPI',
 };
 
-// Cache for dynamically fetched logos
-const dynamicLogoCache: Map<string, string> = new Map();
-
 /**
  * Get token info by symbol
  */
@@ -415,87 +412,8 @@ export function getTokenLogoUrl(symbol: string): string {
     return info.logoUrl;
   }
   
-  // Check dynamic cache
-  const cached = dynamicLogoCache.get(symbol.toLowerCase());
-  if (cached) {
-    return cached;
-  }
-  
   // Fallback to Hyperliquid icon path
   return `https://app.hyperliquid.xyz/icons/tokens/${symbol.toLowerCase()}.svg`;
-}
-
-/**
- * Fetch token info from HyperEVM explorer API
- */
-export async function fetchTokenInfoFromExplorer(address: string): Promise<TokenInfo | null> {
-  try {
-    const response = await fetch(`https://hyperliquid.cloud/api/v1/token/${address}`);
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    if (!data || !data.symbol) return null;
-    
-    const tokenInfo: TokenInfo = {
-      symbol: data.symbol,
-      name: data.name || data.symbol,
-      address: address,
-      logoUrl: data.logoUrl || `https://app.hyperliquid.xyz/icons/tokens/${data.symbol.toLowerCase()}.svg`,
-      decimals: data.decimals,
-      type: 'erc20',
-    };
-    
-    // Cache the result
-    dynamicLogoCache.set(data.symbol.toLowerCase(), tokenInfo.logoUrl);
-    
-    return tokenInfo;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Try to get logo from multiple sources for unknown tokens
- */
-export async function getTokenLogoWithFallback(symbol: string, address?: string): Promise<string> {
-  // First check static registry
-  const staticInfo = getTokenInfo(symbol);
-  if (staticInfo?.logoUrl) {
-    return staticInfo.logoUrl;
-  }
-  
-  // Check cache
-  const cached = dynamicLogoCache.get(symbol.toLowerCase());
-  if (cached) {
-    return cached;
-  }
-  
-  // Try Hyperliquid icons first
-  const hlUrl = `https://app.hyperliquid.xyz/icons/tokens/${symbol.toLowerCase()}.svg`;
-  try {
-    const response = await fetch(hlUrl, { method: 'HEAD' });
-    if (response.ok) {
-      dynamicLogoCache.set(symbol.toLowerCase(), hlUrl);
-      return hlUrl;
-    }
-  } catch {
-    // Continue to fallback
-  }
-  
-  // If we have an address, try explorer API
-  if (address) {
-    try {
-      const info = await fetchTokenInfoFromExplorer(address);
-      if (info?.logoUrl) {
-        return info.logoUrl;
-      }
-    } catch {
-      // Continue to fallback
-    }
-  }
-  
-  // Return default fallback
-  return FALLBACK_TOKEN_LOGO;
 }
 
 /**

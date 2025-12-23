@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { getTokenLogoUrl, getTokenLogoWithFallback, FALLBACK_TOKEN_LOGO } from '@/lib/tokenLogos';
+import { getTokenLogoUrl, FALLBACK_TOKEN_LOGO } from '@/lib/tokenLogos';
 
 interface TokenLogoProps {
   symbol: string;
-  address?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   showFallbackIcon?: boolean;
-  enableDynamicFetch?: boolean;
 }
 
 const sizeClasses = {
@@ -21,28 +19,14 @@ const sizeClasses = {
 
 export function TokenLogo({ 
   symbol, 
-  address,
   size = 'md', 
   className,
-  showFallbackIcon = true,
-  enableDynamicFetch = false,
+  showFallbackIcon = true 
 }: TokenLogoProps) {
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [logoUrl, setLogoUrl] = useState(() => getTokenLogoUrl(symbol));
   
-  // Optionally fetch logo dynamically if not in registry
-  useEffect(() => {
-    if (enableDynamicFetch && imgError && address) {
-      getTokenLogoWithFallback(symbol, address).then(url => {
-        if (url !== FALLBACK_TOKEN_LOGO) {
-          setLogoUrl(url);
-          setImgError(false);
-          setIsLoading(true);
-        }
-      });
-    }
-  }, [enableDynamicFetch, imgError, address, symbol]);
+  const logoUrl = getTokenLogoUrl(symbol);
   
   if (imgError && showFallbackIcon) {
     // Fallback to symbol initial
