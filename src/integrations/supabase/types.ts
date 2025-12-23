@@ -1201,6 +1201,39 @@ export type Database = {
           },
         ]
       }
+      resolution_cache: {
+        Row: {
+          domain: string
+          expires_at: string | null
+          hit_count: number | null
+          id: string
+          input_type: string
+          metadata: Json | null
+          resolved_at: string
+          resolved_entity_type: string | null
+        }
+        Insert: {
+          domain: string
+          expires_at?: string | null
+          hit_count?: number | null
+          id: string
+          input_type: string
+          metadata?: Json | null
+          resolved_at?: string
+          resolved_entity_type?: string | null
+        }
+        Update: {
+          domain?: string
+          expires_at?: string | null
+          hit_count?: number | null
+          id?: string
+          input_type?: string
+          metadata?: Json | null
+          resolved_at?: string
+          resolved_entity_type?: string | null
+        }
+        Relationships: []
+      }
       risk_events: {
         Row: {
           created_at: string
@@ -1438,7 +1471,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_resolution_cache: { Args: never; Returns: number }
     }
     Enums: {
       event_type:
