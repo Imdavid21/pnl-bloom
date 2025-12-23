@@ -95,14 +95,13 @@ export function useExplorerUrl() {
     });
   }, [setSearchParams]);
   
-  // Navigate to a specific entity
-  const navigateTo = useCallback((mode: EntityMode, id: string, chain?: ChainSource) => {
+  // Navigate to a specific entity - chain is now auto-resolved, not user-specified
+  const navigateTo = useCallback((mode: EntityMode, id: string, _chain?: ChainSource) => {
     setSearchParams(prev => {
       prev.set('q', id);
       prev.set('mode', mode);
-      if (chain && chain !== 'both') {
-        prev.set('chain', chain);
-      }
+      // Remove chain param - resolution is automatic now
+      prev.delete('chain');
       prev.delete('tab');
       prev.delete('view');
       // Add timestamp for shareable links

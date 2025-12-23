@@ -7,17 +7,54 @@ const TX_HASH_REGEX = /^0x[a-fA-F0-9]{64}$/;
 const TOKEN_ID_REGEX = /^0x[a-fA-F0-9]{34}$/; // Spot token IDs
 
 /**
- * Deterministic search resolution algorithm
- * Priority order:
- * 1. Exact 42-char hex → Wallet
- * 2. Exact 66-char hex → Transaction
- * 3. Pure integer → Block (chain heuristic based on magnitude)
- * 4. 34-char hex → Spot Token
- * 5. Alphabetic/mixed → Token name search
+ * Canonical input classification - deterministic, no network calls
+ * This classifies input locally before any resolution attempts
  */
-export function resolveSearch(query: string, chainHint?: ChainSource): SearchResolution {
+export type InputType = 'evm_tx_hash' | 'address' | 'block_number' | 'token_id' | 'token_name' | 'unknown';
+
+export function classifyInput(input: string): InputType {
+  const trimmed = input.trim();
+  const lower = trimmed.toLowerCase();
+  
+  if (!trimmed) return 'unknown';
+  
+  // 66 chars (0x + 64 hex) = EVM transaction hash
+  if (TX_HASH_REGEX.test(lower)) {
+    return 'evm_tx_hash';
+  }
+  
+  // 42 chars (0x + 40 hex) = address (works on both EVM and L1)
+  if (ADDRESS_REGEX.test(lower)) {
+    return 'address';
+  }
+  
+  // Pure numeric = block number
+  if (/^\d+$/.test(trimmed)) {
+    return 'block_number';
+  }
+  
+  // 34-char hex = spot token ID
+  if (TOKEN_ID_REGEX.test(lower)) {
+    return 'token_id';
+  }
+  
+  // Alphabetic or alphanumeric = likely token name search
+  if (/^[a-zA-Z]/.test(trimmed)) {
+    return 'token_name';
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * Deterministic search resolution algorithm
+ * Now uses classifyInput for cleaner classification
+ * Chain hints are deprecated - resolution is automatic
+ */
+export function resolveSearch(query: string, _chainHint?: ChainSource): SearchResolution {
   const trimmed = query.trim();
   const lower = trimmed.toLowerCase();
+  const inputType = classifyInput(trimmed);
   
   if (!trimmed) {
     return {
@@ -27,91 +64,80 @@ export function resolveSearch(query: string, chainHint?: ChainSource): SearchRes
     };
   }
   
-  // 1. Check for 42-char address (0x + 40 hex chars)
-  if (ADDRESS_REGEX.test(lower)) {
-    return {
-      mode: 'wallet',
-      id: lower,
-      chain: chainHint || 'both',
-      confidence: 'exact',
-    };
-  }
-  
-  // 2. Check for 66-char transaction hash (0x + 64 hex chars)
-  if (TX_HASH_REGEX.test(lower)) {
-    return {
-      mode: 'tx',
-      id: lower,
-      chain: chainHint,
-      confidence: 'exact',
-    };
-  }
-  
-  // 3. Check for pure integer (block number)
-  if (/^\d+$/.test(trimmed)) {
-    const blockNum = parseInt(trimmed, 10);
-    // Heuristic: L1 blocks are 100M+, EVM blocks are smaller
-    const inferredChain: ChainSource = blockNum >= L1_BLOCK_THRESHOLD 
-      ? 'hypercore' 
-      : chainHint || 'hyperevm';
-    
-    return {
-      mode: 'block',
-      id: trimmed,
-      chain: inferredChain,
-      confidence: 'heuristic',
-      alternatives: [{
+  switch (inputType) {
+    case 'address':
+      // Addresses exist on both domains - unified resolution
+      return {
+        mode: 'wallet',
+        id: lower,
+        chain: 'both', // Signal unified resolution
+        confidence: 'exact',
+      };
+      
+    case 'evm_tx_hash':
+      // EVM tx hashes - try both domains automatically
+      return {
+        mode: 'tx',
+        id: lower,
+        chain: 'both', // Will try EVM first, then L1
+        confidence: 'exact',
+      };
+      
+    case 'block_number':
+      const blockNum = parseInt(trimmed, 10);
+      // Heuristic: L1 blocks are 100M+, EVM blocks are smaller
+      const inferredChain: ChainSource = blockNum >= L1_BLOCK_THRESHOLD 
+        ? 'hypercore' 
+        : 'hyperevm';
+      
+      return {
         mode: 'block',
         id: trimmed,
-        chain: inferredChain === 'hypercore' ? 'hyperevm' : 'hypercore',
-      }],
-    };
+        chain: inferredChain,
+        confidence: 'heuristic',
+      };
+      
+    case 'token_id':
+      return {
+        mode: 'token',
+        id: lower,
+        chain: 'hypercore',
+        confidence: 'exact',
+      };
+      
+    case 'token_name':
+      return {
+        mode: 'token',
+        id: trimmed,
+        chain: 'hypercore',
+        confidence: 'heuristic',
+      };
+      
+    default:
+      // Partial hex or unknown - try as token search
+      if (lower.startsWith('0x') && lower.length > 10) {
+        return {
+          mode: 'tx',
+          id: lower,
+          chain: 'both',
+          confidence: 'heuristic',
+        };
+      }
+      
+      return {
+        mode: 'token',
+        id: trimmed,
+        chain: 'hypercore',
+        confidence: 'heuristic',
+      };
   }
-  
-  // 4. Check for 34-char hex (spot token ID)
-  if (TOKEN_ID_REGEX.test(lower)) {
-    return {
-      mode: 'token',
-      id: lower,
-      chain: 'hypercore',
-      confidence: 'exact',
-    };
-  }
-  
-  // 5. Partial hex string - could be truncated hash, try as tx
-  if (lower.startsWith('0x') && lower.length > 10 && lower.length < 66) {
-    return {
-      mode: 'tx',
-      id: lower,
-      chain: chainHint,
-      confidence: 'heuristic',
-      alternatives: [
-        { mode: 'token', id: lower, chain: 'hypercore' },
-      ],
-    };
-  }
-  
-  // 6. Default: treat as token/asset name search
-  return {
-    mode: 'token',
-    id: trimmed,
-    chain: 'hypercore',
-    confidence: 'heuristic',
-  };
 }
 
 /**
- * Generate placeholder text based on current context
+ * Generate placeholder text - simplified, no chain-specific text
  */
-export function getSearchPlaceholder(chain?: ChainSource): string {
-  switch (chain) {
-    case 'hyperevm':
-      return 'Search EVM address, tx hash, or block...';
-    case 'hypercore':
-      return 'Search L1 address, tx hash, block, or token...';
-    default:
-      return 'Search address, tx, block, or token...';
-  }
+export function getSearchPlaceholder(_chain?: ChainSource): string {
+  return 'Search address, transaction, block, or token...';
 }
 
 /**
@@ -179,4 +205,18 @@ export function getEntityLabel(mode: EntityMode): string {
     contract: 'Contract',
   };
   return labels[mode] || 'Entity';
+}
+
+/**
+ * Get human-readable chain label for display
+ */
+export function getChainLabel(chain?: ChainSource): string {
+  switch (chain) {
+    case 'hyperevm':
+      return 'HyperEVM';
+    case 'hypercore':
+      return 'Hypercore';
+    default:
+      return '';
+  }
 }

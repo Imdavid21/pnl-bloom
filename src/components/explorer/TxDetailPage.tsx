@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Hash, Copy, Check, ExternalLink, ChevronRight, ChevronDown, Loader2, CheckCircle, XCircle, Clock, ArrowRight, AlertTriangle, ArrowUpRight, ArrowDownLeft, Minus, FileText, Zap } from 'lucide-react';
+import { Hash, Copy, Check, ExternalLink, ChevronRight, ChevronDown, Loader2, CheckCircle, XCircle, Clock, ArrowRight, ArrowUpRight, ArrowDownLeft, Minus, FileText, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getEVMTransaction, formatTimestamp, timeAgo, truncateHash as truncateHashEVM, formatGwei, decodeKnownEvent, type EVMTransaction, type EVMLog } from '@/lib/hyperevmApi';
 import { getL1TxDetails, type L1TransactionDetails } from '@/lib/hyperliquidApi';
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { ProvenanceIndicator } from './ProvenanceIndicator';
 import { AssetDeltaDisplay } from './AssetDeltaDisplay';
 import { ExplorerActions } from './ExplorerActions';
+import { NotFoundExplanation } from './NotFoundExplanation';
 import { generateTxNarrative, getActionType } from '@/lib/explorer/narratives';
 import type { TransactionView, AssetDelta, Provenance, LoadingStage, ChainSource } from '@/lib/explorer/types';
 
@@ -55,26 +56,21 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
       const loadingPromise = simulateLoadingStages();
 
       try {
-        const tryL1First = preferredChain === 'hypercore';
+        // UNIFIED RESOLUTION: Always try BOTH chains automatically
+        // EVM first (most common), then Hypercore as fallback
         let evmData: EVMTransaction | null = null;
         let l1Data: L1TransactionDetails | null = null;
         let source: ChainSource = 'unknown';
 
-        if (tryL1First) {
+        // Try EVM first (parallel would be faster but sequential is more predictable)
+        evmData = await getEVMTransaction(hash);
+        if (evmData) {
+          source = 'hyperevm';
+        } else {
+          // If not on EVM, try Hypercore
           l1Data = await getL1TxDetails(hash);
           if (l1Data) {
             source = 'hypercore';
-          } else if (preferredChain !== 'hypercore') {
-            evmData = await getEVMTransaction(hash);
-            if (evmData) source = 'hyperevm';
-          }
-        } else {
-          evmData = await getEVMTransaction(hash);
-          if (evmData) {
-            source = 'hyperevm';
-          } else if (preferredChain !== 'hyperevm') {
-            l1Data = await getL1TxDetails(hash);
-            if (l1Data) source = 'hypercore';
           }
         }
 
@@ -90,7 +86,8 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
           const view = transformL1ToView(l1Data);
           setTxView(view);
         } else {
-          setError('Transaction not found on HyperEVM or Hypercore');
+          // Both chains checked, not found
+          setError('not_found');
         }
       } catch (e) {
         if (!cancelled) {
@@ -107,7 +104,7 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
 
     fetchTx();
     return () => { cancelled = true; };
-  }, [hash, preferredChain, simulateLoadingStages]);
+  }, [hash, simulateLoadingStages]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -172,49 +169,15 @@ export function TxDetailPage({ hash, onBack, onNavigate, preferredChain }: TxDet
     );
   }
 
-  // Error state with helpful suggestions
+  // Error state - unified "not found" with explanation (no "Try X" CTA)
   if (error || !txView) {
-    // Infer if this looks like an EVM tx hash (0x + 64 chars = 66 total)
-    const looksLikeEvmTx = hash.startsWith('0x') && hash.length === 66;
-    const suggestedChain = looksLikeEvmTx ? 'hyperevm' : 'hypercore';
-    const currentlyTrying = preferredChain || 'hyperevm';
-    const shouldSuggestSwitch = suggestedChain !== currentlyTrying;
-
     return (
       <div className="mx-auto max-w-4xl px-4 py-6">
-        <Button variant="ghost" onClick={onBack} className="mb-4 gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-        <div className="text-center py-20">
-          <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground mb-2">{error || 'Transaction not found'}</p>
-          
-          {shouldSuggestSwitch && (
-            <div className="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/20 max-w-md mx-auto">
-              <p className="text-sm text-foreground mb-3">
-                This looks like a <span className="font-semibold">{suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}</span> transaction.
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  // Re-navigate with the suggested chain
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('chain', suggestedChain);
-                  window.location.href = url.toString();
-                }}
-                className="gap-2"
-              >
-                <ArrowRight className="h-3.5 w-3.5" />
-                Try {suggestedChain === 'hyperevm' ? 'HyperEVM' : 'Hypercore'}
-              </Button>
-            </div>
-          )}
-          
-          <p className="text-xs text-muted-foreground mt-4">
-            Note: HyperEVM and Hypercore have different transaction formats.
-          </p>
-        </div>
+        <NotFoundExplanation
+          query={hash}
+          entityType="tx"
+          attemptedSources={['hyperevm', 'hypercore']}
+        />
       </div>
     );
   }
