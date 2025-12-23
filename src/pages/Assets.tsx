@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Copy, Check, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search, Copy, Check, TrendingUp, TrendingDown, Loader2, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/Layout';
@@ -383,12 +384,18 @@ export default function AssetsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredAssets.map((asset) => (
-                  <tr key={asset.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={asset.id} className="hover:bg-muted/30 transition-colors group">
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3">
                       <code className="font-mono text-primary text-xs">{asset.id}</code>
                     </td>
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3">
-                      <span className="font-medium text-foreground">{asset.symbol}</span>
+                      <Link 
+                        to={`/assets/${asset.symbol}`}
+                        className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-1"
+                      >
+                        {asset.symbol}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                      </Link>
                     </td>
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-muted-foreground hidden sm:table-cell">{asset.name}</td>
                     <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-right font-mono text-foreground">

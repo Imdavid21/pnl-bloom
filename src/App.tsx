@@ -11,6 +11,8 @@ import Assets from "./pages/Assets";
 import Docs from "./pages/Docs";
 import Api from "./pages/Api";
 import Explorer from "./pages/Explorer";
+import Admin from "./pages/Admin";
+import TokenDetail from "./pages/TokenDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,9 +29,11 @@ const App = () => (
               <Route path="/" element={<Explorer />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/assets" element={<Assets />} />
+              <Route path="/assets/:symbol" element={<TokenDetail />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/api" element={<Api />} />
               <Route path="/explorer" element={<Explorer />} />
+              <Route path="/admin" element={<Admin />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
