@@ -491,8 +491,8 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
   }, []);
 
   return (
-    <div className="mx-auto max-w-7xl">
-      {/* Action Bar - no back button since ExplorerShell provides navigation */}
+    <div className="w-full">
+      {/* Action Bar */}
       <ExplorerActions
         entityType="wallet"
         entityId={address}

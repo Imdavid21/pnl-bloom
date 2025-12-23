@@ -105,7 +105,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const chainLabel = getChainLabel(chain);
   
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8 flex flex-col items-center w-full">
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6 flex flex-col items-center">
       {/* Hero section - only on home */}
       {showHeader && !hasActiveQuery && (
         <div className="text-center space-y-3 pt-8 pb-4 w-full">
@@ -119,10 +119,7 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
       )}
       
       {/* Primary CTA: Search bar - 2026 minimal style */}
-      <div className={cn(
-        "relative w-full transition-all duration-500",
-        hasActiveQuery ? "max-w-3xl" : "max-w-4xl"
-      )}>
+      <div className="relative w-full transition-all duration-500">
         <div className={cn(
           "relative flex gap-2 p-1.5",
           "rounded-2xl",
