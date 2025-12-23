@@ -497,7 +497,6 @@ export function WalletDetailPage({ address, onBack, onNavigate }: WalletDetailPa
         entityType="wallet"
         entityId={address}
         title={`Wallet ${address.slice(0, 8)}...`}
-        onCompare={handleCompare}
         externalUrl={`https://purrsec.com/address/${address}`}
         className="mb-4"
       />
