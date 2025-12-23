@@ -420,3 +420,66 @@ export function getTokenLogoUrl(symbol: string): string {
  * Generic fallback logo for unknown tokens
  */
 export const FALLBACK_TOKEN_LOGO = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxNiIgZmlsbD0iIzM0Mzg0MCIvPjx0ZXh0IHg9IjE2IiB5PSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzk5YTFhOCIgZm9udC1zaXplPSIxMiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPj88L3RleHQ+PC9zdmc+';
+
+// Cache for dynamically fetched logos
+const logoCache: Map<string, string> = new Map();
+
+/**
+ * Fetch token logo from HyperEVM explorer API
+ */
+export async function fetchTokenLogo(address: string): Promise<string | null> {
+  const lower = address.toLowerCase();
+  
+  // Check cache first
+  if (logoCache.has(lower)) {
+    return logoCache.get(lower) || null;
+  }
+  
+  try {
+    // Try PurrsecAPI or HyperEVM explorer
+    const response = await fetch(
+      `https://purrsec.com/api/v1/contract/${lower}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.logo) {
+        logoCache.set(lower, data.logo);
+        return data.logo;
+      }
+    }
+  } catch {
+    // Fallback to checking if there's a coingecko image
+  }
+  
+  // Try Hyperliquid icons fallback
+  const hlIconUrl = `https://app.hyperliquid.xyz/icons/tokens/${lower.slice(0, 6)}.svg`;
+  logoCache.set(lower, hlIconUrl);
+  return hlIconUrl;
+}
+
+/**
+ * Get token info by contract address
+ */
+export function getTokenInfoByAddress(address: string): TokenInfo | null {
+  const lower = address.toLowerCase();
+  
+  for (const [, info] of Object.entries(TOKEN_REGISTRY)) {
+    if (info.address?.toLowerCase() === lower) {
+      return info;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Add a token to the registry dynamically (for runtime caching)
+ */
+export function addTokenToRegistry(info: TokenInfo): void {
+  const key = info.symbol.toUpperCase();
+  if (!TOKEN_REGISTRY[key]) {
+    TOKEN_REGISTRY[key] = info;
+  }
+}

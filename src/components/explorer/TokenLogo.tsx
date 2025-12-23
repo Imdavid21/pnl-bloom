@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { getTokenLogoUrl, FALLBACK_TOKEN_LOGO } from '@/lib/tokenLogos';
+import { getTokenLogoUrl, getTokenInfoByAddress, fetchTokenLogo, FALLBACK_TOKEN_LOGO } from '@/lib/tokenLogos';
 
 interface TokenLogoProps {
-  symbol: string;
+  symbol?: string;
+  address?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   showFallbackIcon?: boolean;
@@ -19,14 +20,46 @@ const sizeClasses = {
 
 export function TokenLogo({ 
   symbol, 
+  address,
   size = 'md', 
   className,
   showFallbackIcon = true 
 }: TokenLogoProps) {
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [dynamicLogoUrl, setDynamicLogoUrl] = useState<string | null>(null);
   
-  const logoUrl = getTokenLogoUrl(symbol);
+  // Get logo URL - prioritize symbol, then address lookup, then dynamic fetch
+  const getLogoUrl = (): string => {
+    if (symbol) {
+      return getTokenLogoUrl(symbol);
+    }
+    
+    if (address) {
+      const info = getTokenInfoByAddress(address);
+      if (info?.logoUrl) {
+        return info.logoUrl;
+      }
+      
+      if (dynamicLogoUrl) {
+        return dynamicLogoUrl;
+      }
+    }
+    
+    return FALLBACK_TOKEN_LOGO;
+  };
+  
+  // Fetch dynamic logo for unknown addresses
+  useEffect(() => {
+    if (address && !symbol && !getTokenInfoByAddress(address)) {
+      fetchTokenLogo(address).then((url) => {
+        if (url) setDynamicLogoUrl(url);
+      });
+    }
+  }, [address, symbol]);
+  
+  const logoUrl = getLogoUrl();
+  const displaySymbol = symbol || (address ? address.slice(0, 4) : '?');
   
   if (imgError && showFallbackIcon) {
     // Fallback to symbol initial
@@ -38,7 +71,7 @@ export function TokenLogo({
           className
         )}
       >
-        <span className="text-[0.6em] uppercase">{symbol.slice(0, 2)}</span>
+        <span className="text-[0.6em] uppercase">{displaySymbol.slice(0, 2)}</span>
       </div>
     );
   }
@@ -53,7 +86,7 @@ export function TokenLogo({
       )}
       <img
         src={imgError ? FALLBACK_TOKEN_LOGO : logoUrl}
-        alt={`${symbol} logo`}
+        alt={`${displaySymbol} logo`}
         className={cn(
           "rounded-full object-cover",
           sizeClasses[size],
