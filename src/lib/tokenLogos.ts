@@ -16,20 +16,24 @@ const TRUST_WALLET_ASSETS = 'https://raw.githubusercontent.com/trustwallet/asset
 const COINGECKO_CDN = 'https://assets.coingecko.com/coins/images';
 const HYPERLIQUID_ICONS = 'https://app.hyperliquid.xyz/icons/tokens';
 
+// Import local HYPE logo
+import hypeLogo from '@/assets/hype-logo.png';
+
 // Primary tokens with verified addresses on HyperEVM
 export const TOKEN_REGISTRY: Record<string, TokenInfo> = {
   // Native & Core
   HYPE: {
     symbol: 'HYPE',
     name: 'Hyperliquid',
-    logoUrl: `${HYPERLIQUID_ICONS}/hype.svg`,
+    address: '0x5555555555555555555555555555555555555555',
+    logoUrl: hypeLogo,
     type: 'native',
   },
   WHYPE: {
     symbol: 'WHYPE',
     name: 'Wrapped HYPE',
     address: '0x5555555555555555555555555555555555555555',
-    logoUrl: `${HYPERLIQUID_ICONS}/hype.svg`,
+    logoUrl: hypeLogo,
     type: 'erc20',
   },
   
@@ -144,47 +148,47 @@ export const TOKEN_REGISTRY: Record<string, TokenInfo> = {
   SHYPE: {
     symbol: 'sHYPE',
     name: 'Staked HYPE Shares',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   STHYPE: {
     symbol: 'stHYPE',
     name: 'Staked HYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   LHYPE: {
     symbol: 'lHYPE',
     name: 'Looped HYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   MHYPE: {
     symbol: 'mHYPE',
     name: 'Hyperpie Staked mHYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   UHYPE: {
     symbol: 'uHYPE',
     name: 'Hyperbeat Ultra HYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   HAHYPE: {
     symbol: 'haHYPE',
     name: 'haHYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   LHYY: {
     symbol: 'lHYY',
     name: 'Liquid HYPE Yield',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   HKHYPE: {
     symbol: 'hkHYPE',
     name: 'Harmonix kHYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   EFHYPE: {
     symbol: 'efHYPE',
     name: 'hyperbeat x ether.fi HYPE',
-    logoUrl: 'https://app.hyperliquid.xyz/icons/tokens/hype.svg',
+    logoUrl: hypeLogo,
   },
   
   // Hyperbeat tokens
