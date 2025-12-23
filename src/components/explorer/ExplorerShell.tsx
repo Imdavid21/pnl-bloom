@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
@@ -8,17 +8,17 @@ import { getSearchPlaceholder, getEntityLabel, getChainLabel } from '@/lib/explo
 import { TokenSearchAutocomplete, type SearchResult } from './TokenSearchAutocomplete';
 import type { LoadingStage } from '@/lib/explorer/types';
 
-// Quick search suggestion button - now auto-submits
-function QuickButton({ label, onClick }: { label: string; onClick: () => void }) {
+// Quick search chip - minimal 2026 style
+function QuickChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "px-2.5 py-1 rounded-lg text-xs",
-        "bg-muted/20 border border-border/30",
-        "text-muted-foreground/70 hover:text-foreground",
-        "hover:bg-muted/40 hover:border-border/50",
-        "transition-all duration-200"
+        "px-3 py-1.5 rounded-full text-xs font-medium",
+        "bg-muted/10 border border-border/20",
+        "text-muted-foreground/60 hover:text-foreground/80",
+        "hover:bg-muted/20 hover:border-border/40",
+        "transition-all duration-300 ease-out"
       )}
     >
       {label}
@@ -26,41 +26,18 @@ function QuickButton({ label, onClick }: { label: string; onClick: () => void })
   );
 }
 
-// Loading stage indicator
+// Loading indicator
 function LoadingIndicator({ stage }: { stage: LoadingStage }) {
   if (stage.stage === 'ready') return null;
   
-  const stageMessages: Record<string, string> = {
-    searching: 'Searching...',
-    fetching: 'Fetching data...',
-    reconciling: 'Cross-referencing chains...',
-    computing: 'Computing analytics...',
-    error: 'Error occurred',
-  };
-  
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+    <div className="flex items-center justify-center gap-3 py-3">
       {stage.stage !== 'error' && (
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <Loader2 className="h-4 w-4 animate-spin text-primary/60" />
       )}
-      <div className="flex-1">
-        <p className="text-sm font-medium text-foreground">
-          {stage.message || stageMessages[stage.stage]}
-        </p>
-        {stage.source && (
-          <p className="text-xs text-muted-foreground">
-            Source: {stage.source}
-          </p>
-        )}
-      </div>
-      {stage.progress !== undefined && (
-        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${stage.progress}%` }}
-          />
-        </div>
-      )}
+      <p className="text-sm text-muted-foreground/60">
+        {stage.message || 'Loading...'}
+      </p>
     </div>
   );
 }
@@ -85,12 +62,10 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const [localSearch, setLocalSearch] = useState(query);
   const [isResolving, setIsResolving] = useState(false);
   
-  // Sync local search with URL query
   useEffect(() => {
     setLocalSearch(query);
   }, [query]);
   
-  // Handle autocomplete selection
   const handleSelect = useCallback((result: SearchResult) => {
     if (result.type === 'token') {
       navigateTo('token', result.id);
@@ -102,14 +77,12 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     setLocalSearch('');
   }, [navigateTo]);
   
-  // Handle search submit (when not selecting from dropdown)
   const handleSearchSubmit = useCallback(() => {
     const trimmed = localSearch.trim();
     if (!trimmed) return;
     setQuery(trimmed);
   }, [localSearch, setQuery]);
   
-  // Quick search handler - auto-submits
   const handleQuickSearch = useCallback((value: string) => {
     setLocalSearch(value);
     setQuery(value);
@@ -121,7 +94,6 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   }, [clear]);
 
   const handleBack = useCallback(() => {
-    // Use browser history for proper back navigation
     if (window.history.length > 1) {
       navigate(-1);
     } else {
@@ -133,75 +105,93 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const chainLabel = getChainLabel(chain);
   
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-      {/* Always visible search header */}
-      <div className="space-y-4">
-        {/* Title row - only show on home */}
-        {showHeader && !hasActiveQuery && (
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Hyperliquid Explorer</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Search wallets, transactions, blocks, and tokens across Hypercore & HyperEVM
-              </p>
-            </div>
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+      {/* Hero section - only on home */}
+      {showHeader && !hasActiveQuery && (
+        <div className="text-center space-y-3 pt-8 pb-4">
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground/90">
+            Hyperliquid Explorer
+          </h1>
+          <p className="text-base text-muted-foreground/60 max-w-lg mx-auto">
+            Search wallets, transactions, blocks, and tokens across L1 & EVM
+          </p>
+        </div>
+      )}
+      
+      {/* Compact breadcrumb when viewing entity */}
+      {hasActiveQuery && (
+        <div className="flex items-center justify-center gap-2 text-xs pt-2">
+          <button 
+            onClick={handleBack}
+            className="text-primary/70 hover:text-primary transition-colors font-medium"
+          >
+            ← Back
+          </button>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground/60">{getEntityLabel(mode || 'wallet')}</span>
+          {chainLabel && (
+            <span className={cn(
+              "px-1.5 py-0.5 rounded-full text-[10px] font-medium",
+              chain === 'hyperevm' 
+                ? "bg-emerald-500/10 text-emerald-400/80"
+                : "bg-primary/10 text-primary/80"
+            )}>
+              {chainLabel}
+            </span>
+          )}
+        </div>
+      )}
+      
+      {/* Primary CTA: Search bar - 2026 minimal style */}
+      <div className={cn(
+        "relative mx-auto transition-all duration-500",
+        hasActiveQuery ? "max-w-2xl" : "max-w-3xl"
+      )}>
+        <div className={cn(
+          "relative flex gap-2 p-1.5",
+          "rounded-2xl",
+          "bg-card/40 backdrop-blur-xl",
+          "border border-border/30",
+          "shadow-[0_8px_40px_-12px_rgba(0,0,0,0.15)]",
+          "dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.4)]",
+          "focus-within:border-primary/40 focus-within:shadow-[0_8px_50px_-12px_rgba(0,0,0,0.2)]",
+          "transition-all duration-300"
+        )}>
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+            <TokenSearchAutocomplete
+              value={localSearch}
+              onChange={setLocalSearch}
+              onSelect={handleSelect}
+              onSubmit={handleSearchSubmit}
+              placeholder={getSearchPlaceholder()}
+              className="flex-1"
+              isLoading={isResolving}
+            />
           </div>
-        )}
-        
-        {/* Compact header when viewing entity */}
-        {hasActiveQuery && (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5 text-xs">
-              <button 
-                onClick={handleBack}
-                className="text-primary hover:text-primary/80 transition-colors font-medium"
-              >
-                ← Back
-              </button>
-              <span className="text-muted-foreground mx-1">›</span>
-              <span className="text-foreground">{getEntityLabel(mode || 'wallet')}</span>
-              {chainLabel && (
-                <span className={cn(
-                  "ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium",
-                  chain === 'hyperevm' 
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-primary/20 text-primary"
-                )}>
-                  {chainLabel}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-        
-        {/* Search bar with autocomplete - always visible */}
-        <div className="flex gap-2">
-          <TokenSearchAutocomplete
-            value={localSearch}
-            onChange={setLocalSearch}
-            onSelect={handleSelect}
-            onSubmit={handleSearchSubmit}
-            placeholder={getSearchPlaceholder()}
-            className="flex-1"
-            isLoading={isResolving}
-          />
           <Button
             onClick={handleSearchSubmit}
             disabled={!localSearch.trim() || isResolving}
-            className="h-12 px-6 bg-primary/90 hover:bg-primary"
+            className={cn(
+              "h-11 px-6 rounded-xl",
+              "bg-primary/90 hover:bg-primary",
+              "text-primary-foreground font-medium",
+              "shadow-sm hover:shadow-md",
+              "transition-all duration-300"
+            )}
           >
             {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
         </div>
         
-        {/* Quick searches - only on home */}
+        {/* Quick search chips - only on home */}
         {!hasActiveQuery && (
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-muted-foreground/60">Try:</span>
-            <QuickButton label="Sample Wallet" onClick={() => handleQuickSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')} />
-            <QuickButton label="PURR" onClick={() => handleQuickSearch('PURR')} />
-            <QuickButton label="HYPE" onClick={() => handleQuickSearch('HYPE')} />
-            <QuickButton label="Block 1M" onClick={() => handleQuickSearch('1000000')} />
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            <span className="text-[11px] text-muted-foreground/40 uppercase tracking-wider">Try</span>
+            <QuickChip label="HYPE" onClick={() => handleQuickSearch('HYPE')} />
+            <QuickChip label="PURR" onClick={() => handleQuickSearch('PURR')} />
+            <QuickChip label="Block 1M" onClick={() => handleQuickSearch('1000000')} />
+            <QuickChip label="Sample Wallet" onClick={() => handleQuickSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')} />
           </div>
         )}
       </div>
@@ -211,8 +201,13 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         <LoadingIndicator stage={loadingStage} />
       )}
       
-      {/* Main content */}
-      {children}
+      {/* Main content with spacing */}
+      <div className={cn(
+        "transition-all duration-500",
+        !hasActiveQuery && "pt-4"
+      )}>
+        {children}
+      </div>
     </div>
   );
 }

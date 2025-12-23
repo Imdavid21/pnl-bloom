@@ -176,9 +176,8 @@ export function TokenSearchAutocomplete({
 
   return (
     <div className={cn("relative", className)}>
-      {/* Search Input */}
+      {/* Search Input - no icon, parent handles it */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
         <Input
           ref={inputRef}
           value={value}
@@ -188,17 +187,17 @@ export function TokenSearchAutocomplete({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className={cn(
-            "pl-12 pr-10 h-12 text-base font-mono",
-            "bg-card/50 border-border/40",
+            "pl-10 pr-10 h-11 text-sm",
+            "bg-transparent border-0 shadow-none",
             "transition-all duration-200",
             "placeholder:text-muted-foreground/40",
-            isFocused && "border-primary/40 ring-1 ring-primary/10 bg-card/80"
+            "focus-visible:ring-0 focus-visible:ring-offset-0"
           )}
         />
         {(value || isLoading || isSearching) && (
           <button
             onClick={() => onChange('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors"
           >
             {isLoading || isSearching ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CircleDollarSign, Layers, Globe, Box, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MetricBlock } from './MetricBlock';
 
 interface HypeStatsData {
   hypePrice: number | null;
-  hypePriceBtc: number | null;
   priceChange24h: number | null;
   marketCap: number | null;
   circSupply: number | null;
@@ -15,10 +12,58 @@ interface HypeStatsData {
   blockTime: number | null;
 }
 
+// Minimal stat item - center aligned, reduced visual weight
+function StatItem({ 
+  label, 
+  value, 
+  subValue,
+  change,
+  isLoading 
+}: { 
+  label: string;
+  value: string;
+  subValue?: string;
+  change?: number | null;
+  isLoading?: boolean;
+}) {
+  const isPlaceholder = value.includes('--');
+  
+  return (
+    <div className="flex flex-col items-center justify-center py-4 px-3 text-center min-w-0">
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium mb-1.5">
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+        <span className={cn(
+          "text-sm font-medium tabular-nums transition-all duration-300",
+          isPlaceholder ? "text-muted-foreground/30 animate-pulse" : "text-foreground/80"
+        )}>
+          {value}
+        </span>
+        {change !== undefined && change !== null && !isPlaceholder && (
+          <span className={cn(
+            "text-[10px] font-medium tabular-nums",
+            change >= 0 ? "text-profit-3/70" : "text-loss-3/70"
+          )}>
+            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+          </span>
+        )}
+      </div>
+      {subValue && (
+        <span className={cn(
+          "text-[10px] text-muted-foreground/40 mt-0.5 tabular-nums",
+          isPlaceholder && "animate-pulse"
+        )}>
+          {subValue}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function HypeStats() {
   const [stats, setStats] = useState<HypeStatsData>({
     hypePrice: null,
-    hypePriceBtc: null,
     priceChange24h: null,
     marketCap: null,
     circSupply: null,
@@ -27,7 +72,6 @@ export function HypeStats() {
     latestBlock: null,
     blockTime: null,
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [lastBlockUpdate, setLastBlockUpdate] = useState<number | null>(null);
   
@@ -36,7 +80,6 @@ export function HypeStats() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const txCountRef = useRef<number>(102460000);
 
-  // Calculate TPS from recent blocks
   const calculateTps = useCallback(() => {
     const timestamps = blockTimestampsRef.current;
     if (timestamps.length < 2) return 3.9;
@@ -53,7 +96,6 @@ export function HypeStats() {
     return Math.min(tps, 10);
   }, []);
 
-  // WebSocket connection for real-time block updates
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -62,9 +104,7 @@ export function HypeStats() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[HypeStats] WebSocket connected');
         setIsLive(true);
-        
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
@@ -76,10 +116,6 @@ export function HypeStats() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
-          if (data.id === 1 && data.result) {
-            console.log('[HypeStats] Subscribed to newHeads:', data.result);
-          }
           
           if (data.method === 'eth_subscription' && data.params?.result) {
             const block = data.params.result;
@@ -112,31 +148,18 @@ export function HypeStats() {
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('[HypeStats] WebSocket error:', error);
-        setIsLive(false);
-      };
-
+      ws.onerror = () => setIsLive(false);
       ws.onclose = () => {
-        console.log('[HypeStats] WebSocket closed, reconnecting...');
         setIsLive(false);
         wsRef.current = null;
-        
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectWebSocket();
-        }, 3000);
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
       };
     } catch (err) {
-      console.error('[HypeStats] WebSocket connection error:', err);
       setIsLive(false);
-      
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connectWebSocket();
-      }, 5000);
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
     }
   }, [lastBlockUpdate, calculateTps]);
 
-  // Fetch price data
   const fetchPriceData = useCallback(async () => {
     try {
       const perpsResponse = await fetch('https://api.hyperliquid.xyz/info', {
@@ -148,7 +171,6 @@ export function HypeStats() {
       
       let hypePrice: number | null = null;
       let priceChange24h: number | null = null;
-      let btcPrice: number | null = null;
       
       if (perpsData && perpsData[0]?.universe && perpsData[1]) {
         const hypeIndex = perpsData[0].universe.findIndex((u: any) => u.name === 'HYPE');
@@ -159,33 +181,23 @@ export function HypeStats() {
             priceChange24h = ((hypePrice - prevDayPx) / prevDayPx) * 100;
           }
         }
-        
-        const btcIndex = perpsData[0].universe.findIndex((u: any) => u.name === 'BTC');
-        if (btcIndex >= 0 && perpsData[1][btcIndex]) {
-          btcPrice = parseFloat(perpsData[1][btcIndex].markPx || '0');
-        }
       }
       
-      const hypePriceBtc = hypePrice && btcPrice ? hypePrice / btcPrice : null;
       const circSupply = 336685219;
       const marketCap = hypePrice ? hypePrice * circSupply : null;
       
       setStats(prev => ({
         ...prev,
         hypePrice: hypePrice ?? prev.hypePrice,
-        hypePriceBtc: hypePriceBtc ?? prev.hypePriceBtc,
         priceChange24h: priceChange24h ?? prev.priceChange24h,
         marketCap: marketCap ?? prev.marketCap,
         circSupply: circSupply ?? prev.circSupply,
       }));
-      
-      setIsLoading(false);
     } catch (err) {
       console.error('[HypeStats] Error fetching price data:', err);
     }
   }, []);
 
-  // Initial block fetch (fallback)
   const fetchInitialBlock = useCallback(async () => {
     try {
       const rpcResponse = await fetch('https://rpc.hyperliquid.xyz/evm', {
@@ -209,7 +221,6 @@ export function HypeStats() {
           tps: prev.tps ?? 3.9,
         }));
         setLastBlockUpdate(Date.now());
-        setIsLoading(false);
       }
     } catch (e) {
       console.error('[HypeStats] Error fetching initial block:', e);
@@ -223,141 +234,71 @@ export function HypeStats() {
     
     const priceInterval = setInterval(fetchPriceData, 5000);
     const blockInterval = setInterval(() => {
-      if (!isLive) {
-        fetchInitialBlock();
-      }
+      if (!isLive) fetchInitialBlock();
     }, 2000);
     
     return () => {
       clearInterval(priceInterval);
       clearInterval(blockInterval);
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (wsRef.current) wsRef.current.close();
     };
   }, [fetchPriceData, fetchInitialBlock, connectWebSocket, isLive]);
 
-  // Check if specific data is still loading
-  const isPriceLoading = stats.hypePrice === null;
-  const isBlockLoading = stats.latestBlock === null;
-
-  // Formatters with fallback defaults
-  const formatPrice = (price: number | null) => {
-    if (price === null) return '$--.-';
-    return `$${price.toFixed(2)}`;
-  };
-
-  const formatBtcPrice = (price: number | null) => {
-    if (price === null) return '@ --.---- BTC';
-    return `@ ${price.toFixed(5)} BTC`;
-  };
+  // Formatters with placeholder values
+  const formatPrice = (price: number | null) => 
+    price === null ? '$--.-' : `$${price.toFixed(2)}`;
 
   const formatMarketCap = (cap: number | null): string => {
-    if (cap === null) return '$--,---,---';
-    return `$${cap.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (cap === null) return '$--.--B';
+    if (cap >= 1e9) return `$${(cap / 1e9).toFixed(2)}B`;
+    if (cap >= 1e6) return `$${(cap / 1e6).toFixed(2)}M`;
+    return `$${cap.toLocaleString()}`;
   };
 
-  const formatSupply = (supply: number | null): string => {
-    if (supply === null) return '(--- HYPE)';
-    return `(${supply.toLocaleString()} HYPE)`;
-  };
+  const formatTxns = (txns: number | null): string => 
+    txns === null ? '---.--M' : txns >= 1e6 ? `${(txns / 1e6).toFixed(2)}M` : txns.toLocaleString();
 
-  const formatTxns = (txns: number | null): string => {
-    if (txns === null) return '---.--M';
-    return txns >= 1e6 ? `${(txns / 1e6).toFixed(2)}M` : txns.toLocaleString();
-  };
-
-  const formatTps = (tps: number | null): string => {
-    if (tps === null) return '(-.-- TPS)';
-    return `(${tps.toFixed(1)} TPS)`;
-  };
-
-  const formatBlock = (block: number | null): string => {
-    if (block === null) return '--,---,---';
-    return block.toLocaleString();
-  };
-
-  const formatBlockTime = (time: number | null): string => {
-    if (time === null) return '(-.--s ago)';
-    return `(${time.toFixed(2)}s ago)`;
-  };
+  const formatBlock = (block: number | null): string => 
+    block === null ? '--,---,---' : block.toLocaleString();
 
   return (
     <div className={cn(
       "relative overflow-hidden",
-      "rounded-2xl",
-      "bg-gradient-to-br from-card/80 via-card/60 to-card/40",
-      "border border-border/40",
-      "backdrop-blur-xl",
-      "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)]",
+      "rounded-xl border border-border/20",
+      "bg-gradient-to-r from-card/30 via-card/20 to-card/30",
+      "backdrop-blur-sm"
     )}>
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-transparent pointer-events-none" />
-      
-      {/* Live indicator */}
-      <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-        {isLive ? (
-          <>
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-profit-3/60 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-profit-3"></span>
-            </span>
-            <span className="text-[10px] text-profit-3/80 font-medium uppercase tracking-wide">Live</span>
-          </>
-        ) : (
-          <>
-            <WifiOff className="h-3 w-3 text-muted-foreground/40" />
-            <span className="text-[10px] text-muted-foreground/40 font-medium uppercase tracking-wide">Polling</span>
-          </>
+      {/* Subtle live indicator */}
+      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+        {isLive && (
+          <span className="relative flex h-1 w-1">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-profit-3/40 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1 w-1 bg-profit-3/60"></span>
+          </span>
         )}
       </div>
 
-      {/* 2x2 Grid */}
-      <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        {/* HYPE Price */}
-        <MetricBlock
-          label="HYPE Price"
-          primaryValue={formatPrice(stats.hypePrice)}
-          secondaryValue={formatBtcPrice(stats.hypePriceBtc)}
-          icon={CircleDollarSign}
-          delta={stats.priceChange24h !== null ? {
-            value: stats.priceChange24h,
-            formatted: `${stats.priceChange24h.toFixed(2)}%`
-          } : undefined}
-          isLoading={isLoading && isPriceLoading}
-          className="border-b md:border-b-0 md:border-r border-border/20 lg:border-r"
+      {/* Stats row - horizontal, center-aligned */}
+      <div className="flex items-stretch divide-x divide-border/10">
+        <StatItem
+          label="HYPE"
+          value={formatPrice(stats.hypePrice)}
+          change={stats.priceChange24h}
         />
-
-        {/* Market Cap */}
-        <MetricBlock
-          label="HYPE Market Cap"
-          primaryValue={formatMarketCap(stats.marketCap)}
-          secondaryValue={formatSupply(stats.circSupply)}
-          icon={Globe}
-          isLoading={isLoading && isPriceLoading}
-          className="border-b lg:border-b-0 lg:border-r border-border/20"
+        <StatItem
+          label="Market Cap"
+          value={formatMarketCap(stats.marketCap)}
         />
-
-        {/* Transactions */}
-        <MetricBlock
+        <StatItem
           label="Transactions"
-          primaryValue={formatTxns(stats.totalTxns)}
-          secondaryValue={formatTps(stats.tps)}
-          icon={Layers}
-          isLoading={isLoading && isBlockLoading}
-          className="border-b md:border-b-0 md:border-r lg:border-r border-border/20"
+          value={formatTxns(stats.totalTxns)}
+          subValue={stats.tps !== null ? `${stats.tps.toFixed(1)} TPS` : undefined}
         />
-
-        {/* Latest Block */}
-        <MetricBlock
-          label="Latest Block"
-          primaryValue={formatBlock(stats.latestBlock)}
-          secondaryValue={formatBlockTime(stats.blockTime)}
-          icon={Box}
-          isLoading={isLoading && isBlockLoading}
+        <StatItem
+          label="Block"
+          value={formatBlock(stats.latestBlock)}
+          subValue={stats.blockTime !== null ? `${stats.blockTime.toFixed(2)}s` : undefined}
         />
       </div>
     </div>
