@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ExplorerShell } from '@/components/explorer/ExplorerShell';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { HypeStats } from '@/components/explorer/HypeStats';
 import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
@@ -16,7 +15,6 @@ export default function ExplorerPage() {
   const [loadingStage, setLoadingStage] = useState<LoadingStage>({ stage: 'ready', message: '' });
 
   const handleBack = useCallback(() => {
-    // Use browser history for proper back navigation
     if (window.history.length > 1) {
       navigate(-1);
     } else {
@@ -95,11 +93,14 @@ export default function ExplorerPage() {
     }
   }
 
-  // Default: show explorer home with network stats
+  // Default: show explorer home - no hero, no cards, just the shell with dense stats
   return (
     <Layout>
       <ExplorerShell loadingStage={loadingStage}>
-        <HypeStats />
+        {/* Empty - the shell now shows network state, activity pulse, entry points */}
+        <div className="text-center text-muted-foreground/40 text-sm py-8">
+          Enter an address, transaction hash, block number, or token name above
+        </div>
       </ExplorerShell>
     </Layout>
   );

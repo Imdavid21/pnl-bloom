@@ -6,154 +6,156 @@
 
 @layer base {
   :root {
-    /* Light theme - soft pastels */
-    --background: 210 40% 98%;
-    --foreground: 222 15% 25%;
+    /* Light theme - neutral system look */
+    --background: 220 15% 97%;
+    --foreground: 220 15% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 15% 25%;
+    --card-foreground: 220 15% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 15% 25%;
+    --popover-foreground: 220 15% 15%;
 
-    --primary: 250 60% 70%;
-    --primary-foreground: 250 10% 98%;
+    /* Primary = Hyperliquid teal - focus accent only */
+    --primary: 174 60% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 30% 94%;
-    --secondary-foreground: 222 15% 30%;
+    --secondary: 220 12% 93%;
+    --secondary-foreground: 220 15% 20%;
 
-    --muted: 210 25% 92%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 220 12% 91%;
+    --muted-foreground: 220 10% 45%;
 
-    --accent: 180 40% 90%;
-    --accent-foreground: 180 30% 25%;
+    --accent: 174 40% 92%;
+    --accent-foreground: 174 50% 25%;
 
-    --destructive: 0 60% 70%;
+    --destructive: 0 60% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 88%;
-    --input: 210 25% 94%;
-    --ring: 250 50% 70%;
+    --border: 220 12% 88%;
+    --input: 220 12% 93%;
+    --ring: 174 50% 45%;
 
-    --radius: 0.5rem;
+    --radius: 0.375rem;
 
-    /* Semantic PnL Colors - Soft Pastels */
-    --loss-4: 0 55% 65%;
-    --loss-3: 0 50% 70%;
-    --loss-2: 0 45% 75%;
-    --loss-1: 0 40% 80%;
+    /* Semantic PnL Colors */
+    --loss-4: 0 65% 50%;
+    --loss-3: 0 60% 55%;
+    --loss-2: 0 50% 60%;
+    --loss-1: 0 40% 65%;
 
-    --profit-1: 145 45% 70%;
-    --profit-2: 145 50% 65%;
-    --profit-3: 145 55% 60%;
-    --profit-4: 145 60% 55%;
+    --profit-1: 145 50% 50%;
+    --profit-2: 145 55% 45%;
+    --profit-3: 145 60% 40%;
+    --profit-4: 145 65% 35%;
 
-    /* Warning - soft amber */
-    --warning: 45 80% 70%;
-    --warning-foreground: 45 60% 20%;
+    /* Warning - amber */
+    --warning: 40 85% 55%;
+    --warning-foreground: 40 80% 15%;
 
-    /* Interaction (soft blue) */
-    --info: 210 60% 70%;
-    --info-foreground: 210 40% 20%;
-
-    /* Neutral */
-    --neutral: 210 15% 88%;
-    --no-data: 210 20% 94%;
-
-    /* Soft pastel palette for charts */
-    --pastel-green: 145 50% 75%;
-    --pastel-red: 0 50% 78%;
-    --pastel-yellow: 45 70% 80%;
-    --pastel-purple: 270 50% 78%;
-    --pastel-blue: 210 55% 78%;
-    --pastel-pink: 330 50% 80%;
-
-    /* Shadows */
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
-
-    --sidebar-background: 210 35% 96%;
-    --sidebar-foreground: 222 12% 35%;
-    --sidebar-primary: 250 55% 68%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 25% 92%;
-    --sidebar-accent-foreground: 222 15% 25%;
-    --sidebar-border: 210 20% 88%;
-    --sidebar-ring: 250 50% 70%;
-  }
-
-  .dark {
-    /* Dark theme - soft pastels on dark */
-    --background: 222 25% 8%;
-    --foreground: 210 20% 90%;
-
-    --card: 222 22% 11%;
-    --card-foreground: 210 20% 90%;
-
-    --popover: 222 22% 13%;
-    --popover-foreground: 210 20% 90%;
-
-    --primary: 270 45% 72%;
-    --primary-foreground: 270 20% 10%;
-
-    --secondary: 222 18% 15%;
-    --secondary-foreground: 210 15% 80%;
-
-    --muted: 222 18% 18%;
-    --muted-foreground: 210 12% 55%;
-
-    --accent: 180 30% 20%;
-    --accent-foreground: 180 35% 85%;
-
-    --destructive: 0 50% 65%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 222 18% 18%;
-    --input: 222 18% 16%;
-    --ring: 270 45% 70%;
-
-    /* Dark PnL Colors - Soft pastels */
-    --loss-4: 0 50% 60%;
-    --loss-3: 0 48% 65%;
-    --loss-2: 0 45% 70%;
-    --loss-1: 0 42% 72%;
-
-    --profit-1: 145 40% 55%;
-    --profit-2: 145 45% 58%;
-    --profit-3: 145 50% 62%;
-    --profit-4: 145 55% 65%;
-
-    /* Warning - muted amber */
-    --warning: 45 65% 65%;
-    --warning-foreground: 45 50% 10%;
-
-    /* Interaction */
-    --info: 210 55% 65%;
+    /* Info - blue */
+    --info: 210 70% 55%;
     --info-foreground: 0 0% 100%;
 
     /* Neutral */
-    --neutral: 222 18% 22%;
-    --no-data: 222 18% 12%;
+    --neutral: 220 12% 88%;
+    --no-data: 220 12% 94%;
 
-    /* Soft pastel palette for charts */
-    --pastel-green: 145 45% 60%;
-    --pastel-red: 0 45% 65%;
-    --pastel-yellow: 45 60% 68%;
-    --pastel-purple: 270 45% 68%;
-    --pastel-blue: 210 50% 65%;
-    --pastel-pink: 330 45% 68%;
+    /* Chart palette - muted */
+    --pastel-green: 145 50% 50%;
+    --pastel-red: 0 55% 55%;
+    --pastel-yellow: 40 70% 55%;
+    --pastel-purple: 270 40% 60%;
+    --pastel-blue: 210 55% 55%;
+    --pastel-pink: 330 45% 60%;
 
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.2);
-    --shadow-md: 0 4px 8px -1px rgb(0 0 0 / 0.25);
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
 
-    --sidebar-background: 222 25% 6%;
-    --sidebar-foreground: 210 15% 65%;
-    --sidebar-primary: 270 45% 72%;
-    --sidebar-primary-foreground: 270 20% 10%;
-    --sidebar-accent: 222 18% 16%;
-    --sidebar-accent-foreground: 210 20% 85%;
-    --sidebar-border: 222 18% 18%;
-    --sidebar-ring: 270 45% 70%;
+    --sidebar-background: 220 15% 96%;
+    --sidebar-foreground: 220 12% 35%;
+    --sidebar-primary: 174 55% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 12% 92%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 220 12% 88%;
+    --sidebar-ring: 174 50% 45%;
+  }
+
+  .dark {
+    /* Dark theme - neutral system look */
+    --background: 220 20% 7%;
+    --foreground: 220 10% 88%;
+
+    --card: 220 18% 10%;
+    --card-foreground: 220 10% 88%;
+
+    --popover: 220 18% 11%;
+    --popover-foreground: 220 10% 88%;
+
+    /* Primary = Hyperliquid teal - focus accent only */
+    --primary: 174 55% 48%;
+    --primary-foreground: 220 20% 8%;
+
+    --secondary: 220 16% 14%;
+    --secondary-foreground: 220 10% 75%;
+
+    --muted: 220 16% 16%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 174 30% 18%;
+    --accent-foreground: 174 40% 75%;
+
+    --destructive: 0 55% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 16% 16%;
+    --input: 220 16% 14%;
+    --ring: 174 50% 48%;
+
+    /* Dark PnL Colors */
+    --loss-4: 0 60% 55%;
+    --loss-3: 0 55% 58%;
+    --loss-2: 0 50% 62%;
+    --loss-1: 0 45% 65%;
+
+    --profit-1: 145 45% 48%;
+    --profit-2: 145 50% 50%;
+    --profit-3: 145 55% 52%;
+    --profit-4: 145 60% 55%;
+
+    /* Warning - muted amber */
+    --warning: 40 70% 55%;
+    --warning-foreground: 40 70% 10%;
+
+    /* Info */
+    --info: 210 60% 55%;
+    --info-foreground: 0 0% 100%;
+
+    /* Neutral */
+    --neutral: 220 16% 18%;
+    --no-data: 220 16% 10%;
+
+    /* Chart palette */
+    --pastel-green: 145 50% 52%;
+    --pastel-red: 0 50% 58%;
+    --pastel-yellow: 40 60% 55%;
+    --pastel-purple: 270 40% 58%;
+    --pastel-blue: 210 50% 55%;
+    --pastel-pink: 330 40% 58%;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.4);
+
+    --sidebar-background: 220 20% 5%;
+    --sidebar-foreground: 220 10% 60%;
+    --sidebar-primary: 174 55% 48%;
+    --sidebar-primary-foreground: 220 20% 8%;
+    --sidebar-accent: 220 16% 14%;
+    --sidebar-accent-foreground: 220 10% 80%;
+    --sidebar-border: 220 16% 16%;
+    --sidebar-ring: 174 50% 48%;
   }
 }
 
