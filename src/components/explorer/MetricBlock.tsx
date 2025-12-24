@@ -15,12 +15,12 @@ interface MetricBlockProps {
   isLoading?: boolean;
 }
 
-// Check if value is a placeholder (contains dashes as placeholders)
+// Check if value is a placeholder
 function isPlaceholder(value: string): boolean {
   return /^[\$@\(\)]*[-]+[\.\-\,\s\w]*$/.test(value) || value.includes('--');
 }
 
-// Animated value that preserves previous state
+// Animated value - minimal transition
 function AnimatedValue({ 
   value, 
   className 
@@ -39,12 +39,11 @@ function AnimatedValue({
       setDisplayValue(value);
       prevRef.current = value;
       
-      const timeout = setTimeout(() => setIsUpdating(false), 400);
+      const timeout = setTimeout(() => setIsUpdating(false), 150);
       return () => clearTimeout(timeout);
     } else if (!isPlaceholder(value)) {
       setDisplayValue(value);
     } else if (isPlaceholder(prevRef.current)) {
-      // Both are placeholders, update display
       setDisplayValue(value);
     }
   }, [value]);
@@ -52,9 +51,9 @@ function AnimatedValue({
   return (
     <span 
       className={cn(
-        "transition-all duration-400 ease-out",
+        "transition-opacity duration-150",
         isUpdating && "text-foreground",
-        placeholder && "animate-pulse text-muted-foreground/40",
+        placeholder && "animate-pulse text-muted-foreground",
         className
       )}
     >
@@ -74,70 +73,55 @@ export function MetricBlock({
 }: MetricBlockProps) {
   if (isLoading) {
     return (
-      <div className={cn("flex items-start gap-3.5 p-4", className)}>
-        <div className="p-2.5 rounded-xl bg-muted/30 animate-pulse">
-          <div className="h-5 w-5" />
-        </div>
-        <div className="flex-1 space-y-2">
-          <div className="h-3 w-20 bg-muted/40 rounded animate-pulse" />
-          <div className="h-6 w-28 bg-muted/30 rounded animate-pulse" />
+      <div className={cn("flex items-start gap-3 py-3 border-b border-border last:border-0", className)}>
+        <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+        <div className="flex-1 space-y-1">
+          <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      className={cn(
-        "group flex items-start gap-3.5 p-4",
-        "transition-all duration-300 ease-out",
-        "hover:bg-muted/5 rounded-xl",
-        className
-      )}
-    >
-      {/* Icon container */}
-      <div className={cn(
-        "p-2.5 rounded-xl",
-        "bg-muted/10 border border-border/30",
-        "transition-all duration-300",
-        "group-hover:bg-muted/15 group-hover:border-border/50"
-      )}>
-        <Icon className="h-5 w-5 text-muted-foreground/70" strokeWidth={1.5} />
-      </div>
+    <div className={cn(
+      "flex items-start gap-3 py-3 border-b border-border last:border-0",
+      className
+    )}>
+      {/* Icon */}
+      <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" strokeWidth={1.5} />
 
       {/* Content */}
-      <div className="flex-1 min-w-0 space-y-1">
+      <div className="flex-1 min-w-0 flex items-baseline justify-between gap-2">
         {/* Label */}
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+        <span className="text-[11px] text-muted-foreground uppercase tracking-wide">
           {label}
-        </p>
+        </span>
 
-        {/* Primary value */}
-        <div className="flex items-baseline gap-2 flex-wrap">
+        {/* Values */}
+        <div className="flex items-baseline gap-2">
           <AnimatedValue 
             value={primaryValue}
-            className="text-xl font-semibold text-foreground tabular-nums tracking-tight"
+            className="text-sm font-medium font-mono tabular-nums text-foreground"
           />
           
-          {/* Delta badge */}
+          {/* Delta */}
           {delta && (
             <span className={cn(
-              "text-xs font-medium tabular-nums px-1.5 py-0.5 rounded",
-              delta.value >= 0 
-                ? "text-profit-3 bg-profit-3/10" 
-                : "text-loss-3 bg-loss-3/10"
+              "text-[11px] font-medium tabular-nums",
+              delta.value >= 0 ? "text-profit-3" : "text-loss-3"
             )}>
               {delta.value >= 0 ? '+' : ''}{delta.formatted}
             </span>
           )}
-        </div>
 
-        {/* Secondary value */}
-        {secondaryValue && (
-          <p className="text-sm text-muted-foreground/50 tabular-nums">
-            {secondaryValue}
-          </p>
-        )}
+          {/* Secondary value */}
+          {secondaryValue && (
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {secondaryValue}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
