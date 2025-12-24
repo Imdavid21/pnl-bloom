@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ViewModel, ViewModelMetadata } from '@/types/viewmodel';
 import { useTemporalContext } from '@/contexts/TemporalContext';
+import { TTL } from '@/config/cache';
 
 export interface AnalyticsSummary {
   total_trading_pnl: number;
@@ -201,7 +202,7 @@ export function useAnalytics(wallet: string | null, dataset?: string, minTrades?
     queryKey: ['analytics', wallet, dataset, minTrades, mode, range],
     queryFn: () => fetchAnalytics(wallet!, dataset, minTrades),
     enabled: !!wallet,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: TTL.USER_ANALYTICS,
     retry: 1,
   });
 }
@@ -211,8 +212,41 @@ export function useComputeAnalytics() {
 
   return useMutation({
     mutationFn: computeAnalytics,
-    onSuccess: (_, wallet) => {
-      // Invalidate analytics queries for this wallet
+    onMutate: async (wallet) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['analytics', wallet] });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueriesData({ queryKey: ['analytics', wallet] });
+
+      // Optimistically update to the new value
+      queryClient.setQueriesData({ queryKey: ['analytics', wallet] }, (old: ViewModel<AnalyticsData> | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          metadata: {
+            ...old.metadata,
+            consistency_level: 'synchronized',
+            computed_at: new Date().toISOString(),
+            // We can also boost confidence score optimistically
+            confidence_score: Math.max(old.metadata.confidence_score, 99)
+          }
+        };
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousData };
+    },
+    onError: (_err, wallet, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: (_data, _error, wallet) => {
+      // Always refetch after error or success:
       queryClient.invalidateQueries({ queryKey: ['analytics', wallet] });
     },
   });

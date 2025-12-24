@@ -1,4 +1,4 @@
-import { RefreshCw, BarChart3 } from 'lucide-react';
+import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAnalytics, useComputeAnalytics } from '@/hooks/useAnalytics';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { FundingTradingChart } from './FundingTradingChart';
@@ -8,6 +8,7 @@ import { LiquidationProximityChart } from './LiquidationProximityChart';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ErrorState } from '@/components/ui/ErrorState';
 
 interface AnalyticsSectionProps {
   wallet: string | null;
@@ -60,18 +61,27 @@ export function AnalyticsSection({ wallet, className }: AnalyticsSectionProps) {
       )}
 
       {error && (
-        <div className="p-4 rounded-lg bg-loss/10 border border-loss/20 text-loss text-sm">
-          {(error as Error).message || 'Failed to load analytics'}
-        </div>
+        <ErrorState
+          variant="card"
+          title="Unable to load analytics"
+          description={(error as Error).message || "An unexpected error occurred."}
+          action="Retry"
+          onAction={() => refetch()}
+        />
       )}
 
       {!isLoading && !error && !hasData && (
-        <div className="flex flex-col items-center justify-center gap-4 p-8 rounded-lg border border-dashed border-border/50 bg-card/20">
-          <BarChart3 className="h-10 w-10 text-muted-foreground/50" />
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">No analytics data yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Click "Compute" to generate analytics from your trading history</p>
+        <div className="flex flex-col items-center justify-center h-48 border rounded-lg bg-card/50 text-center p-6">
+          <div className="bg-muted p-3 rounded-full mb-3">
+            <BarChart3 className="w-6 h-6 text-muted-foreground" />
           </div>
+          <h3 className="font-medium mb-1">No Analytics Data</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mb-4">
+            We couldn't find any trading history for this wallet on Hyperliquid.
+          </p>
+          <Button onClick={handleCompute} disabled={computeMutation.isPending}>
+            {computeMutation.isPending ? 'Computing...' : 'Compute Analytics'}
+          </Button>
         </div>
       )}
 

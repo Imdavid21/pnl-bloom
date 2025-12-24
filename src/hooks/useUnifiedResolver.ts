@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ResolutionResult, ResolutionEntity } from '@/types/resolver';
 import { detectInputType, guessDomain } from '@/lib/inputHeuristics';
+import { TTL } from '@/config/cache';
 
 // ============ VIEW MODEL TYPES ============
 
@@ -164,8 +165,8 @@ export function useTransaction(hash: string | undefined) {
     queryKey: ['tx', hash?.toLowerCase()],
     queryFn: () => fetchTransaction(hash!),
     enabled: !!hash && hash.length > 0,
-    staleTime: Infinity, // Transactions are immutable after finality
-    gcTime: 30 * 60_000, // 30 minutes
+    staleTime: TTL.IMMUTABLE,
+    gcTime: TTL.LONG,
     retry: 1,
   });
 }
@@ -178,8 +179,8 @@ export function useWallet(address: string | undefined) {
     queryKey: ['wallet', address?.toLowerCase()],
     queryFn: () => fetchWallet(address!),
     enabled: !!address && address.length > 0,
-    staleTime: 10_000, // 10 seconds - wallet data can change
-    gcTime: 5 * 60_000, // 5 minutes
+    staleTime: TTL.REALTIME, // Wallet balances change often
+    gcTime: TTL.USER_ANALYTICS, // Keep in memory for session
     retry: 1,
   });
 }
@@ -192,8 +193,8 @@ export function useBlock(blockNumber: string | undefined) {
     queryKey: ['block', blockNumber],
     queryFn: () => fetchBlock(blockNumber!),
     enabled: !!blockNumber && blockNumber.length > 0,
-    staleTime: Infinity, // Blocks are immutable
-    gcTime: 30 * 60_000, // 30 minutes
+    staleTime: TTL.IMMUTABLE,
+    gcTime: TTL.LONG,
     retry: 1,
   });
 }
