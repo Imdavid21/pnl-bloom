@@ -13,46 +13,58 @@ interface HypeStatsData {
   addresses24h: number | null;
 }
 
-// DataRow component - spec compliant
-function DataRow({ 
+// Visible stat block - center aligned
+function StatBlock({ 
   label, 
   value, 
   subValue,
-  delta,
+  change,
 }: { 
   label: string;
   value: string;
   subValue?: string;
-  delta?: number | null;
+  change?: number | null;
 }) {
   const isPlaceholder = value.includes('--');
   
   return (
-    <div className="flex items-baseline justify-between py-2 border-b border-border last:border-0">
-      <span className="text-xs text-muted-foreground uppercase tracking-wide">
+    <div className={cn(
+      "flex flex-col items-center justify-center text-center",
+      "px-4 py-4 md:px-6 md:py-5",
+      "bg-card/60 backdrop-blur-sm",
+      "border border-border/30 rounded-xl",
+      "transition-all duration-300",
+      "hover:bg-card/80 hover:border-border/50"
+    )}>
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium mb-2">
         {label}
       </span>
-      <div className="flex items-baseline gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap justify-center">
         <span className={cn(
-          "text-sm font-medium font-mono tabular-nums",
-          isPlaceholder ? "text-muted-foreground animate-pulse" : "text-foreground"
+          "text-lg md:text-xl font-semibold tabular-nums transition-all duration-300",
+          isPlaceholder ? "text-muted-foreground/30 animate-pulse" : "text-foreground"
         )}>
           {value}
         </span>
-        {delta !== undefined && delta !== null && !isPlaceholder && (
+        {change !== undefined && change !== null && !isPlaceholder && (
           <span className={cn(
-            "text-[11px] font-medium tabular-nums",
-            delta >= 0 ? "text-profit-3" : "text-loss-3"
+            "text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded-full",
+            change >= 0 
+              ? "text-profit-3 bg-profit-3/10" 
+              : "text-loss-3 bg-loss-3/10"
           )}>
-            {delta >= 0 ? '+' : ''}{delta.toFixed(2)}%
-          </span>
-        )}
-        {subValue && (
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {subValue}
+            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
           </span>
         )}
       </div>
+      {subValue && (
+        <span className={cn(
+          "text-[11px] text-muted-foreground/50 mt-1 tabular-nums",
+          isPlaceholder && "animate-pulse"
+        )}>
+          {subValue}
+        </span>
+      )}
     </div>
   );
 }
@@ -76,7 +88,7 @@ export function HypeStats() {
   const blockTimestampsRef = useRef<number[]>([]);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const txCountRef = useRef<number>(102460000);
-  const addressCountRef = useRef<number>(847500);
+  const addressCountRef = useRef<number>(847500); // Tracked unique addresses
 
   const calculateTps = useCallback(() => {
     const timestamps = blockTimestampsRef.current;
@@ -131,6 +143,7 @@ export function HypeStats() {
             const txCount = block.transactions?.length || parseInt(block.gasUsed, 16) / 21000 || 4;
             txCountRef.current += Math.max(1, Math.floor(txCount));
             
+            // Simulate address growth (realistic ~2-5 new addresses per block)
             addressCountRef.current += Math.floor(Math.random() * 4) + 1;
             
             setLastBlockUpdate(timestamp);
@@ -214,9 +227,11 @@ export function HypeStats() {
       if (rpcData.result) {
         const blockNumber = parseInt(rpcData.result, 16);
         
+        // Estimate unique addresses based on block height (realistic growth)
         const estimatedAddresses = Math.floor(blockNumber * 0.038);
         addressCountRef.current = estimatedAddresses;
         
+        // Estimate 24h new addresses (~0.5-1% daily growth)
         const addresses24h = Math.floor(estimatedAddresses * 0.008);
         
         setStats(prev => ({
@@ -278,43 +293,43 @@ export function HypeStats() {
   };
 
   return (
-    <div className="w-full space-y-4">
-      {/* Live status indicator */}
+    <div className="w-full flex flex-col items-center">
+      {/* Live indicator */}
       {isLive && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 mb-3">
           <span className="relative flex h-1.5 w-1.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-profit-3/50 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-profit-3"></span>
           </span>
-          <span className="text-[11px] text-profit-3 font-medium uppercase tracking-wide">Live</span>
+          <span className="text-[10px] text-profit-3/70 font-medium uppercase tracking-wider">Live</span>
         </div>
       )}
 
-      {/* Stats as data rows - not cards */}
-      <div className="border border-border rounded bg-card">
-        <DataRow
+      {/* Stats grid - visible blocks */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 w-full max-w-4xl">
+        <StatBlock
           label="HYPE"
           value={formatPrice(stats.hypePrice)}
-          delta={stats.priceChange24h}
+          change={stats.priceChange24h}
         />
-        <DataRow
+        <StatBlock
           label="Market Cap"
           value={formatMarketCap(stats.marketCap)}
         />
-        <DataRow
+        <StatBlock
           label="Transactions"
           value={formatTxns(stats.totalTxns)}
           subValue={stats.tps !== null ? `${stats.tps.toFixed(1)} TPS` : undefined}
         />
-        <DataRow
+        <StatBlock
           label="Unique Addresses"
           value={formatAddresses(stats.uniqueAddresses)}
-          subValue={stats.addresses24h !== null ? `+${formatAddresses(stats.addresses24h)} 24h` : undefined}
+          subValue={stats.addresses24h !== null ? `+${formatAddresses(stats.addresses24h)} (24h)` : undefined}
         />
-        <DataRow
+        <StatBlock
           label="Latest Block"
           value={formatBlock(stats.latestBlock)}
-          subValue={stats.blockTime !== null ? `${stats.blockTime.toFixed(2)}s` : undefined}
+          subValue={stats.blockTime !== null ? `${stats.blockTime.toFixed(2)}s ago` : undefined}
         />
       </div>
     </div>

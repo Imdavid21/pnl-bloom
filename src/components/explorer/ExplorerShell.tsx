@@ -4,21 +4,21 @@ import { Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { getSearchPlaceholder } from '@/lib/explorer/searchResolver';
+import { getSearchPlaceholder, getEntityLabel, getChainLabel } from '@/lib/explorer/searchResolver';
 import { TokenSearchAutocomplete, type SearchResult } from './TokenSearchAutocomplete';
 import type { LoadingStage } from '@/lib/explorer/types';
 
-// Quick search chip - functional only
+// Quick search chip - minimal 2026 style
 function QuickChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "px-2 py-1 rounded text-xs font-medium",
-        "border border-border",
-        "text-muted-foreground hover:text-foreground",
-        "hover:border-foreground/20",
-        "transition-colors duration-150"
+        "px-3 py-1.5 rounded-full text-xs font-medium",
+        "bg-muted/10 border border-border/20",
+        "text-muted-foreground/60 hover:text-foreground/80",
+        "hover:bg-muted/20 hover:border-border/40",
+        "transition-all duration-300 ease-out"
       )}
     >
       {label}
@@ -26,16 +26,16 @@ function QuickChip({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
-// Loading indicator - inline stage display
+// Loading indicator
 function LoadingIndicator({ stage }: { stage: LoadingStage }) {
   if (stage.stage === 'ready') return null;
   
   return (
-    <div className="flex items-center gap-2 py-2">
+    <div className="flex items-center justify-center gap-3 py-3">
       {stage.stage !== 'error' && (
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <Loader2 className="h-4 w-4 animate-spin text-primary/60" />
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground/60">
         {stage.message || 'Loading...'}
       </p>
     </div>
@@ -52,6 +52,8 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const navigate = useNavigate();
   const { 
     query, 
+    mode, 
+    chain,
     setQuery, 
     clear,
     navigateTo,
@@ -86,33 +88,50 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
     setQuery(value);
   }, [setQuery]);
   
+  const handleClear = useCallback(() => {
+    setLocalSearch('');
+    clear();
+  }, [clear]);
+
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      clear();
+    }
+  }, [navigate, clear]);
+  
   const hasActiveQuery = !!query;
+  const chainLabel = getChainLabel(chain);
   
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-4">
-      {/* Title row - left aligned, not hero */}
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6 flex flex-col items-center">
+      {/* Hero section - only on home */}
       {showHeader && !hasActiveQuery && (
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-foreground">
+        <div className="text-center space-y-3 pt-8 pb-4 w-full">
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground/90">
             Hyperliquid Explorer
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Search wallets, transactions, blocks, and tokens
+          <p className="text-base text-muted-foreground/60 max-w-lg mx-auto">
+            Search wallets, transactions, blocks, and tokens across L1 & EVM
           </p>
         </div>
       )}
       
-      {/* Search input - functional, not decorative */}
-      <div className="space-y-2">
+      {/* Primary CTA: Search bar - 2026 minimal style */}
+      <div className="relative w-full transition-all duration-500">
         <div className={cn(
-          "flex gap-2 p-1",
-          "rounded border border-border",
-          "bg-card",
-          "focus-within:border-foreground/30",
-          "transition-colors duration-150"
+          "relative flex gap-2 p-1.5",
+          "rounded-2xl",
+          "bg-card/40 backdrop-blur-xl",
+          "border border-border/30",
+          "shadow-[0_8px_40px_-12px_rgba(0,0,0,0.15)]",
+          "dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.4)]",
+          "focus-within:border-primary/40 focus-within:shadow-[0_8px_50px_-12px_rgba(0,0,0,0.2)]",
+          "transition-all duration-300"
         )}>
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
             <TokenSearchAutocomplete
               value={localSearch}
               onChange={setLocalSearch}
@@ -126,20 +145,26 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
           <Button
             onClick={handleSearchSubmit}
             disabled={!localSearch.trim() || isResolving}
-            size="sm"
-            className="h-9 px-4"
+            className={cn(
+              "h-11 px-6 rounded-xl",
+              "bg-primary/90 hover:bg-primary",
+              "text-primary-foreground font-medium",
+              "shadow-sm hover:shadow-md",
+              "transition-all duration-300"
+            )}
           >
             {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
         </div>
         
-        {/* Quick chips - only on home */}
+        {/* Quick search chips - only on home */}
         {!hasActiveQuery && (
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Try</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            <span className="text-[11px] text-muted-foreground/40 uppercase tracking-wider">Try</span>
             <QuickChip label="HYPE" onClick={() => handleQuickSearch('HYPE')} />
             <QuickChip label="PURR" onClick={() => handleQuickSearch('PURR')} />
             <QuickChip label="Block 1M" onClick={() => handleQuickSearch('1000000')} />
+            <QuickChip label="Sample Wallet" onClick={() => handleQuickSearch('0xdd590902cdac0abb4861a6748a256e888acb8d47')} />
           </div>
         )}
       </div>
@@ -149,8 +174,11 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         <LoadingIndicator stage={loadingStage} />
       )}
       
-      {/* Main content */}
-      <div className="w-full">
+      {/* Main content with spacing */}
+      <div className={cn(
+        "transition-all duration-500 w-full flex flex-col items-center",
+        !hasActiveQuery && "pt-4"
+      )}>
         {children}
       </div>
     </div>
