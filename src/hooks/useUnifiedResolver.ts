@@ -1,7 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { ResolutionResult, ResolutionEntity } from '@/types/resolver';
+import { detectInputType, guessDomain } from '@/lib/inputHeuristics';
 
 // ============ VIEW MODEL TYPES ============
+
+export interface TransactionViewModel { // ... existing code can stay or be updated if needed, but we focus on return type
+
 
 export interface TransactionViewModel {
   id: string;
@@ -58,84 +63,80 @@ export interface BlockViewModel {
 
 export type EntityViewModel = TransactionViewModel | WalletViewModel | BlockViewModel;
 
-export interface ResolveResult {
-  resolved: boolean;
-  inputType: 'evm_tx' | 'address' | 'block' | 'token_name' | 'unknown';
-  entityType: 'tx' | 'wallet' | 'block' | 'token' | null;
-  domain: 'hyperevm' | 'hypercore' | 'unified' | 'unknown';
-  data: EntityViewModel | null;
-  cached: boolean;
-  checkedSources: string[];
-  error?: string;
-}
+export type EntityViewModel = TransactionViewModel | WalletViewModel | BlockViewModel;
+
 
 // ============ RESOLVER CLIENT ============
 
 const RESOLVER_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unified-resolver`;
 
-async function fetchResolve(query: string): Promise<ResolveResult> {
-  const response = await supabase.functions.invoke('unified-resolver', {
-    body: null,
-    headers: {},
-  });
-  
-  // Use direct fetch since we need query params
-  const res = await fetch(`${RESOLVER_URL}/resolve?q=${encodeURIComponent(query)}`, {
+async function fetchResolve(query: string): Promise<ResolutionResult> {
+  const inputType = detectInputType(query);
+  const domainGuess = guessDomain(inputType);
+
+  // Construct params based on heuristics
+  const params = new URLSearchParams({ q: query });
+  if (domainGuess !== 'both') {
+    params.append('domain', domainGuess);
+  }
+
+  // Use fetch directly since we need query params
+  const res = await fetch(`${RESOLVER_URL}/resolve?${params.toString()}`, {
     headers: {
       'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       'Content-Type': 'application/json',
     },
   });
-  
+
   if (!res.ok) {
     throw new Error(`Resolver error: ${res.statusText}`);
   }
-  
+
   return res.json();
 }
 
-async function fetchTransaction(hash: string): Promise<ResolveResult> {
+async function fetchTransaction(hash: string): Promise<ResolutionResult> {
   const res = await fetch(`${RESOLVER_URL}/tx/${hash}`, {
     headers: {
       'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       'Content-Type': 'application/json',
     },
   });
-  
+
   if (!res.ok) {
     throw new Error(`Resolver error: ${res.statusText}`);
   }
-  
+
   return res.json();
 }
 
-async function fetchWallet(address: string): Promise<ResolveResult> {
+async function fetchWallet(address: string): Promise<ResolutionResult> {
   const res = await fetch(`${RESOLVER_URL}/wallet/${address}`, {
     headers: {
       'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       'Content-Type': 'application/json',
     },
   });
-  
+
   if (!res.ok) {
     throw new Error(`Resolver error: ${res.statusText}`);
   }
-  
+
   return res.json();
 }
 
-async function fetchBlock(blockNumber: string): Promise<ResolveResult> {
+async function fetchBlock(blockNumber: string): Promise<ResolutionResult> {
   const res = await fetch(`${RESOLVER_URL}/block/${blockNumber}`, {
     headers: {
       'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       'Content-Type': 'application/json',
     },
   });
-  
+
   if (!res.ok) {
     throw new Error(`Resolver error: ${res.statusText}`);
   }
-  
+
   return res.json();
 }
 
@@ -202,7 +203,7 @@ export function useBlock(blockNumber: string | undefined) {
  */
 export function usePrefetch() {
   const queryClient = useQueryClient();
-  
+
   return {
     prefetchWallet: (address: string) => {
       queryClient.prefetchQuery({
@@ -231,7 +232,7 @@ export function usePrefetch() {
 /**
  * Get domain label for display
  */
-export function getDomainLabel(domain: ResolveResult['domain']): string {
+export function getDomainLabel(domain: ResolutionEntity['domain'] | 'unified' | 'unknown'): string {
   switch (domain) {
     case 'hyperevm':
       return 'HyperEVM';
@@ -247,7 +248,7 @@ export function getDomainLabel(domain: ResolveResult['domain']): string {
 /**
  * Get domain badge color classes
  */
-export function getDomainBadgeClasses(domain: ResolveResult['domain']): string {
+export function getDomainBadgeClasses(domain: ResolutionEntity['domain'] | 'unified' | 'unknown'): string {
   switch (domain) {
     case 'hyperevm':
       return 'bg-emerald-500/20 text-emerald-400';

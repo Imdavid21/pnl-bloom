@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { ViewModel, ViewModelMetadata } from '@/types/viewmodel';
+import { useTemporalContext } from '@/contexts/TemporalContext';
 
 export interface AnalyticsSummary {
   total_trading_pnl: number;
@@ -111,7 +113,7 @@ async function fetchAnalytics(
   wallet: string,
   dataset?: string,
   minTrades?: number
-): Promise<AnalyticsData> {
+): Promise<ViewModel<AnalyticsData>> {
   const params = new URLSearchParams({ wallet });
   if (dataset) params.append('dataset', dataset);
   if (minTrades) params.append('min_trades', minTrades.toString());
@@ -127,13 +129,26 @@ async function fetchAnalytics(
   // Handle 404 (wallet not found) gracefully - return empty data
   if (response.status === 404) {
     return {
-      summary: undefined,
-      equity_curve: [],
-      closed_trades: [],
-      market_stats: [],
-      drawdowns: [],
-      trade_size_leverage: undefined,
-      positions: [],
+      data: {
+        summary: undefined,
+        equity_curve: [],
+        closed_trades: [],
+        market_stats: [],
+        drawdowns: [],
+        trade_size_leverage: undefined,
+        positions: [],
+      },
+      metadata: {
+        computed_at: new Date().toISOString(),
+        source_watermark: {},
+        consistency_level: 'eventual',
+        confidence_score: 0,
+        data_completeness: {
+          trades: false,
+          funding: false,
+          positions: false
+        }
+      }
     };
   }
 
@@ -142,7 +157,22 @@ async function fetchAnalytics(
     throw new Error(errorData.error || 'Failed to fetch analytics');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Mock metadata for now
+  const metadata: ViewModelMetadata = {
+    computed_at: new Date().toISOString(),
+    source_watermark: {},
+    consistency_level: 'eventual',
+    confidence_score: 95,
+    data_completeness: {
+      trades: true,
+      funding: true,
+      positions: true
+    }
+  };
+
+  return { data, metadata };
 }
 
 async function computeAnalytics(wallet: string): Promise<{ success: boolean; summary: any }> {
@@ -165,8 +195,10 @@ async function computeAnalytics(wallet: string): Promise<{ success: boolean; sum
 }
 
 export function useAnalytics(wallet: string | null, dataset?: string, minTrades?: number) {
+  const { mode, range } = useTemporalContext();
+
   return useQuery({
-    queryKey: ['analytics', wallet, dataset, minTrades],
+    queryKey: ['analytics', wallet, dataset, minTrades, mode, range],
     queryFn: () => fetchAnalytics(wallet!, dataset, minTrades),
     enabled: !!wallet,
     staleTime: 5 * 60 * 1000, // 5 minutes

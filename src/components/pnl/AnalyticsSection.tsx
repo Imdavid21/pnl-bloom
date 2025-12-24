@@ -1,5 +1,6 @@
 import { RefreshCw, BarChart3 } from 'lucide-react';
 import { useAnalytics, useComputeAnalytics } from '@/hooks/useAnalytics';
+import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { FundingTradingChart } from './FundingTradingChart';
 import { TradeSizeLeverageChart } from './TradeSizeLeverageChart';
 import { MarketDirectionChart } from './MarketDirectionChart';
@@ -14,7 +15,9 @@ interface AnalyticsSectionProps {
 }
 
 export function AnalyticsSection({ wallet, className }: AnalyticsSectionProps) {
-  const { data, isLoading, error, refetch } = useAnalytics(wallet);
+  const { data: viewModel, isLoading, error, refetch } = useAnalytics(wallet);
+  const data = viewModel?.data;
+  const metadata = viewModel?.metadata;
   const computeMutation = useComputeAnalytics();
 
   const handleCompute = async () => {
@@ -36,6 +39,7 @@ export function AnalyticsSection({ wallet, className }: AnalyticsSectionProps) {
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-medium text-foreground">Advanced Analytics</h2>
+          {metadata && <ConfidenceBadge metadata={metadata} />}
         </div>
         <Button
           variant="outline"
@@ -83,9 +87,9 @@ export function AnalyticsSection({ wallet, className }: AnalyticsSectionProps) {
             <MarketDirectionChart trades={data.closed_trades || null} />
           </div>
           <div className="rounded-xl border border-border/50 bg-card/30 p-4">
-            <LiquidationProximityChart 
-              trades={data.closed_trades || []} 
-              positions={data.positions || []} 
+            <LiquidationProximityChart
+              trades={data.closed_trades || []}
+              positions={data.positions || []}
             />
           </div>
         </div>
