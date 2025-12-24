@@ -25,47 +25,46 @@ export function KpiCard({ title, value, subtitle, icon: Icon, trend = 'neutral',
   return (
     <div 
       className={cn(
-        "panel transition-micro hover:border-foreground/20",
+        "border border-border rounded bg-card",
+        "transition-colors duration-150 hover:border-foreground/20",
         className
       )}
     >
-      <div className="p-4">
+      <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            {/* Label - muted, secondary */}
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {/* Label */}
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               {title}
             </p>
             
-            {/* Value - monospace, large, primary signal */}
+            {/* Value */}
             <p 
               className={cn(
-                "mt-1.5 font-mono text-xl font-semibold tabular-nums",
-                trend === 'profit' && "text-profit",
-                trend === 'loss' && "text-loss",
+                "mt-1 font-mono text-base font-semibold tabular-nums",
+                trend === 'profit' && "text-profit-3",
+                trend === 'loss' && "text-loss-3",
                 trend === 'neutral' && "text-foreground"
               )}
             >
               {typeof value === 'number' ? formatValue(value) : value}
             </p>
             
-            {/* Subtitle - context */}
+            {/* Subtitle */}
             {subtitle && (
-              <p className="mt-1 text-[10px] text-muted-foreground">{subtitle}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
             )}
           </div>
           
-          {/* Icon - subtle */}
-          <div 
+          {/* Icon */}
+          <Icon 
             className={cn(
-              "flex-shrink-0 rounded p-1.5",
+              "h-4 w-4 flex-shrink-0",
               trend === 'profit' && "text-profit-3",
-              trend === 'loss' && "text-destructive",
+              trend === 'loss' && "text-loss-3",
               trend === 'neutral' && "text-muted-foreground"
-            )}
-          >
-            <Icon className="h-4 w-4" />
-          </div>
+            )} 
+          />
         </div>
       </div>
     </div>

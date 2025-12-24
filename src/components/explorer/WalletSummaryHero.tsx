@@ -1,4 +1,4 @@
-import { User, Code, Copy, Check, ExternalLink, Shield, AlertTriangle, TrendingUp, TrendingDown, Wallet, Layers } from 'lucide-react';
+import { User, Code, Copy, Check, ExternalLink, Shield, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProvenanceIndicator } from './ProvenanceIndicator';
 import type { Provenance } from '@/lib/explorer/types';
@@ -42,171 +42,141 @@ export function WalletSummaryHero({
   const hasPnl = pnl24h !== undefined && pnl24h !== 0;
 
   const riskConfig = {
-    low: { color: 'text-profit-3', bg: 'bg-profit-3/10', icon: Shield, label: 'Low Risk' },
-    medium: { color: 'text-warning', bg: 'bg-warning/10', icon: Shield, label: 'Medium Risk' },
-    high: { color: 'text-loss-3', bg: 'bg-loss-3/10', icon: AlertTriangle, label: 'High Risk' },
-    critical: { color: 'text-loss-4', bg: 'bg-loss-4/10', icon: AlertTriangle, label: 'Critical' },
+    low: { color: 'text-profit-3', label: 'Low Risk' },
+    medium: { color: 'text-warning', label: 'Medium Risk' },
+    high: { color: 'text-loss-3', label: 'High Risk' },
+    critical: { color: 'text-loss-4', label: 'Critical' },
   };
 
   const risk = riskConfig[riskLevel];
-  const RiskIcon = risk.icon;
 
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-6 mb-6">
-      {/* Header Row */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
+    <div className="border border-border rounded bg-card mb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 p-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
             {isContract ? (
-              <Code className="h-7 w-7 text-primary" />
+              <Code className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <User className="h-7 w-7 text-primary" />
+              <User className="h-4 w-4 text-muted-foreground" />
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-xl font-bold font-mono text-foreground">{truncateHash(address)}</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono font-medium text-foreground">{truncateHash(address)}</span>
               <button 
                 onClick={() => onCopy(address, 'address-hero')}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors duration-150"
               >
-                {copiedId === 'address-hero' ? <Check className="h-4 w-4 text-profit-3" /> : <Copy className="h-4 w-4" />}
+                {copiedId === 'address-hero' ? <Check className="h-3.5 w-3.5 text-profit-3" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
               {isContract && (
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-info/20 text-info">
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-info/20 text-info">
                   Contract
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
               <a 
                 href={verifyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors duration-150"
               >
-                Hyperliquid <ExternalLink className="h-3 w-3" />
+                Hyperliquid <ExternalLink className="h-2.5 w-2.5" />
               </a>
-              <span className="text-muted-foreground/30">•</span>
+              <span>·</span>
               <a 
                 href={purrsecUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors duration-150"
               >
-                Purrsec <ExternalLink className="h-3 w-3" />
+                Purrsec <ExternalLink className="h-2.5 w-2.5" />
               </a>
             </div>
           </div>
         </div>
 
-        {/* Risk Badge */}
+        {/* Risk indicator - inline, not badge */}
         {riskLevel !== 'low' && (
-          <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg", risk.bg)}>
-            <RiskIcon className={cn("h-4 w-4", risk.color)} />
-            <span className={cn("text-sm font-medium", risk.color)}>{risk.label}</span>
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle className={cn("h-3.5 w-3.5", risk.color)} />
+            <span className={cn("text-xs font-medium", risk.color)}>{risk.label}</span>
           </div>
         )}
       </div>
 
-      {/* Summary Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {/* Data rows */}
+      <div className="divide-y divide-border">
         {/* Total Value */}
-        <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Total Value</span>
+        <div className="flex items-baseline justify-between px-4 py-3">
+          <span className="text-xs text-muted-foreground">Total Value</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-base font-semibold font-mono tabular-nums text-foreground">
+              ${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </span>
+            {hasPnl && (
+              <span className={cn(
+                "text-[11px] font-medium tabular-nums flex items-center gap-0.5",
+                pnl24h >= 0 ? "text-profit-3" : "text-loss-3"
+              )}>
+                {pnl24h >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {pnl24h >= 0 ? '+' : ''}{pnl24h.toFixed(2)} 24h
+              </span>
+            )}
           </div>
-          <p className="text-xl font-bold text-foreground">
-            ${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </p>
-          {hasPnl && (
-            <p className={cn(
-              "text-xs mt-1 flex items-center gap-1",
-              pnl24h >= 0 ? "text-profit-3" : "text-loss-3"
-            )}>
-              {pnl24h >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-              {pnl24h >= 0 ? '+' : ''}{pnl24h.toFixed(2)} (24h)
-            </p>
-          )}
         </div>
 
         {/* Hypercore Balance */}
-        <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <Layers className="h-4 w-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Hypercore</span>
+        <div className="flex items-baseline justify-between px-4 py-3">
+          <span className="text-xs text-muted-foreground">Hypercore</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-medium font-mono tabular-nums text-foreground">
+              ${parseFloat(accountValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {openPositions} position{openPositions !== 1 ? 's' : ''}
+            </span>
           </div>
-          <p className="text-xl font-bold text-foreground">
-            ${parseFloat(accountValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {openPositions} position{openPositions !== 1 ? 's' : ''} open
-          </p>
         </div>
 
         {/* HyperEVM Balance */}
-        <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet className="h-4 w-4 text-emerald-400" />
-            <span className="text-xs text-muted-foreground">HyperEVM</span>
-          </div>
-          <p className="text-xl font-bold text-foreground">
+        <div className="flex items-baseline justify-between px-4 py-3">
+          <span className="text-xs text-muted-foreground">HyperEVM</span>
+          <span className="text-sm font-medium font-mono tabular-nums text-foreground">
             {parseFloat(evmBalance || '0').toFixed(4)} HYPE
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Native balance
-          </p>
+          </span>
         </div>
 
-        {/* Risk Snapshot */}
-        <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Risk</span>
-          </div>
+        {/* Risk */}
+        <div className="flex items-baseline justify-between px-4 py-3">
+          <span className="text-xs text-muted-foreground">Risk</span>
           {maxLeverage !== undefined && maxLeverage > 0 ? (
-            <>
-              <p className="text-xl font-bold text-foreground">
-                {maxLeverage.toFixed(1)}x
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Max leverage
-              </p>
-            </>
+            <span className="text-sm font-medium font-mono tabular-nums text-foreground">
+              {maxLeverage.toFixed(1)}x max leverage
+            </span>
           ) : liquidationProximity !== undefined ? (
-            <>
-              <p className={cn(
-                "text-xl font-bold",
-                liquidationProximity < 10 ? "text-loss-3" : liquidationProximity < 25 ? "text-warning" : "text-foreground"
-              )}>
-                {liquidationProximity.toFixed(1)}%
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                To liquidation
-              </p>
-            </>
+            <span className={cn(
+              "text-sm font-medium font-mono tabular-nums",
+              liquidationProximity < 10 ? "text-loss-3" : liquidationProximity < 25 ? "text-warning" : "text-foreground"
+            )}>
+              {liquidationProximity.toFixed(1)}% to liquidation
+            </span>
           ) : (
-            <>
-              <p className="text-xl font-bold text-profit-3">Safe</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                No positions at risk
-              </p>
-            </>
+            <span className="text-sm font-medium text-profit-3">Safe</span>
           )}
         </div>
       </div>
 
-      {/* Risk Factors (if any) */}
+      {/* Risk Factors - expandable section would go here */}
       {riskFactors.length > 0 && (
-        <div className="p-3 rounded-lg bg-loss-3/5 border border-loss-3/20 mb-4">
-          <p className="text-xs text-loss-3 font-medium mb-1">Risk Factors:</p>
-          <ul className="text-xs text-muted-foreground space-y-0.5">
+        <div className="px-4 py-3 border-t border-border bg-loss-3/5">
+          <p className="text-[11px] text-loss-3 font-medium mb-1">Risk Factors</p>
+          <ul className="text-[11px] text-muted-foreground space-y-0.5">
             {riskFactors.slice(0, 3).map((factor, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="h-1 w-1 rounded-full bg-loss-3" />
-                {factor}
-              </li>
+              <li key={i}>· {factor}</li>
             ))}
           </ul>
         </div>
@@ -214,7 +184,7 @@ export function WalletSummaryHero({
 
       {/* Provenance */}
       {provenance && (
-        <div className="pt-4 border-t border-border/50">
+        <div className="px-4 py-3 border-t border-border">
           <ProvenanceIndicator provenance={provenance} />
         </div>
       )}
