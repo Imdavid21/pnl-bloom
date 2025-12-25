@@ -1,13 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import {
-  TrendingUp, TrendingDown, Calendar, Banknote, BarChart3,
-  Hash,
-  Settings,
-  RefreshCw
-} from 'lucide-react';
-import { TieredMetrics } from '@/components/analytics/TieredMetrics';
+import { TrendingUp, TrendingDown, Calendar, Banknote, BarChart3, Hash, RefreshCw } from "lucide-react";
 import { getAllMockData, DailyPnl } from "@/data/mockPnlData";
+import { KpiCard } from "@/components/pnl/KpiCard";
 import { ToggleGroup } from "@/components/pnl/ToggleGroup";
 import { Heatmap } from "@/components/pnl/Heatmap";
 import { HeatmapLegend } from "@/components/pnl/HeatmapLegend";
@@ -127,68 +122,56 @@ const Analytics = () => {
   };
   const years = [2025];
   return <Layout showFooter={false}>
-    <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6 lg:px-6">
-
-      {/* Wallet Panel */}
-      <div className="mb-6 panel">
-        <div className="panel-body space-y-4">
-          {/* Wallet Input Row */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground mb-1.5 block uppercase tracking-wider">
-                Wallet Address
-              </label>
-              <WalletInput value={targetWallet} onChange={handleWalletChange} />
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6 lg:px-6">
+        
+        {/* Wallet Panel */}
+        <div className="mb-6 panel">
+          <div className="panel-body space-y-4">
+            {/* Wallet Input Row */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground mb-1.5 block uppercase tracking-wider">
+                  Wallet Address
+                </label>
+                <WalletInput value={targetWallet} onChange={handleWalletChange} />
+              </div>
             </div>
+
+            {/* Status Row */}
+            {activeWallet && <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border pt-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn("h-1.5 w-1.5 rounded-full", isLoading ? "bg-info animate-pulse" : "bg-profit-3")} />
+                  <code className="text-xs font-mono text-foreground tabular-nums">
+                    {activeWallet.slice(0, 8)}...{activeWallet.slice(-6)}
+                  </code>
+                  {isLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing || !activeWallet} className="h-7 text-xs gap-1.5">
+                    <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+                    Sync
+                  </Button>
+                </div>
+              </div>}
           </div>
-
-          {/* Status Row */}
-          {activeWallet && <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border pt-4">
-            <div className="flex items-center gap-3">
-              <div className={cn("h-1.5 w-1.5 rounded-full", isLoading ? "bg-info animate-pulse" : "bg-profit-3")} />
-              <code className="text-xs font-mono text-foreground tabular-nums">
-                {activeWallet.slice(0, 8)}...{activeWallet.slice(-6)}
-              </code>
-              {isLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing || !activeWallet} className="h-7 text-xs gap-1.5">
-                <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
-                Sync
-              </Button>
-            </div>
-          </div>}
         </div>
-      </div>
 
-      {/* KPI Grid - Responsive */}
-      <div className="mb-4 sm:mb-6">
-        <TieredMetrics
-          summary={currentData.monthly_summary}
-          closedTrades={currentData.closed_trades_count}
-          data={{
-            total_pnl: kpis.pnl,
-            win_rate: (kpis.profitableDays / kpis.tradingDays * 100) || 0,
-            total_volume: kpis.volume,
-            total_trades: kpis.totalTrades,
-            funding_pnl: kpis.funding,
-            // Adding placeholder data for expert metrics since they aren't in `kpis` yet
-            // These would come from a more detailed analytics hook in reality
-            profit_factor: 1.5,
-            avg_win: kpis.volume / kpis.totalTrades * 0.05, // Mock estimate
-            avg_loss: kpis.volume / kpis.totalTrades * 0.02,
-            sharpe_ratio: 2.1,
-          }}
-        />
-      </div>
+        {/* KPI Grid - Responsive */}
+        <div className="mb-4 sm:mb-6 grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <KpiCard title="PnL" value={kpis.pnl} icon={kpis.pnl >= 0 ? TrendingUp : TrendingDown} trend={kpis.pnl >= 0 ? 'profit' : 'loss'} subtitle="YTD" className="col-span-2 sm:col-span-1" />
+          <KpiCard title="Volume" value={`$${(kpis.volume / 1000000).toFixed(2)}M`} icon={BarChart3} trend="neutral" subtitle="Traded" />
+          <KpiCard title="Trades" value={kpis.totalTrades.toLocaleString()} icon={Hash} trend="neutral" subtitle="Total" />
+          <KpiCard title="Win Rate" value={`${Math.round(kpis.profitableDays / kpis.tradingDays * 100) || 0}%`} icon={Calendar} trend="neutral" subtitle={`${kpis.profitableDays}/${kpis.tradingDays}`} />
+          <KpiCard title="Funding" value={kpis.funding} icon={Banknote} trend={kpis.funding >= 0 ? 'profit' : 'loss'} subtitle="Net" />
+        </div>
 
-      {/* Current Positions - moved above Activity Grid */}
-      {activeWallet && <CurrentPositions wallet={activeWallet} className="mb-6" />}
+        {/* Current Positions - moved above Activity Grid */}
+        {activeWallet && <CurrentPositions wallet={activeWallet} className="mb-6" />}
 
-      {/* View Controls */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-4">
-        <ToggleGroup label="" options={[{
+        {/* View Controls */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-4">
+          <ToggleGroup label="" options={[{
           value: 'total',
           label: 'Total'
         }, {
@@ -198,44 +181,44 @@ const Analytics = () => {
           value: 'funding',
           label: 'Funding'
         }]} value={viewMode} onChange={v => setViewMode(v as 'total' | 'closed' | 'funding')} />
-        <div className="flex items-center gap-1 text-xs">
-          <button onClick={() => setTimezoneMode('local')} className={cn("px-2 py-1 rounded transition-micro", timezoneMode === 'local' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            Local
-          </button>
-          <span className="text-muted-foreground">/</span>
-          <button onClick={() => setTimezoneMode('utc')} className={cn("px-2 py-1 rounded transition-micro", timezoneMode === 'utc' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            UTC
-          </button>
+          <div className="flex items-center gap-1 text-xs">
+            <button onClick={() => setTimezoneMode('local')} className={cn("px-2 py-1 rounded transition-micro", timezoneMode === 'local' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              Local
+            </button>
+            <span className="text-muted-foreground">/</span>
+            <button onClick={() => setTimezoneMode('utc')} className={cn("px-2 py-1 rounded transition-micro", timezoneMode === 'utc' ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              UTC
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Heatmap Panel - Full Width */}
-      <div className="panel">
-        <div className="panel-body">
-          <div className="overflow-x-auto scrollbar-thin">
-            <div className="min-w-full">
-              <Heatmap data={currentData.daily} year={selectedYear} viewMode={viewMode} onDayClick={handleDayClick} />
+        {/* Heatmap Panel - Full Width */}
+        <div className="panel">
+          <div className="panel-body">
+            <div className="overflow-x-auto scrollbar-thin">
+              <div className="min-w-full">
+                <Heatmap data={currentData.daily} year={selectedYear} viewMode={viewMode} onDayClick={handleDayClick} />
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <HeatmapLegend />
+              <p className="text-xs text-muted-foreground">
+                Click day for details
+              </p>
             </div>
           </div>
-
-          <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <HeatmapLegend />
-            <p className="text-xs text-muted-foreground">
-              Click day for details
-            </p>
-          </div>
         </div>
+
+        {/* Analytics Section */}
+        {activeWallet && <AnalyticsSection wallet={activeWallet} className="mt-6" />}
+
+        {/* Footer Stats */}
+        {activeWallet && !error && currentData.daily.length > 0}
       </div>
 
-      {/* Analytics Section */}
-      {activeWallet && <AnalyticsSection wallet={activeWallet} className="mt-6" />}
-
-      {/* Footer Stats */}
-      {activeWallet && !error && currentData.daily.length > 0}
-    </div>
-
-    {/* Day Detail Drawer */}
-    <DayDetailDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} date={selectedDate} data={selectedDayData} isMobile={isMobile} wallet={activeWallet} tz={timezoneMode === 'utc' ? 'utc' : 'local'} />
-  </Layout>;
+      {/* Day Detail Drawer */}
+      <DayDetailDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} date={selectedDate} data={selectedDayData} isMobile={isMobile} wallet={activeWallet} tz={timezoneMode === 'utc' ? 'utc' : 'local'} />
+    </Layout>;
 };
 export default Analytics;

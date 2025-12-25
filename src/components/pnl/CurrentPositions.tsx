@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, AlertTriangle, Activity, RefreshCw, BarChart2 } from 'lucide-react';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { RiskAnalysis } from '@/components/analytics/RiskAnalysis';
+import { TrendingUp, TrendingDown, AlertTriangle, Activity, RefreshCw } from 'lucide-react';
 
 interface Position {
   market: string;
@@ -76,10 +74,10 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
 
   const fetchData = useCallback(async () => {
     if (!wallet) return;
-
+    
     setIsLoading(true);
     setError(null);
-
+    
     try {
       const result = await fetchLivePositions(wallet);
       setData(result);
@@ -94,10 +92,10 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
   // Initial fetch and auto-refresh every 5 seconds
   useEffect(() => {
     if (!wallet) return;
-
+    
     fetchData();
     const interval = setInterval(fetchData, 5000);
-
+    
     return () => clearInterval(interval);
   }, [wallet, fetchData]);
 
@@ -154,16 +152,7 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
               </span>
             )}
           </div>
-          <EmptyState
-            icon={BarChart2}
-            title="No Active Positions"
-            description="You don't have any open positions on Hyperliquid right now. Open a trade to see it tracked here live."
-            action={{
-              label: "Trade on Hyperliquid",
-              onClick: () => window.open('https://app.hyperliquid.xyz/trade', '_blank')
-            }}
-            className="min-h-[200px] border-none bg-transparent"
-          />
+          <p className="text-xs text-muted-foreground">No open positions</p>
         </div>
       </div>
     );
@@ -193,7 +182,7 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin" />}
           </div>
         </div>
-
+        
         {/* Positions Grid */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {positions.map((pos) => {
@@ -207,8 +196,8 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
                   "relative p-3 rounded-lg border transition-micro",
                   "bg-card/50 hover:bg-card/80",
                   pos.liq_score > 0.7 ? "border-destructive/50" :
-                    pos.liq_score > 0.4 ? "border-warning/50" :
-                      isLong ? "border-profit/30" : "border-loss/30"
+                  pos.liq_score > 0.4 ? "border-warning/50" :
+                  isLong ? "border-profit/30" : "border-loss/30"
                 )}
               >
                 {/* Header */}
@@ -271,8 +260,8 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
                     <span className="text-muted-foreground block mb-0.5">Leverage</span>
                     <span className={cn(
                       "font-mono tabular-nums",
-                      pos.effective_leverage >= 20 ? "text-destructive" :
-                        pos.effective_leverage >= 10 ? "text-warning" : "text-foreground"
+                      pos.effective_leverage >= 20 ? "text-destructive" : 
+                      pos.effective_leverage >= 10 ? "text-warning" : "text-foreground"
                     )}>
                       {pos.effective_leverage.toFixed(1)}x
                     </span>
@@ -295,19 +284,19 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
                       )}
                       <span className={cn(
                         "text-[10px] font-mono tabular-nums font-medium",
-                        pos.liq_score > 0.7 ? "text-destructive" :
-                          pos.liq_score > 0.4 ? "text-warning" : "text-profit"
+                        pos.liq_score > 0.7 ? "text-destructive" : 
+                        pos.liq_score > 0.4 ? "text-warning" : "text-profit"
                       )}>
                         {pos.liq_score.toFixed(2)}
                       </span>
                     </div>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                    <div
+                    <div 
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
-                        pos.liq_score > 0.7 ? "bg-destructive" :
-                          pos.liq_score > 0.4 ? "bg-warning" : "bg-profit"
+                        pos.liq_score > 0.7 ? "bg-destructive" : 
+                        pos.liq_score > 0.4 ? "bg-warning" : "bg-profit"
                       )}
                       style={{ width: `${Math.min(100, pos.liq_score * 100)}%` }}
                     />
@@ -349,14 +338,6 @@ export function CurrentPositions({ wallet, className }: CurrentPositionsProps) {
           })}
         </div>
       </div>
-
-      {/* Risk Analysis Section */}
-      {positions.length > 0 && (
-        <div className="mt-6 border-t pt-6">
-          <RiskAnalysis positions={positions} accountValue={account.account_value} />
-        </div>
-      )}
     </div>
-    </div >
   );
 }

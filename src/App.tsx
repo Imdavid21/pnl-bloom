@@ -14,42 +14,30 @@ import Explorer from "./pages/Explorer";
 import Admin from "./pages/Admin";
 import TokenDetail from "./pages/TokenDetail";
 import NotFound from "./pages/NotFound";
-import { TemporalProvider } from "@/contexts/TemporalContext";
-import { TemporalSelector } from "@/components/layout/TemporalSelector";
-import { GlobalErrorBoundary } from "@/components/layout/GlobalErrorBoundary";
 
-import { QUERY_DEFAULTS } from "@/config/cache";
-
-const queryClient = new QueryClient(QUERY_DEFAULTS);
+const queryClient = new QueryClient();
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <TemporalProvider>
-            <Toaster />
-            <Sonner />
-            <GlobalErrorBoundary>
-              <BrowserRouter>
-                <div className="relative min-h-screen bg-background text-foreground">
-                  <TemporalSelector />
-                  <Routes>
-                    <Route path="/" element={<Explorer />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/assets" element={<Assets />} />
-                    <Route path="/assets/:symbol" element={<TokenDetail />} />
-                    <Route path="/docs" element={<Docs />} />
-                    <Route path="/api" element={<Api />} />
-                    <Route path="/explorer" element={<Explorer />} />
-                    <Route path="/admin" element={<Admin />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </div>
-              </BrowserRouter>
-            </GlobalErrorBoundary>
-          </TemporalProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Explorer />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/assets" element={<Assets />} />
+              <Route path="/assets/:symbol" element={<TokenDetail />} />
+              <Route path="/docs" element={<Docs />} />
+              <Route path="/api" element={<Api />} />
+              <Route path="/explorer" element={<Explorer />} />
+              <Route path="/admin" element={<Admin />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
     </WagmiProvider>

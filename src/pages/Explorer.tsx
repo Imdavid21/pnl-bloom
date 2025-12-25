@@ -8,9 +8,6 @@ import { BlockDetailPage } from '@/components/explorer/BlockDetailPage';
 import { TxDetailPage } from '@/components/explorer/TxDetailPage';
 import { WalletDetailPage } from '@/components/explorer/WalletDetailPage';
 import { SpotTokenDetailPage } from '@/components/explorer/SpotTokenDetailPage';
-import { SpotTokenDetailPage } from '@/components/explorer/SpotTokenDetailPage';
-import { DomainToggle } from '@/components/explorer/DomainToggle';
-import { useResolve } from '@/hooks/useUnifiedResolver';
 import type { LoadingStage } from '@/lib/explorer/types';
 
 export default function ExplorerPage() {
@@ -30,40 +27,21 @@ export default function ExplorerPage() {
   const handleNavigate = useCallback((type: 'block' | 'tx' | 'wallet' | 'spot-token', id: string) => {
     const modeMap: Record<string, 'block' | 'tx' | 'wallet' | 'token'> = {
       'block': 'block',
-      'tx': 'tx',
+      'tx': 'tx', 
       'wallet': 'wallet',
       'spot-token': 'token',
     };
     navigateTo(modeMap[type] || 'wallet', id, chain || undefined);
   }, [navigateTo, chain]);
-  // Fetch resolution data to check for alternates
-  const { data: resolution } = useResolve(query);
-
-  const handleDomainToggle = useCallback((newDomain: 'hypercore' | 'hyperevm') => {
-    // We update the URL query param 'chain' effectively
-    navigateTo('wallet', query!, newDomain);
-  }, [navigateTo, query]);
 
   // Render entity views based on mode
   if (query && mode) {
-    // Prepare render props
-    const domainToggle = resolution ? (
-      <div className="mb-4">
-        <DomainToggle
-          result={resolution}
-          currentDomain={(chain as 'hypercore' | 'hyperevm') || 'hypercore'}
-          onToggle={handleDomainToggle}
-        />
-      </div>
-    ) : null;
-
     if (mode === 'block') {
       return (
         <Layout>
           <ExplorerShell loadingStage={loadingStage}>
-            {domainToggle}
-            <BlockDetailPage
-              blockNumber={parseInt(query)}
+            <BlockDetailPage 
+              blockNumber={parseInt(query)} 
               onBack={handleBack}
               onNavigate={handleNavigate}
               preferredChain={chain === 'hypercore' ? 'hypercore' : chain === 'hyperevm' ? 'hyperevm' : undefined}
@@ -77,7 +55,6 @@ export default function ExplorerPage() {
       return (
         <Layout>
           <ExplorerShell loadingStage={loadingStage}>
-            {domainToggle}
             <TxDetailPage
               hash={query}
               onBack={handleBack}
@@ -93,9 +70,8 @@ export default function ExplorerPage() {
       return (
         <Layout>
           <ExplorerShell loadingStage={loadingStage}>
-            {domainToggle}
-            <WalletDetailPage
-              address={query}
+            <WalletDetailPage 
+              address={query} 
               onBack={handleBack}
               onNavigate={handleNavigate}
             />
@@ -108,8 +84,8 @@ export default function ExplorerPage() {
       return (
         <Layout>
           <ExplorerShell loadingStage={loadingStage}>
-            <SpotTokenDetailPage
-              tokenQuery={query}
+            <SpotTokenDetailPage 
+              tokenQuery={query} 
               onBack={handleBack}
               onNavigate={handleNavigate}
             />
