@@ -1,11 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExplorerUrl } from '@/hooks/useExplorerUrl';
-import { getSearchPlaceholder, getEntityLabel, getChainLabel } from '@/lib/explorer/searchResolver';
-import { TokenSearchAutocomplete, type SearchResult } from './TokenSearchAutocomplete';
+import { UniversalSearch } from './UniversalSearch';
 import type { LoadingStage } from '@/lib/explorer/types';
 
 // Quick search chip - minimal 2026 style
@@ -52,57 +50,25 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
   const navigate = useNavigate();
   const { 
     query, 
-    mode, 
-    chain,
     setQuery, 
     clear,
     navigateTo,
   } = useExplorerUrl();
   
-  const [localSearch, setLocalSearch] = useState(query);
-  const [isResolving, setIsResolving] = useState(false);
-  
-  useEffect(() => {
-    setLocalSearch(query);
-  }, [query]);
-  
-  const handleSelect = useCallback((result: SearchResult) => {
-    if (result.type === 'token') {
-      navigateTo('token', result.id);
-    } else if (result.type === 'wallet') {
-      navigateTo('wallet', result.address || result.id);
-    } else if (result.type === 'contract' || result.type === 'dapp') {
-      navigateTo('wallet', result.address || result.id);
-    }
-    setLocalSearch('');
-  }, [navigateTo]);
-  
-  const handleSearchSubmit = useCallback(() => {
-    const trimmed = localSearch.trim();
-    if (!trimmed) return;
-    setQuery(trimmed);
-  }, [localSearch, setQuery]);
-  
   const handleQuickSearch = useCallback((value: string) => {
-    setLocalSearch(value);
-    setQuery(value);
-  }, [setQuery]);
-  
-  const handleClear = useCallback(() => {
-    setLocalSearch('');
-    clear();
-  }, [clear]);
-
-  const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
+    // Navigate directly based on type
+    if (/^0x[a-fA-F0-9]{40}$/.test(value)) {
+      navigate(`/wallet/${value}`);
+    } else if (/^\d+$/.test(value)) {
+      navigate(`/block/${value}`);
+    } else if (/^[A-Z]{2,10}$/i.test(value)) {
+      navigate(`/token/${value.toUpperCase()}`);
     } else {
-      clear();
+      setQuery(value);
     }
-  }, [navigate, clear]);
+  }, [navigate, setQuery]);
   
   const hasActiveQuery = !!query;
-  const chainLabel = getChainLabel(chain);
   
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6 flex flex-col items-center">
@@ -118,48 +84,16 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         </div>
       )}
       
-      {/* Primary CTA: Search bar - 2026 minimal style */}
-      <div className="relative w-full transition-all duration-500">
-        <div className={cn(
-          "relative flex gap-2 p-1.5",
-          "rounded-2xl",
-          "bg-card/40 backdrop-blur-xl",
-          "border border-border/30",
-          "shadow-[0_8px_40px_-12px_rgba(0,0,0,0.15)]",
-          "dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.4)]",
-          "focus-within:border-primary/40 focus-within:shadow-[0_8px_50px_-12px_rgba(0,0,0,0.2)]",
-          "transition-all duration-300"
-        )}>
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
-            <TokenSearchAutocomplete
-              value={localSearch}
-              onChange={setLocalSearch}
-              onSelect={handleSelect}
-              onSubmit={handleSearchSubmit}
-              placeholder={getSearchPlaceholder()}
-              className="flex-1"
-              isLoading={isResolving}
-            />
-          </div>
-          <Button
-            onClick={handleSearchSubmit}
-            disabled={!localSearch.trim() || isResolving}
-            className={cn(
-              "h-11 px-6 rounded-xl",
-              "bg-primary/90 hover:bg-primary",
-              "text-primary-foreground font-medium",
-              "shadow-sm hover:shadow-md",
-              "transition-all duration-300"
-            )}
-          >
-            {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
-          </Button>
-        </div>
+      {/* Primary CTA: Universal Search - Steve Jobs simplicity */}
+      <div className="relative w-full max-w-2xl transition-all duration-500">
+        <UniversalSearch 
+          autoFocus={!hasActiveQuery} 
+          size="large"
+        />
         
         {/* Quick search chips - only on home */}
         {!hasActiveQuery && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-8 pt-4">
             <span className="text-[11px] text-muted-foreground/40 uppercase tracking-wider">Try</span>
             <QuickChip label="HYPE" onClick={() => handleQuickSearch('HYPE')} />
             <QuickChip label="PURR" onClick={() => handleQuickSearch('PURR')} />
