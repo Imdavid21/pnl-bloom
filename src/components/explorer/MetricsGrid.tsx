@@ -1,11 +1,12 @@
 /**
- * Metrics Grid Component
- * 4 cards showing key wallet metrics
+ * Metrics Grid Component - Hyperliquid Design
+ * High information density, compact panels
  */
 
 import { cn } from '@/lib/utils';
 import { formatUsd, formatNumber, formatPercent } from '@/lib/wallet-aggregator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TrendingUp, TrendingDown, Activity, Percent, Layers, DollarSign } from 'lucide-react';
 
 interface MetricCardProps {
   label: string;
@@ -13,32 +14,40 @@ interface MetricCardProps {
   subtext: string;
   isPositive?: boolean;
   isLoading?: boolean;
+  icon?: React.ReactNode;
 }
 
-function MetricCard({ label, value, subtext, isPositive, isLoading }: MetricCardProps) {
+function MetricCard({ label, value, subtext, isPositive, isLoading, icon }: MetricCardProps) {
   if (isLoading) {
     return (
-      <div className="bg-muted/20 rounded-xl p-5 space-y-3">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-8 w-20" />
-        <Skeleton className="h-4 w-16" />
+      <div className="panel p-4 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-7 w-24" />
+        <Skeleton className="h-3 w-16" />
       </div>
     );
   }
   
   return (
-    <div className="bg-muted/20 rounded-xl p-5 space-y-1.5">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
-        {label}
-      </p>
+    <div className="panel p-4 space-y-1 group hover:border-primary/20 transition-colors">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
+          {label}
+        </p>
+        {icon && (
+          <span className="text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-colors">
+            {icon}
+          </span>
+        )}
+      </div>
       <p className={cn(
-        "text-2xl md:text-3xl font-semibold tracking-tight",
-        isPositive === true && "text-emerald-600 dark:text-emerald-400",
-        isPositive === false && "text-red-600 dark:text-red-400"
+        "text-xl font-semibold tracking-tight tabular-nums",
+        isPositive === true && "text-profit",
+        isPositive === false && "text-destructive"
       )}>
         {value}
       </p>
-      <p className="text-sm text-muted-foreground/60">
+      <p className="text-xs text-muted-foreground/50">
         {subtext}
       </p>
     </div>
@@ -71,12 +80,13 @@ export function MetricsGrid({
   isLoading = false,
 }: MetricsGridProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <MetricCard
         label="Open Positions"
         value={formatNumber(openPositions)}
-        subtext={`${formatUsd(marginUsed, true)} margin used`}
+        subtext={`${formatUsd(marginUsed, true)} margin`}
         isLoading={isLoading}
+        icon={<Layers className="h-3.5 w-3.5" />}
       />
       
       <MetricCard
@@ -84,14 +94,16 @@ export function MetricsGrid({
         value={formatUsd(volume30d, true)}
         subtext={`${formatNumber(trades30d)} trades`}
         isLoading={isLoading}
+        icon={<Activity className="h-3.5 w-3.5" />}
       />
       
       <MetricCard
         label="30D PnL"
         value={`${pnl30d >= 0 ? '+' : ''}${formatUsd(pnl30d, true)}`}
-        subtext={formatPercent(pnlPercent30d) + ' return'}
+        subtext={`${formatPercent(pnlPercent30d)} return`}
         isPositive={pnl30d >= 0}
         isLoading={isLoading}
+        icon={pnl30d >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
       />
       
       <MetricCard
@@ -99,6 +111,7 @@ export function MetricsGrid({
         value={`${winRate.toFixed(1)}%`}
         subtext={`${wins}/${totalTrades} wins`}
         isLoading={isLoading}
+        icon={<Percent className="h-3.5 w-3.5" />}
       />
     </div>
   );
