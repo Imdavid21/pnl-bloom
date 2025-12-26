@@ -47,6 +47,7 @@ const App = () => (
                 <Route path="/tx/:hash" element={<HyperEVMTransaction />} />
                 <Route path="/trade/:id" element={<HyperCoreTrade />} />
                 <Route path="/market/:symbol" element={<Market />} />
+                <Route path="/explorer/market/:symbol" element={<Market />} />
                 <Route path="/token/:identifier" element={<Token />} />
                 <Route path="/block/:number" element={<Block />} />
                 <Route path="/admin" element={<Admin />} />
