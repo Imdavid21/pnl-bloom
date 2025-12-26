@@ -10,6 +10,7 @@ import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
 import { WalletHeader } from '@/components/explorer/WalletHeader';
 import { HeroStats } from '@/components/explorer/HeroStats';
 import { MetricsGrid } from '@/components/explorer/MetricsGrid';
+import { UnifiedActivityFeed } from '@/components/explorer/UnifiedActivityFeed';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search } from 'lucide-react';
 
@@ -22,7 +23,7 @@ function WalletNotFound({ address }: { address: string }) {
       <div className="space-y-1.5">
         <h2 className="text-xl font-semibold text-foreground/90">No activity found</h2>
         <p className="text-sm text-muted-foreground/60 max-w-sm">
-          This address hasn't traded on Hyperliquid yet.
+          This address hasn&apos;t traded on Hyperliquid yet.
         </p>
       </div>
       <Button variant="outline" asChild className="mt-4">
@@ -115,6 +116,14 @@ export default function Wallet() {
             totalTrades={data?.totalTrades || 0}
             isLoading={isLoading}
           />
+          
+          {/* Activity Feed */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground/50">
+              Recent Activity
+            </h2>
+            <UnifiedActivityFeed address={displayAddress} />
+          </section>
           
           {/* Partial data warning */}
           {data && !isLoading && data.domains.hypercore && !data.domains.hyperevm && (
