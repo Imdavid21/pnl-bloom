@@ -66,11 +66,11 @@ export function ExplorerShell({ children, loadingStage, showHeader = true }: Exp
         </div>
       )}
       
-      <div className="relative w-full max-w-2xl mx-auto">
+      <div className="w-full max-w-2xl mx-auto space-y-4">
         <UniversalSearch autoFocus={!hasActiveQuery} size="large" />
         {!hasActiveQuery && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
-            <span className="text-[9px] text-muted-foreground/30 uppercase tracking-wider mr-1">Try</span>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-[9px] text-muted-foreground/30 uppercase tracking-wider shrink-0">Try</span>
             <QuickChip label="HYPE" onClick={() => handleQuickSearch('HYPE')} />
             <QuickChip label="PURR" onClick={() => handleQuickSearch('PURR')} />
             <QuickChip label="Block 1M" onClick={() => handleQuickSearch('1000000')} />
