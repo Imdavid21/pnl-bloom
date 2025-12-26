@@ -1,10 +1,10 @@
 /**
- * Hero Stats Component
- * Unified view: Total Value + Asset Distribution + Risk Analysis
+ * Hero Stats Component - Hyperliquid Design
+ * Compact, information-dense hero section
  */
 
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUsd, formatPercent } from '@/lib/wallet-aggregator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,38 +57,38 @@ export function HeroStats({
   
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border/50 bg-card/30 p-6">
-        <div className="flex flex-col items-center gap-3">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-6 w-32" />
-          <Skeleton className="h-8 w-full mt-4" />
+      <div className="p-5 space-y-4">
+        <div className="flex flex-col items-center gap-2">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-5 w-28" />
         </div>
+        <Skeleton className="h-2 w-full rounded-full" />
       </div>
     );
   }
   
   return (
-    <div className="rounded-xl border border-border/50 bg-card/30 p-6 space-y-5">
+    <div className="p-5 space-y-4">
       {/* Total Value + 30d Change */}
-      <div className="flex flex-col items-center gap-1.5">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground/60 font-medium">
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium">
           Total Position Value
         </span>
-        <span className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+        <span className="text-3xl font-bold tracking-tight text-foreground tabular-nums animate-count-up">
           {formatUsd(totalValue)}
         </span>
         
         {/* 30d Change */}
         <div className={cn(
-          "flex items-center gap-1.5 text-sm font-medium",
-          isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+          "flex items-center gap-1 text-sm font-medium",
+          isPositive ? "text-profit" : "text-destructive"
         )}>
           {isPositive ? (
-            <TrendingUp className="h-4 w-4" />
+            <TrendingUp className="h-3.5 w-3.5" />
           ) : (
-            <TrendingDown className="h-4 w-4" />
+            <TrendingDown className="h-3.5 w-3.5" />
           )}
-          <span>
+          <span className="tabular-nums">
             {isPositive ? '+' : ''}{formatUsd(pnl30d)} ({formatPercent(pnlPercent30d)}) 30d
           </span>
         </div>
@@ -96,14 +96,14 @@ export function HeroStats({
       
       {/* Asset Distribution Bar */}
       {address && !positionsLoading && segments.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {/* Stacked Bar */}
-          <div className="h-3 w-full rounded-full overflow-hidden bg-muted/30 flex">
+          <div className="h-2 w-full rounded-full overflow-hidden bg-muted/20 flex">
             {segments.map((segment) => (
               <button
                 key={segment.key}
                 onClick={() => handleSegmentClick(segment.key)}
-                className="h-full transition-all hover:opacity-80"
+                className="h-full transition-all hover:opacity-80 first:rounded-l-full last:rounded-r-full"
                 style={{ 
                   width: `${segment.percentage}%`, 
                   backgroundColor: segment.color,
@@ -114,29 +114,27 @@ export function HeroStats({
             ))}
           </div>
           
-          {/* Legend with Asset Breakdown */}
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
             {segments.map((segment) => (
               <button
                 key={segment.key}
                 onClick={() => handleSegmentClick(segment.key)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors"
               >
                 <span 
-                  className="w-2 h-2 rounded-full" 
+                  className="w-1.5 h-1.5 rounded-full" 
                   style={{ backgroundColor: segment.color }}
                 />
-                <span className="font-medium">{segment.percentage.toFixed(0)}% {segment.label}</span>
-                {segment.assetBreakdown && (
-                  <span className="text-muted-foreground/60">({segment.assetBreakdown})</span>
-                )}
+                <span className="font-medium tabular-nums">{segment.percentage.toFixed(0)}%</span>
+                <span>{segment.label}</span>
               </button>
             ))}
           </div>
         </div>
       )}
       
-      {/* Risk Summary - Collapsible */}
+      {/* Risk Summary */}
       {address && riskAnalysis.hasRisk && (
         <RiskSummaryCard 
           analysis={riskAnalysis} 

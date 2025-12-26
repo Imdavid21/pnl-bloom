@@ -1,3 +1,8 @@
+/**
+ * Layout - Hyperliquid Design
+ * Clean, minimal chrome
+ */
+
 import { ReactNode } from 'react';
 import { NavBar } from '@/components/NavBar';
 import { Footer } from '@/components/Footer';

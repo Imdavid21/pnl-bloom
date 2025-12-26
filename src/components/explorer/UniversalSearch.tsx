@@ -1,15 +1,13 @@
 /**
- * Universal Search Component
- * Steve Jobs-level simplicity: One box, zero clutter, instant feedback
+ * Universal Search Component - Hyperliquid Design
+ * Clean, fast, keyboard-first
  */
 
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
-import { Check, Loader2, X } from 'lucide-react';
+import { Check, Loader2, X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchResolver, type SearchState } from '@/hooks/useSearchResolver';
 import type { EntityType, RecentSearch } from '@/lib/input-resolver';
-
-// ============ SUBCOMPONENTS ============
 
 function StatusIndicator({ 
   state, 
@@ -20,24 +18,24 @@ function StatusIndicator({
 }) {
   if (state === 'resolving') {
     return (
-      <div className="absolute right-5 top-1/2 -translate-y-1/2">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/60" />
+      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
       </div>
     );
   }
   
   if (state === 'success') {
     return (
-      <div className="absolute right-5 top-1/2 -translate-y-1/2">
-        <Check className="h-5 w-5 text-emerald-500" />
+      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        <Check className="h-4 w-4 text-profit" />
       </div>
     );
   }
   
   if (isValid === true && state === 'idle') {
     return (
-      <div className="absolute right-5 top-1/2 -translate-y-1/2">
-        <Check className="h-4 w-4 text-muted-foreground/40" />
+      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        <Check className="h-3.5 w-3.5 text-muted-foreground/30" />
       </div>
     );
   }
@@ -66,10 +64,10 @@ function RecentSearchPill({
       onMouseEnter={() => setShowRemove(true)}
       onMouseLeave={() => setShowRemove(false)}
       className={cn(
-        "group relative px-3 py-1.5 rounded-full text-xs",
-        "bg-muted/30 text-muted-foreground/70",
-        "hover:bg-muted/50 hover:text-foreground/80",
-        "transition-all duration-200",
+        "group relative px-2.5 py-1 rounded-md text-xs",
+        "bg-muted/30 text-muted-foreground/60",
+        "hover:bg-muted/50 hover:text-foreground",
+        "transition-all duration-150",
         "flex items-center gap-1.5"
       )}
     >
@@ -80,9 +78,9 @@ function RecentSearchPill({
             e.stopPropagation();
             onRemove();
           }}
-          className="p-0.5 rounded-full hover:bg-muted/80 transition-colors"
+          className="p-0.5 rounded hover:bg-muted/80 transition-colors"
         >
-          <X className="h-3 w-3" />
+          <X className="h-2.5 w-2.5" />
         </button>
       )}
     </button>
@@ -107,14 +105,12 @@ function ErrorMessage({
     : "Try an address, transaction, or token symbol";
   
   return (
-    <div className="absolute top-full left-0 right-0 pt-3 text-left">
-      <p className="text-sm text-destructive/90 font-medium">{error}</p>
-      <p className="text-xs text-muted-foreground/60 mt-0.5">{subtext}</p>
+    <div className="absolute top-full left-0 right-0 pt-2 text-left">
+      <p className="text-xs text-destructive font-medium">{error}</p>
+      <p className="text-[10px] text-muted-foreground/50 mt-0.5">{subtext}</p>
     </div>
   );
 }
-
-// ============ MAIN COMPONENT ============
 
 interface UniversalSearchProps {
   autoFocus?: boolean;
@@ -146,7 +142,6 @@ export function UniversalSearch({
     selectRecent,
   } = useSearchResolver();
   
-  // Auto-focus on mount if requested
   useEffect(() => {
     if (autoFocus && inputRef.current) {
       inputRef.current.focus();
@@ -165,7 +160,6 @@ export function UniversalSearch({
   };
   
   const handleBlur = () => {
-    // Delay to allow click on recent searches
     setTimeout(() => setIsFocused(false), 150);
   };
   
@@ -175,42 +169,34 @@ export function UniversalSearch({
   return (
     <div className={cn("relative w-full", className)}>
       {/* Search Input */}
-      <div 
-        className={cn(
-          "relative w-full",
-          "transition-all duration-300 ease-out",
-          isFocused && "scale-[1.01]"
-        )}
-      >
+      <div className="relative w-full">
+        <Search className={cn(
+          "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40",
+          isLarge ? "h-5 w-5" : "h-4 w-4"
+        )} />
+        
         <input
           ref={inputRef}
           type="text"
+          data-search-input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={handleBlur}
-          placeholder="Search address, transaction, market, or token..."
+          placeholder="Search address, tx, block, or token..."
           className={cn(
             "w-full",
-            "bg-background/60 backdrop-blur-xl",
-            "text-foreground placeholder:text-muted-foreground/50",
-            "rounded-2xl",
-            "border-2 border-transparent",
+            "bg-card/80 backdrop-blur-md",
+            "text-foreground placeholder:text-muted-foreground/40",
+            "rounded-lg",
+            "border border-border/50",
             "outline-none",
-            "transition-all duration-300 ease-out",
-            // Focus state
-            "focus:border-foreground/90 focus:bg-background/80",
-            "focus:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.2)]",
-            "dark:focus:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.5)]",
-            // Size variants
-            isLarge ? [
-              "h-16 px-6 text-lg font-medium",
-            ] : [
-              "h-12 px-5 text-base",
-            ],
-            // Error state - no red border, just text below
-            state === 'error' && "border-transparent",
+            "transition-all duration-150",
+            "focus:border-primary/50 focus:bg-card",
+            "focus:shadow-glow",
+            isLarge ? "h-12 pl-12 pr-12 text-base" : "h-10 pl-10 pr-10 text-sm",
+            state === 'error' && "border-destructive/30",
           )}
           disabled={state === 'resolving'}
         />
@@ -225,8 +211,8 @@ export function UniversalSearch({
       
       {/* Recent Searches */}
       {showRecent && (
-        <div className="absolute top-full left-0 right-0 pt-4">
-          <div className="flex flex-wrap gap-2 justify-center">
+        <div className="absolute top-full left-0 right-0 pt-3">
+          <div className="flex flex-wrap gap-1.5 justify-center">
             {recentSearches.map((search) => (
               <RecentSearchPill
                 key={search.query}
