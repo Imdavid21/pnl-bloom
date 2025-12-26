@@ -1,6 +1,5 @@
 /**
- * Wallet Page - Minimal shadcn UI
- * Clean, responsive, interactive design
+ * Wallet Page - Terminal style UI
  */
 
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -14,31 +13,28 @@ import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
 import { WalletCTA } from '@/components/wallet/WalletCTA';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Search, Copy, Check, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 import { selectCTA } from '@/lib/cta-selector';
 import { hasHighRiskPositions } from '@/lib/risk-detector';
 
 function WalletNotFound({ address }: { address: string }) {
   return (
-    <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
-      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-        <Search className="h-5 w-5 text-muted-foreground" />
+    <div className="panel flex flex-col items-center justify-center py-20 text-center border-dashed">
+      <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center mb-4">
+        <Search className="h-4 w-4 text-muted-foreground" />
       </div>
-      <h2 className="text-lg font-medium mb-1">No activity found</h2>
-      <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+      <h2 className="font-mono text-base font-medium mb-1">No activity found</h2>
+      <p className="text-[10px] text-muted-foreground mb-6 max-w-sm uppercase tracking-wider">
         This address hasn't traded on Hyperliquid yet.
       </p>
-      <Button variant="outline" size="sm" asChild>
+      <Button variant="outline" size="sm" className="text-xs h-7" asChild>
         <Link to="/">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="h-3 w-3 mr-2" />
           Explore Active Wallets
         </Link>
       </Button>
-    </Card>
+    </div>
   );
 }
 
@@ -52,26 +48,26 @@ function AddressBar({ address }: { address: string }) {
   };
 
   return (
-    <div className="flex items-center gap-2 font-mono text-sm">
-      <span className="text-muted-foreground truncate max-w-[200px] sm:max-w-none">
+    <div className="flex items-center gap-2 font-mono text-xs">
+      <span className="text-muted-foreground truncate max-w-[180px] sm:max-w-none">
         {address}
       </span>
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 shrink-0"
+        className="h-6 w-6 shrink-0"
         onClick={copyAddress}
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-green-500" />
+          <Check className="h-3 w-3 text-up" />
         ) : (
-          <Copy className="h-3.5 w-3.5" />
+          <Copy className="h-3 w-3" />
         )}
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 shrink-0"
+        className="h-6 w-6 shrink-0"
         asChild
       >
         <a
@@ -79,7 +75,7 @@ function AddressBar({ address }: { address: string }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <ExternalLink className="h-3.5 w-3.5" />
+          <ExternalLink className="h-3 w-3" />
         </a>
       </Button>
     </div>
@@ -88,24 +84,24 @@ function AddressBar({ address }: { address: string }) {
 
 function WalletSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-7 w-48" />
+        <div className="h-7 w-20 bg-muted/30 rounded animate-pulse" />
+        <div className="h-6 w-48 bg-muted/30 rounded animate-pulse" />
       </div>
-      <Card className="p-6">
+      <div className="panel p-6">
         <div className="space-y-4">
-          <Skeleton className="h-4 w-32 mx-auto" />
-          <Skeleton className="h-10 w-40 mx-auto" />
-          <Skeleton className="h-5 w-24 mx-auto" />
+          <div className="h-3 w-24 mx-auto bg-muted/30 rounded animate-pulse" />
+          <div className="h-10 w-36 mx-auto bg-muted/30 rounded animate-pulse" />
+          <div className="h-5 w-20 mx-auto bg-muted/30 rounded animate-pulse" />
         </div>
-      </Card>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {[1, 2, 3, 4].map(i => (
-          <Card key={i} className="p-4">
-            <Skeleton className="h-3 w-16 mb-2" />
-            <Skeleton className="h-6 w-20" />
-          </Card>
+          <div key={i} className="panel p-4">
+            <div className="h-3 w-14 mb-2 bg-muted/30 rounded animate-pulse" />
+            <div className="h-6 w-16 bg-muted/30 rounded animate-pulse" />
+          </div>
         ))}
       </div>
     </div>
@@ -148,14 +144,14 @@ export default function Wallet() {
         <Helmet>
           <title>Wallet Not Found | HyperPNL</title>
         </Helmet>
-        <div className="container max-w-4xl py-8">
+        <div className="mx-auto max-w-4xl px-4 py-8">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={handleBack}
-            className="mb-6 -ml-2"
+            className="mb-6 -ml-2 text-xs h-7"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-3 w-3 mr-2" />
             Back
           </Button>
           <WalletNotFound address={displayAddress} />
@@ -171,16 +167,16 @@ export default function Wallet() {
         <meta name="description" content={`View wallet ${shortAddress} activity on Hyperliquid.`} />
       </Helmet>
       
-      <div className="container max-w-4xl py-6 space-y-6">
+      <div className="mx-auto max-w-4xl px-4 py-6 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={handleBack}
-            className="-ml-2"
+            className="-ml-2 text-xs h-7"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-3 w-3 mr-2" />
             Back
           </Button>
           <AddressBar address={displayAddress} />
@@ -226,7 +222,7 @@ export default function Wallet() {
             
             {/* Chain indicator */}
             {data && (
-              <p className="text-xs text-center text-muted-foreground/50 pt-4">
+              <p className="text-[10px] text-center text-muted-foreground/40 pt-4 font-mono uppercase tracking-wider">
                 {data.domains.hypercore && data.domains.hyperevm 
                   ? 'HyperCore + HyperEVM'
                   : data.domains.hypercore 

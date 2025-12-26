@@ -1,13 +1,11 @@
 /**
- * Wallet Positions - Clean positions section
+ * Wallet Positions - Terminal style positions section
  */
 
 import { Link } from 'react-router-dom';
 import { Briefcase, RefreshCw } from 'lucide-react';
 import { useUnifiedPositions } from '@/hooks/useUnifiedPositions';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { PerpPositionsTable } from '@/components/explorer/PerpPositionsTable';
 import { SpotBalancesGrid } from '@/components/explorer/SpotBalancesGrid';
 import { LendingPositionsTable } from '@/components/explorer/LendingPositionsTable';
@@ -24,18 +22,22 @@ interface WalletPositionsProps {
 function EmptyPositions() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-        <Briefcase className="h-5 w-5 text-muted-foreground" />
+      <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center mb-3">
+        <Briefcase className="h-4 w-4 text-muted-foreground" />
       </div>
-      <h3 className="font-medium mb-1">No Open Positions</h3>
-      <p className="text-sm text-muted-foreground mb-4">
+      <h3 className="font-mono text-sm font-medium mb-1">No Open Positions</h3>
+      <p className="text-[10px] text-muted-foreground mb-4 uppercase tracking-wider">
         No active positions at the moment
       </p>
-      <Button variant="outline" size="sm" asChild>
+      <Button variant="outline" size="sm" className="text-xs h-7" asChild>
         <Link to="#activity">View Activity</Link>
       </Button>
     </div>
   );
+}
+
+function SkeletonBlock() {
+  return <div className="h-24 bg-muted/30 rounded animate-pulse" />;
 }
 
 export function WalletPositions({ address }: WalletPositionsProps) {
@@ -70,43 +72,44 @@ export function WalletPositions({ address }: WalletPositionsProps) {
   );
 
   return (
-    <Card id="positions">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-base font-medium">Positions</CardTitle>
+    <div id="positions" className="panel">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <span className="panel-header mb-0">Positions</span>
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground/60 font-mono">
               {lastUpdated}
             </span>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-7 w-7"
             onClick={() => refetch()}
             disabled={isRefetching}
           >
-            <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+      </div>
+
+      {/* Content */}
+      <div className="p-4 space-y-6">
         {isLoading ? (
           <div className="space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-32 w-full" />
+            <SkeletonBlock />
+            <SkeletonBlock />
           </div>
         ) : !hasPositions ? (
           <EmptyPositions />
         ) : (
           <>
-            {/* Summary */}
             <PositionsSummary 
               summary={data?.summary || null} 
               isLoading={false} 
             />
 
-            {/* Perps */}
             {(data?.perps?.length || 0) > 0 && (
               <PerpPositionsTable
                 positions={data?.perps || []}
@@ -116,7 +119,6 @@ export function WalletPositions({ address }: WalletPositionsProps) {
               />
             )}
 
-            {/* Spot */}
             {(data?.spot?.length || 0) > 0 && (
               <SpotBalancesGrid
                 balances={data?.spot || []}
@@ -125,7 +127,6 @@ export function WalletPositions({ address }: WalletPositionsProps) {
               />
             )}
 
-            {/* Lending */}
             {(data?.lending?.length || 0) > 0 && (
               <LendingPositionsTable
                 positions={data?.lending || []}
@@ -134,7 +135,6 @@ export function WalletPositions({ address }: WalletPositionsProps) {
               />
             )}
 
-            {/* LP */}
             {(data?.lp?.length || 0) > 0 && (
               <LPPositionsGrid
                 positions={data?.lp || []}
@@ -143,7 +143,7 @@ export function WalletPositions({ address }: WalletPositionsProps) {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
