@@ -199,7 +199,7 @@ function buildRoute(type: EntityType, identifier: string): string {
     case 'token':
       return `/token/${identifier.toUpperCase()}`;
     default:
-      return '/explorer';
+      return '/';
   }
 }
 
