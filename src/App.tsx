@@ -45,10 +45,14 @@ const App = () => (
                 <Route path="/explorer/wallet/:address" element={<WalletExplorer />} />
                 <Route path="/wallet/:address" element={<Wallet />} />
                 <Route path="/tx/:hash" element={<HyperEVMTransaction />} />
+                <Route path="/explorer/tx/:hash" element={<HyperEVMTransaction />} />
                 <Route path="/trade/:id" element={<HyperCoreTrade />} />
                 <Route path="/market/:symbol" element={<Market />} />
                 <Route path="/explorer/market/:symbol" element={<Market />} />
                 <Route path="/token/:identifier" element={<Token />} />
+                <Route path="/explorer/token/:identifier" element={<Token />} />
+                <Route path="/block/:number" element={<Block />} />
+                <Route path="/explorer/block/:number" element={<Block />} />
                 <Route path="/block/:number" element={<Block />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
