@@ -1,12 +1,12 @@
 /**
  * Risk Summary Card
- * Shows risk alerts when dangerous conditions are detected
+ * Shows risk alerts with integrated Analytics CTA
  * Collapsible by default
  */
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { RiskAlert, RiskAnalysis } from '@/lib/risk-detector';
@@ -83,7 +83,7 @@ export function RiskSummaryCard({ analysis, address, defaultOpen = false }: Risk
 
         {/* Collapsible Content */}
         <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-3">
+          <div className="px-4 pb-4 space-y-4">
             {/* Alert List */}
             <ul className="space-y-2">
               {analysis.alerts.map((alert, index) => (
@@ -104,22 +104,27 @@ export function RiskSummaryCard({ analysis, address, defaultOpen = false }: Risk
               ))}
             </ul>
 
-            {/* Action Button */}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              asChild
-              className={cn(
-                'mt-2',
-                analysis.overallSeverity === 'high' && 'border-red-500/50 text-red-600 hover:bg-red-500/10',
-                analysis.overallSeverity === 'medium' && 'border-amber-500/50 text-amber-600 hover:bg-amber-500/10'
-              )}
-            >
-              <Link to={`/analytics/${address}#risk`}>
-                View Detailed Risk Analysis
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Link>
-            </Button>
+            {/* Unlock Analytics CTA - Primary Action */}
+            <div className="pt-2 border-t border-border/30">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    Get detailed risk metrics & trade insights
+                  </span>
+                </div>
+                <Button 
+                  size="sm" 
+                  asChild
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Link to={`/analytics?wallet=${address}`}>
+                    Unlock Advanced Analytics
+                    <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </div>
         </CollapsibleContent>
       </div>
