@@ -87,20 +87,16 @@ async function checkHypercoreActivity(address: string): Promise<boolean> {
 
 async function checkHyperevmActivity(address: string): Promise<boolean> {
   try {
-    const response = await supabase.functions.invoke('hyperevm-rpc', {
-      body: null,
-    });
-    
-    // Use direct fetch for query params
+    // Use direct fetch for query params (hyperevm-rpc expects `action` in the URL)
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${address}`;
     const res = await fetch(url, {
       headers: {
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       },
     });
-    
+
     if (!res.ok) return false;
-    
+
     const data = await res.json();
     // Has activity if balance > 0 or is contract
     return data.balance !== '0.000000' || data.isContract;
