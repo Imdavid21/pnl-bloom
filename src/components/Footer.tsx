@@ -4,8 +4,9 @@ import { cn } from '@/lib/utils';
 import { useApiHealthCheck } from '@/hooks/useApiHealthCheck';
 
 const LINKS = [
-  { to: '/', label: 'PnL' },
-  { to: '/explorer', label: 'Explorer' },
+  { to: '/', label: 'Explorer' },
+  { to: '/market/HYPE', label: 'Markets' },
+  { to: '/analytics', label: 'Analytics' },
   { to: '/assets', label: 'Assets' },
   { to: '/api', label: 'API' },
   { to: '/docs', label: 'Docs' },

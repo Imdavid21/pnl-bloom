@@ -344,9 +344,9 @@ SUPABASE_SERVICE_ROLE_KEY
 }
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Layout } from '@/components/Layout';
 
 interface SectionProps {
   icon: React.ReactNode;
@@ -493,31 +493,22 @@ export default function DocsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
+    <Layout>
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-6xl px-4 py-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-2xl font-semibold text-foreground">HyperPNL Documentation</h1>
               <p className="text-sm text-muted-foreground">
                 Complete rebuild guide and technical reference
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleDownloadAll} className="gap-2">
               <Download className="h-4 w-4" />
               Download All
             </Button>
-            <DarkModeToggle />
           </div>
-        </div>
 
         {/* Quick Nav */}
         <div className="mb-8 p-4 rounded-lg border border-border bg-card">
@@ -1544,5 +1535,6 @@ export default function App() {
         </Tabs>
       </div>
     </div>
+    </Layout>
   );
 }

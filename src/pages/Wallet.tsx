@@ -7,6 +7,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
+import { Layout } from '@/components/Layout';
 import { WalletHeader } from '@/components/explorer/WalletHeader';
 import { HeroStats } from '@/components/explorer/HeroStats';
 import { MetricsGrid } from '@/components/explorer/MetricsGrid';
@@ -66,7 +67,7 @@ export default function Wallet() {
   
   if (!isLoading && (error || hasNoActivity)) {
     return (
-      <>
+      <Layout>
         <Helmet>
           <title>Wallet Not Found | HyperPNL Explorer</title>
         </Helmet>
@@ -75,12 +76,12 @@ export default function Wallet() {
             <WalletNotFound address={displayAddress} />
           </div>
         </div>
-      </>
+      </Layout>
     );
   }
   
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>{shortAddress} | HyperPNL Explorer</title>
         <meta name="description" content={`View wallet ${shortAddress} activity on Hyperliquid - positions, PnL, and trading history across HyperCore and HyperEVM.`} />
@@ -168,6 +169,6 @@ export default function Wallet() {
           )}
         </div>
       </div>
-    </>
+    </Layout>
   );
 }
