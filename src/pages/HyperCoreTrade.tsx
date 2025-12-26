@@ -3,7 +3,7 @@
  * Detailed view of a HyperCore trade/event
  */
 
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, ArrowRight, Zap, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -66,7 +66,16 @@ function EventTypeBadge({ type }: { type: string }) {
 
 export default function HyperCoreTrade() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data, isLoading, error } = useHyperCoreTrade(id);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/explorer');
+    }
+  };
 
   const shortId = id 
     ? `${id.slice(0, 8)}...`
@@ -112,13 +121,11 @@ export default function HyperCoreTrade() {
           <Button 
             variant="ghost" 
             size="sm" 
-            asChild 
+            onClick={handleBack}
             className="text-muted-foreground/60 hover:text-foreground -ml-2"
           >
-            <Link to="/explorer">
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Explorer
-            </Link>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
           </Button>
 
           {/* Header */}

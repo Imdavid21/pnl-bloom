@@ -4,7 +4,7 @@
  * Steve Jobs design: Focus on what matters, zero clutter
  */
 
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
 import { WalletHeader } from '@/components/explorer/WalletHeader';
@@ -40,7 +40,16 @@ function WalletNotFound({ address }: { address: string }) {
 
 export default function Wallet() {
   const { address } = useParams<{ address: string }>();
+  const navigate = useNavigate();
   const { data, isLoading, error } = useUnifiedWallet(address);
+  
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/explorer');
+    }
+  };
   
   // Show address immediately from URL
   const displayAddress = address || '';
@@ -79,13 +88,11 @@ export default function Wallet() {
           <Button 
             variant="ghost" 
             size="sm" 
-            asChild 
+            onClick={handleBack}
             className="text-muted-foreground/60 hover:text-foreground -ml-2"
           >
-            <Link to="/explorer">
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Explorer
-            </Link>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
           </Button>
           
           {/* Header */}
