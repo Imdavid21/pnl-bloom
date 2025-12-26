@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Layout } from '@/components/Layout';
 import { MarketHeader } from '@/components/explorer/MarketHeader';
 import { MarketStats } from '@/components/explorer/MarketStats';
 import { TopTradersTable } from '@/components/explorer/TopTradersTable';
@@ -61,32 +62,38 @@ export default function Market() {
   // Loading state
   if (checkingExists || loadingMarket) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <MarketSkeleton />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <MarketSkeleton />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   // Market not found
   if (exists === false || error) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <MarketNotFound symbol={normalizedSymbol} />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <MarketNotFound symbol={normalizedSymbol} />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (!marketData) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <MarketSkeleton />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <MarketSkeleton />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -100,7 +107,7 @@ export default function Market() {
     : marketData.change24h;
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>{normalizedSymbol}-PERP | Hyperliquid Market | Hype Explorer</title>
         <meta 
@@ -195,6 +202,6 @@ export default function Market() {
           </div>
         </div>
       </div>
-    </>
+    </Layout>
   );
 }

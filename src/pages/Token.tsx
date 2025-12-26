@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Layout } from '@/components/Layout';
 import { TokenHeader } from '@/components/explorer/TokenHeader';
 import { TokenStats } from '@/components/explorer/TokenStats';
 import { TokenOverview } from '@/components/explorer/TokenOverview';
@@ -71,22 +72,26 @@ export default function Token() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <TokenSkeleton />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-8 max-w-6xl">
+            <TokenSkeleton />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   // Not found
   if (error || !tokenData) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <TokenNotFound identifier={identifier} />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-8 max-w-6xl">
+            <TokenNotFound identifier={identifier} />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -107,7 +112,7 @@ export default function Token() {
   const decimals = HYPERCORE_TOKENS[tokenData.symbol]?.decimals;
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>{tokenData.symbol} - {tokenData.name} | Hype Explorer</title>
         <meta
@@ -239,6 +244,6 @@ export default function Token() {
           </div>
         </div>
       </div>
-    </>
+    </Layout>
   );
 }

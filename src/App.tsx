@@ -53,7 +53,6 @@ const App = () => (
                 <Route path="/explorer/token/:identifier" element={<Token />} />
                 <Route path="/block/:number" element={<Block />} />
                 <Route path="/explorer/block/:number" element={<Block />} />
-                <Route path="/block/:number" element={<Block />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

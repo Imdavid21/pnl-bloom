@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowRight, Zap, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Layout } from '@/components/Layout';
 import { useHyperCoreTrade } from '@/hooks/useHyperCoreTrade';
 import { CopyableText } from '@/components/explorer/CopyableText';
 import { TradeSummaryCard } from '@/components/explorer/TradeSummaryCard';
@@ -83,17 +84,19 @@ export default function HyperCoreTrade() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-4xl px-4 py-8">
-          <TransactionSkeleton />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="mx-auto max-w-4xl px-4 py-8">
+            <TransactionSkeleton />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (error || !data?.trade) {
     return (
-      <>
+      <Layout>
         <Helmet>
           <title>Trade Not Found | HyperPNL Explorer</title>
         </Helmet>
@@ -102,14 +105,14 @@ export default function HyperCoreTrade() {
             <TransactionNotFound identifier={id || ''} />
           </div>
         </div>
-      </>
+      </Layout>
     );
   }
 
   const { trade, relatedTrades } = data;
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Trade {shortId} | HyperPNL Explorer</title>
         <meta name="description" content={`View HyperCore trade ${shortId} on ${trade.market}`} />
@@ -288,6 +291,6 @@ export default function HyperCoreTrade() {
           </div>
         </div>
       </div>
-    </>
+    </Layout>
   );
 }

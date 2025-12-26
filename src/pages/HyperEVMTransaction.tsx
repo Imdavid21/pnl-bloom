@@ -10,6 +10,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Layout } from '@/components/Layout';
 import { useEVMTransaction } from '@/hooks/useEVMTransaction';
 import { CopyableText } from '@/components/explorer/CopyableText';
 import { TransactionNotFound } from '@/components/explorer/TransactionNotFound';
@@ -88,17 +89,19 @@ export default function HyperEVMTransaction() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-4xl px-4 py-8">
-          <TransactionSkeleton />
+      <Layout>
+        <div className="min-h-screen bg-background">
+          <div className="mx-auto max-w-4xl px-4 py-8">
+            <TransactionSkeleton />
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (error || !tx) {
     return (
-      <>
+      <Layout>
         <Helmet>
           <title>Transaction Not Found | HyperPNL Explorer</title>
         </Helmet>
@@ -107,7 +110,7 @@ export default function HyperEVMTransaction() {
             <TransactionNotFound identifier={hash || ''} />
           </div>
         </div>
-      </>
+      </Layout>
     );
   }
 
@@ -117,7 +120,7 @@ export default function HyperEVMTransaction() {
   );
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Transaction {shortHash} | HyperPNL Explorer</title>
         <meta name="description" content={`View HyperEVM transaction ${shortHash}`} />
@@ -296,6 +299,6 @@ export default function HyperEVMTransaction() {
           </div>
         </div>
       </div>
-    </>
+    </Layout>
   );
 }
