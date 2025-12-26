@@ -1,14 +1,24 @@
+/**
+ * NavBar - Hyperliquid-inspired minimal navigation
+ * Delta-4: Keyboard-first, instant access
+ */
+
 import { useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Activity, Menu, X } from 'lucide-react';
+import { Activity, Menu, X, Command } from 'lucide-react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const NAV_LINKS = [
-  { to: '/', label: 'Explorer' },
-  { to: '/market', label: 'Markets' },
-  { to: '/analytics', label: 'Analytics' },
+  { to: '/', label: 'Explorer', shortcut: 'E' },
+  { to: '/market', label: 'Markets', shortcut: 'M' },
+  { to: '/analytics', label: 'Analytics', shortcut: 'A' },
   { to: '/assets', label: 'Assets' },
   { to: '/api', label: 'API' },
   { to: '/docs', label: 'Docs' },
@@ -32,52 +42,88 @@ export function NavBar() {
     return baseTo;
   };
 
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const openCommandPalette = () => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+  };
+
   return (
-    <header className="border-b border-border bg-card/50 sticky top-0 z-50 backdrop-blur-sm">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="flex items-center justify-between h-14">
+    <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <div className="mx-auto max-w-7xl px-3">
+        <div className="flex items-center justify-between h-12">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded border border-border bg-background">
-              <Activity className="h-3.5 w-3.5 text-foreground" />
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="flex h-6 w-6 items-center justify-center rounded border border-border/50 bg-card/50 group-hover:border-primary/50 transition-colors">
+              <Activity className="h-3 w-3 text-foreground" />
             </div>
-            <span className="font-semibold text-foreground">HyperPNL</span>
+            <span className="font-semibold text-sm text-foreground">HyperPNL</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center">
             {NAV_LINKS.map(link => (
               <Link
                 key={link.to}
                 to={getLinkTo(link.to)}
                 className={cn(
-                  "text-sm font-medium transition-colors",
-                  location.pathname === link.to
+                  "px-3 py-1.5 text-sm font-medium transition-colors relative",
+                  isActive(link.to)
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {link.label}
+                {isActive(link.to) && (
+                  <span className="absolute inset-x-3 -bottom-[13px] h-px bg-primary" />
+                )}
               </Link>
             ))}
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Command Palette trigger */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openCommandPalette}
+                  className="hidden md:flex items-center gap-2 h-8 px-2.5 text-muted-foreground hover:text-foreground"
+                >
+                  <Command className="h-3.5 w-3.5" />
+                  <span className="text-xs">Search</span>
+                  <kbd className="kbd text-[10px]">⌘K</kbd>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Open command palette
+              </TooltipContent>
+            </Tooltip>
+            
             <DarkModeToggle />
             
             {/* Mobile menu toggle */}
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-9 w-9"
+              className="md:hidden h-8 w-8"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               ) : (
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" />
               )}
             </Button>
           </div>
@@ -85,18 +131,18 @@ export function NavBar() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-border animate-fade-in">
-            <div className="flex flex-col gap-1">
+          <nav className="md:hidden py-3 border-t border-border/50 animate-fade-in">
+            <div className="flex flex-col gap-0.5">
               {NAV_LINKS.map(link => (
                 <Link
                   key={link.to}
                   to={getLinkTo(link.to)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    location.pathname === link.to
-                      ? "text-foreground bg-muted"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    isActive(link.to)
+                      ? "text-foreground bg-muted/50"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                   )}
                 >
                   {link.label}

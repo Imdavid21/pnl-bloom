@@ -7,6 +7,7 @@ import { ThemeProvider } from 'next-themes';
 import { WagmiProvider } from 'wagmi';
 import { HelmetProvider } from 'react-helmet-async';
 import { config } from '@/lib/wagmi';
+import { CommandPalette } from '@/components/CommandPalette';
 import Analytics from "./pages/Analytics";
 import Assets from "./pages/Assets";
 import Docs from "./pages/Docs";
@@ -24,17 +25,25 @@ import Token from "./pages/Token";
 import Block from "./pages/Block";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <HelmetProvider>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
+          <TooltipProvider delayDuration={200}>
             <Toaster />
-            <Sonner />
+            <Sonner position="bottom-right" />
             <BrowserRouter>
+              <CommandPalette />
               <Routes>
                 <Route path="/" element={<Explorer />} />
                 <Route path="/analytics" element={<Analytics />} />
