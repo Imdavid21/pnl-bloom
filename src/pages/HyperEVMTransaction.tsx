@@ -3,7 +3,7 @@
  * Detailed view of an EVM transaction
  */
 
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, ExternalLink, Check, X, Clock, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -71,7 +71,16 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 
 export default function HyperEVMTransaction() {
   const { hash } = useParams<{ hash: string }>();
+  const navigate = useNavigate();
   const { data: tx, isLoading, error } = useEVMTransaction(hash);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/explorer');
+    }
+  };
 
   const shortHash = hash 
     ? `${hash.slice(0, 10)}...${hash.slice(-8)}`
@@ -120,13 +129,11 @@ export default function HyperEVMTransaction() {
           <Button 
             variant="ghost" 
             size="sm" 
-            asChild 
+            onClick={handleBack}
             className="text-muted-foreground/60 hover:text-foreground -ml-2"
           >
-            <Link to="/explorer">
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Explorer
-            </Link>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
           </Button>
 
           {/* Header */}
