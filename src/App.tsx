@@ -19,6 +19,7 @@ import Wallet from "./pages/Wallet";
 import HyperEVMTransaction from "./pages/HyperEVMTransaction";
 import HyperCoreTrade from "./pages/HyperCoreTrade";
 import Market from "./pages/Market";
+import Token from "./pages/Token";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/tx/:hash" element={<HyperEVMTransaction />} />
                 <Route path="/trade/:id" element={<HyperCoreTrade />} />
                 <Route path="/market/:symbol" element={<Market />} />
+                <Route path="/token/:identifier" element={<Token />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
