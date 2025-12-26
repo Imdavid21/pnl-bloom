@@ -209,21 +209,6 @@ export function UniversalSearch({
         <ErrorMessage error={error} type={detectedType} />
       )}
       
-      {/* Recent Searches */}
-      {showRecent && (
-        <div className="absolute top-full left-0 right-0 pt-3">
-          <div className="flex flex-wrap gap-1.5 justify-center">
-            {recentSearches.map((search) => (
-              <RecentSearchPill
-                key={search.query}
-                search={search}
-                onSelect={() => selectRecent(search)}
-                onRemove={() => removeRecent(search.query)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
