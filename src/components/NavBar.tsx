@@ -1,24 +1,18 @@
 /**
- * NavBar - Hyperliquid-inspired minimal navigation
- * Delta-4: Keyboard-first, instant access
+ * NavBar - Terminal aesthetic navigation
  */
 
 import { useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Activity, Menu, X, Command } from 'lucide-react';
+import { Menu, X, Command } from 'lucide-react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 const NAV_LINKS = [
-  { to: '/', label: 'Explorer', shortcut: 'E' },
-  { to: '/market', label: 'Markets', shortcut: 'M' },
-  { to: '/analytics', label: 'Analytics', shortcut: 'A' },
+  { to: '/', label: 'Explorer' },
+  { to: '/market', label: 'Markets' },
+  { to: '/analytics', label: 'Analytics' },
   { to: '/assets', label: 'Assets' },
   { to: '/api', label: 'API' },
   { to: '/docs', label: 'Docs' },
@@ -29,12 +23,10 @@ export function NavBar() {
   const [searchParams] = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Get current wallet from explorer URL params
   const currentQuery = searchParams.get('q');
   const currentMode = searchParams.get('mode');
   const isWalletMode = currentMode === 'wallet' && currentQuery;
 
-  // Build link with wallet param for Analytics if we're viewing a wallet in Explorer
   const getLinkTo = (baseTo: string) => {
     if (baseTo === '/analytics' && isWalletMode && location.pathname === '/') {
       return `/analytics?wallet=${currentQuery}`;
@@ -57,25 +49,27 @@ export function NavBar() {
   };
 
   return (
-    <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="mx-auto max-w-7xl px-3">
-        <div className="flex items-center justify-between h-12">
+    <header className="border-b border-border bg-background sticky top-0 z-50">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="flex items-center justify-between h-11">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex h-6 w-6 items-center justify-center rounded border border-border/50 bg-card/50 group-hover:border-primary/50 transition-colors">
-              <Activity className="h-3 w-3 text-foreground" />
-            </div>
-            <span className="font-semibold text-sm text-foreground">HyperPNL</span>
+            <span className="font-mono text-sm font-semibold text-foreground tracking-tight">
+              HYPERPNL
+            </span>
+            <span className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-wider hidden sm:inline">
+              Explorer
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center">
+          <nav className="hidden md:flex items-center gap-0.5">
             {NAV_LINKS.map(link => (
               <Link
                 key={link.to}
                 to={getLinkTo(link.to)}
                 className={cn(
-                  "px-3 py-1.5 text-sm font-medium transition-colors relative",
+                  "px-3 py-1.5 text-xs font-mono font-medium transition-colors relative",
                   isActive(link.to)
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -83,32 +77,27 @@ export function NavBar() {
               >
                 {link.label}
                 {isActive(link.to) && (
-                  <span className="absolute inset-x-3 -bottom-[13px] h-px bg-primary" />
+                  <span className="absolute inset-x-3 -bottom-[11px] h-px bg-primary" />
                 )}
               </Link>
             ))}
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {/* Command Palette trigger */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={openCommandPalette}
-                  className="hidden md:flex items-center gap-2 h-8 px-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <Command className="h-3.5 w-3.5" />
-                  <span className="text-xs">Search</span>
-                  <kbd className="kbd text-[10px]">⌘K</kbd>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                Open command palette
-              </TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openCommandPalette}
+              className="hidden md:flex items-center gap-1.5 h-7 px-2 text-muted-foreground hover:text-foreground font-mono"
+            >
+              <Command className="h-3 w-3" />
+              <span className="text-[10px]">Search</span>
+              <kbd className="text-[9px] font-mono text-muted-foreground/50 bg-muted/30 px-1 py-0.5 rounded border border-border/50">
+                K
+              </kbd>
+            </Button>
             
             <DarkModeToggle />
             
@@ -116,7 +105,7 @@ export function NavBar() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-8 w-8"
+              className="md:hidden h-7 w-7"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
@@ -131,7 +120,7 @@ export function NavBar() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden py-3 border-t border-border/50 animate-fade-in">
+          <nav className="md:hidden py-2 border-t border-border animate-fade-in">
             <div className="flex flex-col gap-0.5">
               {NAV_LINKS.map(link => (
                 <Link
@@ -139,10 +128,10 @@ export function NavBar() {
                   to={getLinkTo(link.to)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    "px-3 py-2 text-xs font-mono font-medium transition-colors",
                     isActive(link.to)
-                      ? "text-foreground bg-muted/50"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                      ? "text-foreground bg-muted/30"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
                   )}
                 >
                   {link.label}
