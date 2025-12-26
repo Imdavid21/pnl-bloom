@@ -10,6 +10,7 @@ import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
 import { WalletHeader } from '@/components/explorer/WalletHeader';
 import { HeroStats } from '@/components/explorer/HeroStats';
 import { MetricsGrid } from '@/components/explorer/MetricsGrid';
+import { UnifiedPositions } from '@/components/explorer/UnifiedPositions';
 import { UnifiedActivityFeed } from '@/components/explorer/UnifiedActivityFeed';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search } from 'lucide-react';
@@ -117,8 +118,11 @@ export default function Wallet() {
             isLoading={isLoading}
           />
           
+          {/* Positions Breakdown */}
+          <UnifiedPositions address={displayAddress} />
+          
           {/* Activity Feed */}
-          <section className="space-y-4">
+          <section id="activity" className="space-y-4">
             <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground/50">
               Recent Activity
             </h2>
