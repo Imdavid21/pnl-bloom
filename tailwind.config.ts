@@ -18,38 +18,14 @@ export default {
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       fontSize: {
-        // Hyperliquid-style typographic scale
-        'xs': ['0.6875rem', { lineHeight: '1rem' }],      // 11px - helper text
-        'sm': ['0.75rem', { lineHeight: '1.125rem' }],    // 12px - secondary
-        'base': ['0.8125rem', { lineHeight: '1.25rem' }], // 13px - body
-        'lg': ['0.9375rem', { lineHeight: '1.375rem' }],  // 15px - emphasis
-        'xl': ['1.125rem', { lineHeight: '1.5rem' }],     // 18px - headings
-        '2xl': ['1.5rem', { lineHeight: '1.875rem' }],    // 24px - large numbers
-        '3xl': ['2rem', { lineHeight: '2.25rem' }],       // 32px - hero
-        '4xl': ['2.5rem', { lineHeight: '2.75rem' }],     // 40px - display
-      },
-      spacing: {
-        // 4px grid for density
-        '0.5': '0.125rem',  // 2px
-        '1': '0.25rem',     // 4px
-        '1.5': '0.375rem',  // 6px
-        '2': '0.5rem',      // 8px
-        '2.5': '0.625rem',  // 10px
-        '3': '0.75rem',     // 12px
-        '3.5': '0.875rem',  // 14px
-        '4': '1rem',        // 16px
-        '5': '1.25rem',     // 20px
-        '6': '1.5rem',      // 24px
-        '7': '1.75rem',     // 28px
-        '8': '2rem',        // 32px
-        '9': '2.25rem',     // 36px
-        '10': '2.5rem',     // 40px
-        '11': '2.75rem',    // 44px
-        '12': '3rem',       // 48px
-        '14': '3.5rem',     // 56px
-        '16': '4rem',       // 64px
-        '20': '5rem',       // 80px
-        '24': '6rem',       // 96px
+        'xs': ['0.6875rem', { lineHeight: '1rem' }],
+        'sm': ['0.75rem', { lineHeight: '1.125rem' }],
+        'base': ['0.8125rem', { lineHeight: '1.25rem' }],
+        'lg': ['0.9375rem', { lineHeight: '1.375rem' }],
+        'xl': ['1.125rem', { lineHeight: '1.5rem' }],
+        '2xl': ['1.5rem', { lineHeight: '1.875rem' }],
+        '3xl': ['2rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.5rem', { lineHeight: '2.75rem' }],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -129,6 +105,10 @@ export default {
         },
         profit: "hsl(var(--profit-3))",
         loss: "hsl(var(--loss-3))",
+        up: "hsl(154 100% 50%)",
+        down: "hsl(340 100% 50%)",
+        prediction: "hsl(217 91% 60%)",
+        perpetual: "hsl(38 92% 50%)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -183,11 +163,10 @@ export default {
         'sm': 'var(--shadow-sm)',
         'md': 'var(--shadow-md)',
         'lg': 'var(--shadow-lg)',
-        'glow': '0 0 20px hsl(var(--primary) / 0.2)',
-        'glow-lg': '0 0 40px hsl(var(--primary) / 0.3)',
-      },
-      backdropBlur: {
-        'xs': '2px',
+        'glow': '0 0 20px hsl(154 100% 50% / 0.15)',
+        'glow-lg': '0 0 40px hsl(154 100% 50% / 0.25)',
+        'glow-up': '0 0 20px hsl(154 100% 50% / 0.15)',
+        'glow-down': '0 0 20px hsl(340 100% 50% / 0.15)',
       },
     },
   },

@@ -1,11 +1,8 @@
 /**
- * Wallet Hero - Clean minimal hero section
+ * Wallet Hero - Terminal style hero section
  */
 
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatUsd, formatPercent } from '@/lib/wallet-aggregator';
 import { useUnifiedPositions } from '@/hooks/useUnifiedPositions';
@@ -49,103 +46,98 @@ export function WalletHero({
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-6 space-y-5">
-        {/* Domain badges */}
-        <div className="flex items-center justify-center gap-2">
-          {domains.hypercore && (
-            <Badge variant="secondary" className="text-xs font-normal">
-              HyperCore
-            </Badge>
-          )}
-          {domains.hyperevm && (
-            <Badge variant="secondary" className="text-xs font-normal">
-              HyperEVM
-            </Badge>
-          )}
-        </div>
+    <div className="panel p-6 space-y-6">
+      {/* Domain badges */}
+      <div className="flex items-center justify-center gap-2">
+        {domains.hypercore && (
+          <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium bg-prediction/10 text-prediction border border-prediction/20 rounded">
+            HyperCore
+          </span>
+        )}
+        {domains.hyperevm && (
+          <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium bg-perpetual/10 text-perpetual border border-perpetual/20 rounded">
+            HyperEVM
+          </span>
+        )}
+      </div>
 
-        {/* Total Value */}
-        <div className="text-center space-y-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Portfolio Value
-          </p>
-          <p className="text-4xl font-bold tracking-tight tabular-nums">
-            {formatUsd(totalValue)}
-          </p>
+      {/* Total Value */}
+      <div className="text-center space-y-2">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+          Portfolio Value
+        </p>
+        <p className="text-4xl font-mono font-bold tracking-tight tabular-nums text-foreground">
+          {formatUsd(totalValue)}
+        </p>
+        
+        {/* PnL Display */}
+        <div className={cn(
+          "inline-flex items-center gap-2 px-3 py-1.5 rounded text-sm font-mono font-medium",
+          isPositive 
+            ? "bg-up/10 text-up border border-up/20" 
+            : "bg-down/10 text-down border border-down/20"
+        )}>
+          <span className="tabular-nums">
+            {isPositive ? '+' : ''}{formatUsd(pnl30d)}
+          </span>
+          <span className="text-[10px] opacity-70">
+            ({formatPercent(pnlPercent30d)})
+          </span>
+          <span className="text-[10px] opacity-50 uppercase">30d</span>
+        </div>
+      </div>
+
+      {/* Asset Distribution Bar */}
+      {segments.length > 0 && (
+        <div className="space-y-3">
+          <div className="h-1 w-full rounded-full bg-muted flex overflow-hidden">
+            {segments.map((segment) => (
+              <button
+                key={segment.key}
+                onClick={() => handleSegmentClick(segment.key)}
+                className="h-full transition-opacity hover:opacity-80"
+                style={{ 
+                  width: `${segment.percentage}%`, 
+                  backgroundColor: segment.color,
+                  minWidth: segment.percentage > 0 ? '2px' : '0'
+                }}
+                title={`${segment.label}: ${segment.percentage.toFixed(1)}%`}
+              />
+            ))}
+          </div>
           
-          {/* PnL Badge */}
-          <div className={cn(
-            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium",
-            isPositive 
-              ? "bg-green-500/10 text-green-500" 
-              : "bg-red-500/10 text-red-500"
-          )}>
-            {isPositive ? (
-              <TrendingUp className="h-3.5 w-3.5" />
-            ) : (
-              <TrendingDown className="h-3.5 w-3.5" />
-            )}
-            <span className="tabular-nums">
-              {isPositive ? '+' : ''}{formatUsd(pnl30d)} ({formatPercent(pnlPercent30d)})
-            </span>
-            <span className="text-muted-foreground">30d</span>
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-4">
+            {segments.map((segment) => (
+              <button
+                key={segment.key}
+                onClick={() => handleSegmentClick(segment.key)}
+                className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span 
+                  className="w-2 h-2 rounded-sm" 
+                  style={{ backgroundColor: segment.color }}
+                />
+                <span className="tabular-nums font-mono font-medium">{segment.percentage.toFixed(0)}%</span>
+                <span className="uppercase tracking-wider">{segment.label}</span>
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Asset Distribution */}
-        {segments.length > 0 && (
-          <div className="space-y-3">
-            {/* Bar */}
-            <div className="h-1.5 w-full rounded-full bg-muted flex overflow-hidden">
-              {segments.map((segment) => (
-                <button
-                  key={segment.key}
-                  onClick={() => handleSegmentClick(segment.key)}
-                  className="h-full transition-opacity hover:opacity-80"
-                  style={{ 
-                    width: `${segment.percentage}%`, 
-                    backgroundColor: segment.color,
-                    minWidth: segment.percentage > 0 ? '3px' : '0'
-                  }}
-                  title={`${segment.label}: ${segment.percentage.toFixed(1)}%`}
-                />
-              ))}
-            </div>
-            
-            {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-4">
-              {segments.map((segment) => (
-                <button
-                  key={segment.key}
-                  onClick={() => handleSegmentClick(segment.key)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <span 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: segment.color }}
-                  />
-                  <span className="tabular-nums font-medium">{segment.percentage.toFixed(0)}%</span>
-                  <span>{segment.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Activity timestamps */}
-        {(firstSeen || lastActive) && (
-          <p className="text-xs text-center text-muted-foreground">
-            {firstSeen && (
-              <span>First seen {formatDistanceToNow(firstSeen, { addSuffix: true })}</span>
-            )}
-            {firstSeen && lastActive && <span className="mx-2">•</span>}
-            {lastActive && (
-              <span>Active {formatDistanceToNow(lastActive, { addSuffix: true })}</span>
-            )}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      {/* Activity timestamps */}
+      {(firstSeen || lastActive) && (
+        <p className="text-[10px] text-center text-muted-foreground/60 font-mono">
+          {firstSeen && (
+            <span>First seen {formatDistanceToNow(firstSeen, { addSuffix: true })}</span>
+          )}
+          {firstSeen && lastActive && <span className="mx-2 opacity-30">|</span>}
+          {lastActive && (
+            <span>Active {formatDistanceToNow(lastActive, { addSuffix: true })}</span>
+          )}
+        </p>
+      )}
+    </div>
   );
 }
