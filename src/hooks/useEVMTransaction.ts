@@ -69,28 +69,23 @@ function decodeTransferLog(log: EVMLog, userAddress: string): TokenTransfer | nu
 
 async function fetchEVMTransaction(hash: string): Promise<EVMTransaction | null> {
   try {
-    // Fetch transaction and receipt in parallel
-    const [txResponse, receiptResponse] = await Promise.all([
-      fetch(`${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tx&hash=${hash}`, {
-        headers: { 'apikey': SUPABASE_KEY },
-      }),
-      fetch(`${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=receipt&hash=${hash}`, {
-        headers: { 'apikey': SUPABASE_KEY },
-      }),
-    ]);
+    // Fetch transaction - the edge function already includes receipt data in the tx response
+    const txResponse = await fetch(`${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tx&hash=${hash}`, {
+      headers: { 'apikey': SUPABASE_KEY },
+    });
     
     if (!txResponse.ok) return null;
     
     const txData = await txResponse.json();
-    const receiptData = receiptResponse.ok ? await receiptResponse.json() : null;
     
     if (!txData || txData.error || !txData.hash) return null;
     
-    const logs: EVMLog[] = (receiptData?.logs || []).map((log: any, i: number) => ({
+    // Parse logs from the tx response (receipt data is included)
+    const logs: EVMLog[] = (txData.logs || []).map((log: any, i: number) => ({
       address: log.address,
       topics: log.topics || [],
       data: log.data || '0x',
-      logIndex: i,
+      logIndex: log.logIndex ?? i,
     }));
     
     // Decode transfer logs
@@ -98,24 +93,23 @@ async function fetchEVMTransaction(hash: string): Promise<EVMTransaction | null>
       .map(log => decodeTransferLog(log, txData.from))
       .filter((t): t is TokenTransfer => t !== null);
     
-    // Determine status
-    let status: 'success' | 'failed' | 'pending' = 'pending';
-    if (receiptData) {
-      status = receiptData.status === '0x1' || receiptData.status === 1 ? 'success' : 'failed';
-    }
+    // Status is already normalized by the edge function
+    const status: 'success' | 'failed' | 'pending' = 
+      txData.status === 'success' ? 'success' :
+      txData.status === 'failed' ? 'failed' : 'pending';
     
     return {
       hash: txData.hash,
       from: txData.from,
       to: txData.to,
       value: txData.value || '0x0',
-      gasUsed: parseInt(receiptData?.gasUsed || txData.gas || '0', 16),
-      gasPrice: txData.gasPrice || '0',
-      blockNumber: parseInt(txData.blockNumber || '0', 16),
+      gasUsed: txData.gasUsed || 0,
+      gasPrice: String(txData.gasPrice || 0),
+      blockNumber: txData.blockNumber || 0,
       timestamp: Date.now(), // Would need block timestamp lookup
       status,
       inputData: txData.input || '0x',
-      nonce: parseInt(txData.nonce || '0', 16),
+      nonce: txData.nonce || 0,
       logs,
       tokenTransfers,
     };
