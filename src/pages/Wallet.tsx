@@ -12,6 +12,7 @@ import { HeroStats } from '@/components/explorer/HeroStats';
 import { MetricsGrid } from '@/components/explorer/MetricsGrid';
 import { UnifiedPositions } from '@/components/explorer/UnifiedPositions';
 import { UnifiedActivityFeed } from '@/components/explorer/UnifiedActivityFeed';
+import { AssetDistribution } from '@/components/explorer/AssetDistribution';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search } from 'lucide-react';
 
@@ -129,14 +130,22 @@ export default function Wallet() {
             <UnifiedActivityFeed address={displayAddress} />
           </section>
           
+          {/* Asset Distribution & CTAs */}
+          <AssetDistribution 
+            address={displayAddress}
+            winRate={data?.winRate || 0}
+            pnl30d={data?.pnl30d || 0}
+            trades30d={data?.trades30d || 0}
+          />
+          
           {/* Partial data warning */}
           {data && !isLoading && data.domains.hypercore && !data.domains.hyperevm && (
-            <p className="text-xs text-center text-muted-foreground/40">
+            <p className="text-xs text-center text-muted-foreground/40 pb-8">
               Showing HyperCore activity only
             </p>
           )}
           {data && !isLoading && !data.domains.hypercore && data.domains.hyperevm && (
-            <p className="text-xs text-center text-muted-foreground/40">
+            <p className="text-xs text-center text-muted-foreground/40 pb-8">
               Showing HyperEVM activity only
             </p>
           )}
