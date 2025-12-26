@@ -19,6 +19,7 @@ import Wallet from "./pages/Wallet";
 import HyperEVMTransaction from "./pages/HyperEVMTransaction";
 import HyperCoreTrade from "./pages/HyperCoreTrade";
 import Market from "./pages/Market";
+import Markets from "./pages/Markets";
 import Token from "./pages/Token";
 import Block from "./pages/Block";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
                 <Route path="/tx/:hash" element={<HyperEVMTransaction />} />
                 <Route path="/explorer/tx/:hash" element={<HyperEVMTransaction />} />
                 <Route path="/trade/:id" element={<HyperCoreTrade />} />
+                <Route path="/market" element={<Markets />} />
                 <Route path="/market/:symbol" element={<Market />} />
                 <Route path="/explorer/market/:symbol" element={<Market />} />
                 <Route path="/token/:identifier" element={<Token />} />
