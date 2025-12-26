@@ -1,17 +1,25 @@
 /**
  * Risk Summary Card
  * Shows risk alerts when dangerous conditions are detected
+ * Collapsible by default
  */
 
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { RiskAlert, RiskAnalysis } from '@/lib/risk-detector';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface RiskSummaryCardProps {
   analysis: RiskAnalysis;
   address: string;
+  defaultOpen?: boolean;
 }
 
 function getSeverityStyles(severity: 'low' | 'medium' | 'high') {
@@ -40,7 +48,9 @@ function getSeverityStyles(severity: 'low' | 'medium' | 'high') {
   }
 }
 
-export function RiskSummaryCard({ analysis, address }: RiskSummaryCardProps) {
+export function RiskSummaryCard({ analysis, address, defaultOpen = false }: RiskSummaryCardProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
   if (!analysis.hasRisk || analysis.alerts.length === 0) {
     return null;
   }
@@ -48,53 +58,71 @@ export function RiskSummaryCard({ analysis, address }: RiskSummaryCardProps) {
   const styles = getSeverityStyles(analysis.overallSeverity as 'low' | 'medium' | 'high');
 
   return (
-    <div className={cn(
-      'rounded-lg border-l-4 p-4 space-y-3',
-      styles.bg,
-      styles.border
-    )}>
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <AlertTriangle className={cn('h-5 w-5', styles.title)} />
-        <h4 className={cn('font-semibold', styles.title)}>Risk Alert</h4>
-      </div>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className={cn(
+        'rounded-lg border-l-4',
+        styles.bg,
+        styles.border
+      )}>
+        {/* Collapsible Header */}
+        <CollapsibleTrigger asChild>
+          <button className="w-full flex items-center justify-between p-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-r-lg">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className={cn('h-4 w-4', styles.title)} />
+              <h4 className={cn('font-semibold text-sm', styles.title)}>
+                Risk Alert ({analysis.alerts.length})
+              </h4>
+            </div>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+        </CollapsibleTrigger>
 
-      {/* Alert List */}
-      <ul className="space-y-2">
-        {analysis.alerts.map((alert, index) => (
-          <li key={index} className="flex items-start gap-2 text-sm">
-            <span className="text-muted-foreground">•</span>
-            <span className={styles.text}>
-              {alert.message}
-              {alert.link && (
-                <Link 
-                  to={alert.link}
-                  className="ml-1 underline underline-offset-2 hover:opacity-80"
-                >
-                  View
-                </Link>
+        {/* Collapsible Content */}
+        <CollapsibleContent>
+          <div className="px-4 pb-4 space-y-3">
+            {/* Alert List */}
+            <ul className="space-y-2">
+              {analysis.alerts.map((alert, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm">
+                  <span className="text-muted-foreground">•</span>
+                  <span className={styles.text}>
+                    {alert.message}
+                    {alert.link && (
+                      <Link 
+                        to={alert.link}
+                        className="ml-1 underline underline-offset-2 hover:opacity-80"
+                      >
+                        View
+                      </Link>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Action Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              asChild
+              className={cn(
+                'mt-2',
+                analysis.overallSeverity === 'high' && 'border-red-500/50 text-red-600 hover:bg-red-500/10',
+                analysis.overallSeverity === 'medium' && 'border-amber-500/50 text-amber-600 hover:bg-amber-500/10'
               )}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/* Action Button */}
-      <Button 
-        variant="outline" 
-        size="sm" 
-        asChild
-        className={cn(
-          'mt-2',
-          analysis.overallSeverity === 'high' && 'border-red-500/50 text-red-600 hover:bg-red-500/10',
-          analysis.overallSeverity === 'medium' && 'border-amber-500/50 text-amber-600 hover:bg-amber-500/10'
-        )}
-      >
-        <Link to={`/analytics/${address}#risk`}>
-          View Detailed Risk Analysis
-          <ArrowRight className="h-4 w-4 ml-1" />
-        </Link>
-      </Button>
-    </div>
+            >
+              <Link to={`/analytics/${address}#risk`}>
+                View Detailed Risk Analysis
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }

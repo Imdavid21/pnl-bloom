@@ -12,7 +12,10 @@ import { HeroStats } from '@/components/explorer/HeroStats';
 import { MetricsGrid } from '@/components/explorer/MetricsGrid';
 import { UnifiedPositions } from '@/components/explorer/UnifiedPositions';
 import { UnifiedActivityFeed } from '@/components/explorer/UnifiedActivityFeed';
-import { AssetDistribution } from '@/components/explorer/AssetDistribution';
+import { AnalyticsCTA } from '@/components/explorer/AnalyticsCTA';
+import { selectCTA } from '@/lib/cta-selector';
+import { hasHighRiskPositions } from '@/lib/risk-detector';
+import { useUnifiedPositions } from '@/hooks/useUnifiedPositions';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search } from 'lucide-react';
 
@@ -42,6 +45,7 @@ export default function Wallet() {
   const { address } = useParams<{ address: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error } = useUnifiedWallet(address);
+  const { data: positions } = useUnifiedPositions(address || '');
   
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -104,12 +108,13 @@ export default function Wallet() {
             tradesCount={data?.trades30d || 0}
           />
           
-          {/* Hero: Total Account Value */}
+          {/* Hero: Total Account Value + Asset Distribution + Risk */}
           <HeroStats
             totalValue={data?.totalValue || 0}
             pnl30d={data?.pnl30d || 0}
             pnlPercent30d={data?.pnlPercent30d || 0}
             isLoading={isLoading}
+            address={displayAddress}
           />
           
           {/* Metrics Grid */}
@@ -137,13 +142,18 @@ export default function Wallet() {
             <UnifiedActivityFeed address={displayAddress} />
           </section>
           
-          {/* Asset Distribution & CTAs */}
-          <AssetDistribution 
-            address={displayAddress}
-            winRate={data?.winRate || 0}
-            pnl30d={data?.pnl30d || 0}
-            trades30d={data?.trades30d || 0}
-          />
+          {/* Analytics CTA */}
+          {!isLoading && (() => {
+            const hasHighRisk = positions ? hasHighRiskPositions(positions) : false;
+            const ctaConfig = selectCTA({
+              winRate: data?.winRate || 0,
+              pnl30d: data?.pnl30d || 0,
+              trades30d: data?.trades30d || 0,
+              hasHighRisk,
+              address: displayAddress,
+            });
+            return <AnalyticsCTA config={ctaConfig} address={displayAddress} />;
+          })()}
           
           {/* Partial data warning */}
           {data && !isLoading && data.domains.hypercore && !data.domains.hyperevm && (

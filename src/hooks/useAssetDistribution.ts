@@ -17,6 +17,29 @@ const COLORS = {
   lp_positions: '#F59E0B',     // Orange
 };
 
+function getAssetBreakdown(items: { symbol?: string; market?: string; value: number }[], totalValue: number): string {
+  if (items.length === 0 || totalValue === 0) return '';
+  
+  // Sort by value descending
+  const sorted = [...items].sort((a, b) => b.value - a.value);
+  
+  // Get top 3 assets
+  const top = sorted.slice(0, 3);
+  
+  // Build breakdown string
+  const parts = top.map(item => {
+    const name = item.symbol || item.market || 'Unknown';
+    const pct = Math.round((item.value / totalValue) * 100);
+    return `${pct}% ${name}`;
+  });
+  
+  if (sorted.length > 3) {
+    parts.push('...');
+  }
+  
+  return parts.join(', ');
+}
+
 export function useAssetDistribution(positions: UnifiedPositions | null | undefined) {
   return useMemo(() => {
     if (!positions) {
@@ -46,6 +69,12 @@ export function useAssetDistribution(positions: UnifiedPositions | null | undefi
     const lendingNet = suppliedValue - borrowedValue;
     const lpValue = lp.reduce((sum, l) => sum + l.positionValue, 0);
 
+    // Build asset breakdown for each category
+    const perpItems = perps.map(p => ({ market: p.market, value: p.sizeNotional }));
+    const spotItems = spot.map(s => ({ symbol: s.symbol, value: s.valueUsd }));
+    const lendingItems = lending.filter(l => l.type === 'supplied').map(l => ({ symbol: l.asset, value: l.valueUsd }));
+    const lpItems = lp.map(l => ({ symbol: l.poolName, value: l.positionValue }));
+
     // Build segments
     const segments: DistributionSegment[] = [];
 
@@ -56,6 +85,7 @@ export function useAssetDistribution(positions: UnifiedPositions | null | undefi
         value: perpValue,
         percentage: (perpValue / totalValue) * 100,
         color: COLORS.hypercore_perps,
+        assetBreakdown: getAssetBreakdown(perpItems, perpValue),
       });
     }
 
@@ -66,6 +96,7 @@ export function useAssetDistribution(positions: UnifiedPositions | null | undefi
         value: spotValue,
         percentage: (spotValue / totalValue) * 100,
         color: COLORS.hypercore_spot,
+        assetBreakdown: getAssetBreakdown(spotItems, spotValue),
       });
     }
 
@@ -76,6 +107,7 @@ export function useAssetDistribution(positions: UnifiedPositions | null | undefi
         value: lendingNet,
         percentage: (lendingNet / totalValue) * 100,
         color: COLORS.lending_supplied,
+        assetBreakdown: getAssetBreakdown(lendingItems, lendingNet),
       });
     }
 
@@ -86,6 +118,7 @@ export function useAssetDistribution(positions: UnifiedPositions | null | undefi
         value: lpValue,
         percentage: (lpValue / totalValue) * 100,
         color: COLORS.lp_positions,
+        assetBreakdown: getAssetBreakdown(lpItems, lpValue),
       });
     }
 
