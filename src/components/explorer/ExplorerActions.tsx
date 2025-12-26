@@ -92,41 +92,40 @@ export function ExplorerActions({
   }, [entityType, entityId, title, getShareUrl]);
 
   return (
-    <div className={cn("flex items-center gap-2 flex-wrap", className)}>
-      {/* Left side: Home, Back, Entity type */}
-      <div className="flex items-center gap-1">
+    <div className={cn("flex items-center justify-between w-full", className)}>
+      {/* Left side: Breadcrumb navigation */}
+      <div className="flex items-center gap-2">
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={() => navigate('/explorer')}
-          className="gap-1.5 text-muted-foreground hover:text-foreground"
+          className="h-8 px-2 text-muted-foreground hover:text-foreground"
         >
           <Home className="h-4 w-4" />
         </Button>
         
-        <span className="text-muted-foreground/50">/</span>
+        <span className="text-muted-foreground/30">/</span>
+        
+        <span className="text-sm font-medium text-foreground/80">{getEntityLabel()}</span>
         
         {onBack && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onBack} 
-            className="gap-1.5 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
+          <>
+            <span className="text-muted-foreground/30">·</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onBack} 
+              className="h-8 px-2 gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span className="text-xs">Back</span>
+            </Button>
+          </>
         )}
-        
-        <span className="text-muted-foreground/50">·</span>
-        
-        <span className="text-sm text-muted-foreground">{getEntityLabel()}</span>
       </div>
       
-      <div className="flex-1" />
-      
-      {/* Right side: Refresh and unified More dropdown */}
-      <div className="flex items-center gap-2">
+      {/* Right side: Refresh and actions */}
+      <div className="flex items-center gap-1">
         {/* Refresh */}
         {onRefresh && (
           <Button 
