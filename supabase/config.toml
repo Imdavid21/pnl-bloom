@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.admin-tokens]
 verify_jwt = false
+
+[functions.chain-stats]
+verify_jwt = false
