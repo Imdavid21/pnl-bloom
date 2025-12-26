@@ -13,6 +13,7 @@ import Api from "./pages/Api";
 import Explorer from "./pages/Explorer";
 import Admin from "./pages/Admin";
 import TokenDetail from "./pages/TokenDetail";
+import WalletExplorer from "./pages/WalletExplorer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/api" element={<Api />} />
               <Route path="/explorer" element={<Explorer />} />
+              <Route path="/explorer/wallet/:address" element={<WalletExplorer />} />
               <Route path="/admin" element={<Admin />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
