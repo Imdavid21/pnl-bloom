@@ -46,16 +46,16 @@ export function WalletHero({
   };
 
   return (
-    <div className="panel p-6 space-y-6">
+    <div className="panel p-4 sm:p-6 space-y-4">
       {/* Domain badges */}
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2 flex-wrap">
         {domains.hypercore && (
-          <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium bg-prediction/10 text-prediction border border-prediction/20 rounded">
+          <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-mono font-medium bg-prediction/10 text-prediction border border-prediction/20 rounded">
             HyperCore
           </span>
         )}
         {domains.hyperevm && (
-          <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium bg-perpetual/10 text-perpetual border border-perpetual/20 rounded">
+          <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-mono font-medium bg-perpetual/10 text-perpetual border border-perpetual/20 rounded">
             HyperEVM
           </span>
         )}
@@ -63,16 +63,16 @@ export function WalletHero({
 
       {/* Total Value */}
       <div className="text-center space-y-2">
-        <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+        <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground font-mono">
           Portfolio Value
         </p>
-        <p className="text-4xl font-mono font-bold tracking-tight tabular-nums text-foreground">
+        <p className="text-2xl sm:text-3xl font-mono font-bold tracking-tight tabular-nums text-foreground">
           {formatUsd(totalValue)}
         </p>
         
         {/* PnL Display */}
         <div className={cn(
-          "inline-flex items-center gap-2 px-3 py-1.5 rounded text-sm font-mono font-medium",
+          "inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono font-medium",
           isPositive 
             ? "bg-up/10 text-up border border-up/20" 
             : "bg-down/10 text-down border border-down/20"
@@ -80,17 +80,17 @@ export function WalletHero({
           <span className="tabular-nums">
             {isPositive ? '+' : ''}{formatUsd(pnl30d)}
           </span>
-          <span className="text-[10px] opacity-70">
+          <span className="text-[9px] opacity-70">
             ({formatPercent(pnlPercent30d)})
           </span>
-          <span className="text-[10px] opacity-50 uppercase">30d</span>
+          <span className="text-[9px] opacity-50 uppercase">30d</span>
         </div>
       </div>
 
       {/* Asset Distribution Bar */}
       {segments.length > 0 && (
-        <div className="space-y-3">
-          <div className="h-1 w-full rounded-full bg-muted flex overflow-hidden">
+        <div className="space-y-2">
+          <div className="h-1 w-full rounded-full bg-muted/30 flex overflow-hidden">
             {segments.map((segment) => (
               <button
                 key={segment.key}
@@ -107,18 +107,18 @@ export function WalletHero({
           </div>
           
           {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3">
             {segments.map((segment) => (
               <button
                 key={segment.key}
                 onClick={() => handleSegmentClick(segment.key)}
-                className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 <span 
-                  className="w-2 h-2 rounded-sm" 
+                  className="w-1.5 h-1.5 rounded-sm flex-shrink-0" 
                   style={{ backgroundColor: segment.color }}
                 />
-                <span className="tabular-nums font-mono font-medium">{segment.percentage.toFixed(0)}%</span>
+                <span className="tabular-nums font-mono">{segment.percentage.toFixed(0)}%</span>
                 <span className="uppercase tracking-wider">{segment.label}</span>
               </button>
             ))}
@@ -128,11 +128,11 @@ export function WalletHero({
 
       {/* Activity timestamps */}
       {(firstSeen || lastActive) && (
-        <p className="text-[10px] text-center text-muted-foreground/60 font-mono">
+        <p className="text-[9px] text-center text-muted-foreground/50 font-mono">
           {firstSeen && (
             <span>First seen {formatDistanceToNow(firstSeen, { addSuffix: true })}</span>
           )}
-          {firstSeen && lastActive && <span className="mx-2 opacity-30">|</span>}
+          {firstSeen && lastActive && <span className="mx-1.5 opacity-30">|</span>}
           {lastActive && (
             <span>Active {formatDistanceToNow(lastActive, { addSuffix: true })}</span>
           )}

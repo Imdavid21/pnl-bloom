@@ -1,6 +1,5 @@
 /**
- * Markets Index Page
- * Comprehensive chain stats for Hypercore (L1) and HyperEVM
+ * Markets - Terminal style chain statistics
  */
 
 import { useState, useEffect } from 'react';
@@ -11,12 +10,11 @@ import {
   CheckCircle, Code2, DollarSign
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { proxyRequest } from '@/lib/hyperliquidApi';
 import { getLatestBlockNumber, getRecentBlocks } from '@/lib/hyperevmApi';
-import { supabase } from '@/integrations/supabase/client';
+import { useCompactCountUp } from '@/hooks/useCountUp';
 
 interface HypercoreStats {
   openInterest: number;
@@ -158,7 +156,7 @@ export default function Markets() {
             avgGasUsed: Math.round(totalGasUsed / recentBlocks.length),
             recentTxCount: totalTxCount,
             avgBlockTime,
-            totalGas24h: totalGasUsed * 8640, // Estimate for 24h based on recent blocks
+            totalGas24h: totalGasUsed * 8640,
             pendingTxs: 0,
           });
         }
@@ -171,7 +169,7 @@ export default function Markets() {
     fetchEVMStats();
   }, []);
 
-  // Fetch overview stats from chain-stats edge function
+  // Fetch overview stats
   useEffect(() => {
     const fetchOverviewStats = async () => {
       try {
@@ -187,9 +185,7 @@ export default function Markets() {
         
         if (response.ok) {
           const data = await response.json();
-          
-          // Calculate changes (we don't have historical data, so estimate based on activity)
-          const avgDailyGrowth = 0.05; // 5% daily growth estimate
+          const avgDailyGrowth = 0.05;
           
           setOverviewStats({
             totalAddresses: data.totalAddresses,
@@ -197,9 +193,9 @@ export default function Markets() {
             totalTransactions: data.totalTransactions,
             txChange24h: data.transactions24h / (data.totalTransactions / 365) * 100 - 100 || 1.8,
             newAddresses24h: data.newAddresses24h,
-            newAddressChange: 18.76, // Estimated
+            newAddressChange: 18.76,
             transactions24h: data.transactions24h,
-            tx24hChange: 28.26, // Estimated variance
+            tx24hChange: 28.26,
             totalTokens: hypercoreStats?.spotTokensCount || 36000,
             totalContracts: data.totalContracts,
             contractChange24h: avgDailyGrowth,
@@ -208,9 +204,9 @@ export default function Markets() {
             contracts24h: data.contracts24h,
             contractsDeployed24hChange: 34.17,
             verified24h: Math.max(1, Math.floor(data.verifiedContracts * 0.001)),
-            avgTxFee24h: data.avgGasPrice * 21000 / 1e9, // Estimate based on gas price
+            avgTxFee24h: data.avgGasPrice * 21000 / 1e9,
             avgFeeChange: 12.54,
-            totalFee24h: data.avgGasPrice * 21000 * data.transactions24h / 1e18, // HYPE
+            totalFee24h: data.avgGasPrice * 21000 * data.transactions24h / 1e18,
             feeChange24h: 16.55,
           });
         } else {
@@ -218,7 +214,6 @@ export default function Markets() {
         }
       } catch (err) {
         console.error('[Markets] Error fetching chain stats:', err);
-        // Fallback to estimates based on block number
         const blockNumber = evmStats?.latestBlock || 22900000;
         setOverviewStats({
           totalAddresses: Math.floor(blockNumber * 0.008),
@@ -246,7 +241,6 @@ export default function Markets() {
       setIsLoadingOverview(false);
     };
 
-    // Wait for EVM stats first to have block number for fallback
     if (!isLoadingEvm) {
       fetchOverviewStats();
     }
@@ -273,315 +267,299 @@ export default function Markets() {
         <meta name="description" content="Real-time Hypercore and HyperEVM chain statistics including addresses, transactions, contracts, gas usage, and trading volume." />
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Chain Overview</h1>
-          <p className="text-muted-foreground">
-            Real-time statistics for the Hyperliquid ecosystem
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-lg font-mono font-semibold text-foreground tracking-tight">
+            Chain Overview
+          </h1>
+          <p className="text-xs font-mono text-muted-foreground/60 mt-1">
+            Real-time network statistics
           </p>
         </div>
 
         {/* Overview Stats Grid */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            Network Overview
-          </h2>
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Network Overview
+            </span>
+          </div>
+          
           {isLoadingOverview ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {[...Array(12)].map((_, i) => (
-                <div key={i} className="p-4 rounded-xl bg-card/50 border border-border/50">
-                  <Skeleton className="h-4 w-24 mb-2" />
-                  <Skeleton className="h-6 w-20" />
+                <div key={i} className="panel p-3">
+                  <Skeleton className="h-3 w-20 mb-2" />
+                  <Skeleton className="h-5 w-16" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              <OverviewStatCard
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <StatCard
                 icon={Users}
-                label="Addresses (Total)"
-                value={formatNumber(overviewStats?.totalAddresses || 0)}
+                label="Addresses"
+                value={overviewStats?.totalAddresses || 0}
                 change={overviewStats?.addressChange24h}
               />
-              <OverviewStatCard
+              <StatCard
                 icon={Activity}
-                label="Transactions (Total)"
-                value={formatNumber(overviewStats?.totalTransactions || 0)}
+                label="Transactions"
+                value={overviewStats?.totalTransactions || 0}
                 subtitle={`${overviewStats?.txChange24h.toFixed(1)} TPS`}
               />
-              <OverviewStatCard
+              <StatCard
                 icon={Users}
-                label="New Addresses (24h)"
-                value={formatNumber(overviewStats?.newAddresses24h || 0)}
+                label="New Addr 24h"
+                value={overviewStats?.newAddresses24h || 0}
                 change={overviewStats?.newAddressChange}
-                positive
               />
-              <OverviewStatCard
+              <StatCard
                 icon={Zap}
-                label="Transactions (24h)"
-                value={formatNumber(overviewStats?.transactions24h || 0)}
+                label="Txns 24h"
+                value={overviewStats?.transactions24h || 0}
                 change={overviewStats?.tx24hChange}
-                positive
               />
-              <OverviewStatCard
+              <StatCard
                 icon={Code2}
-                label="Tokens (Total)"
-                value={formatNumber(overviewStats?.totalTokens || 0)}
+                label="Tokens"
+                value={overviewStats?.totalTokens || 0}
               />
-              <OverviewStatCard
+              <StatCard
                 icon={Clock}
-                label="Pending Txs (1h)"
-                value={evmStats?.pendingTxs?.toString() || '0'}
-                subtitle="Average"
+                label="Pending"
+                value={evmStats?.pendingTxs || 0}
+                subtitle="1h avg"
               />
-              <OverviewStatCard
+              <StatCard
                 icon={DollarSign}
-                label="Total Tx Fee (24h)"
-                value={`${overviewStats?.totalFee24h.toFixed(2)} HYPE`}
+                label="Fees 24h"
+                rawValue={`${overviewStats?.totalFee24h.toFixed(2)} HYPE`}
                 change={overviewStats?.feeChange24h}
-                positive
               />
-              <OverviewStatCard
+              <StatCard
                 icon={DollarSign}
-                label="Avg Tx Fee (24h)"
-                value={`$${overviewStats?.avgTxFee24h.toFixed(2)}`}
+                label="Avg Fee"
+                rawValue={`$${overviewStats?.avgTxFee24h.toFixed(2)}`}
                 change={overviewStats?.avgFeeChange}
-                positive
               />
-              <OverviewStatCard
+              <StatCard
                 icon={FileCode}
-                label="Contracts (Total)"
-                value={formatNumber(overviewStats?.totalContracts || 0)}
+                label="Contracts"
+                value={overviewStats?.totalContracts || 0}
                 change={overviewStats?.contractChange24h}
               />
-              <OverviewStatCard
+              <StatCard
                 icon={CheckCircle}
-                label="Verified (Total)"
-                value={formatNumber(overviewStats?.verifiedContracts || 0)}
+                label="Verified"
+                value={overviewStats?.verifiedContracts || 0}
                 change={overviewStats?.verifiedChange24h}
               />
-              <OverviewStatCard
+              <StatCard
                 icon={FileCode}
-                label="Deployed (24h)"
-                value={formatNumber(overviewStats?.contracts24h || 0)}
+                label="Deployed 24h"
+                value={overviewStats?.contracts24h || 0}
                 change={overviewStats?.contractsDeployed24hChange}
-                positive
               />
-              <OverviewStatCard
+              <StatCard
                 icon={Fuel}
-                label="Gas Used (24h)"
-                value={evmStats ? `${formatGas(evmStats.totalGas24h)} gas` : '-'}
+                label="Gas 24h"
+                rawValue={evmStats ? `${formatGas(evmStats.totalGas24h)}` : '--'}
                 change={29.92}
-                positive
               />
             </div>
           )}
         </div>
 
         {/* Chain-Specific Stats */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Hypercore (L1) Section */}
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <Layers className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Hypercore (L1)</CardTitle>
-                  <p className="text-xs text-muted-foreground">Perpetuals & Spot Trading</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Hypercore Panel */}
+          <div className="panel">
+            <div className="flex items-center gap-2 p-3 border-b border-border">
+              <Layers className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-mono font-medium text-foreground">
+                Hypercore (L1)
+              </span>
+              <span className="text-[9px] font-mono text-muted-foreground/50 ml-auto">
+                Perps + Spot
+              </span>
+            </div>
+            <div className="p-3">
               {isLoadingCore ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {[...Array(6)].map((_, i) => (
-                    <div key={i} className="p-3 rounded-lg bg-muted/20">
-                      <Skeleton className="h-4 w-20 mb-2" />
-                      <Skeleton className="h-6 w-24" />
+                    <div key={i} className="p-2 bg-muted/10 rounded">
+                      <Skeleton className="h-3 w-16 mb-1" />
+                      <Skeleton className="h-4 w-20" />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <StatBlock
-                    icon={Layers}
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricBlock
                     label="Open Interest"
-                    value={hypercoreStats ? formatNumber(hypercoreStats.openInterest, '$') : '-'}
-                    subtitle="Total OI"
+                    value={hypercoreStats ? formatNumber(hypercoreStats.openInterest, '$') : '--'}
                   />
-                  <StatBlock
-                    icon={Activity}
+                  <MetricBlock
                     label="24h Volume"
-                    value={hypercoreStats ? formatNumber(hypercoreStats.volume24h, '$') : '-'}
-                    subtitle="Perps + Spot"
+                    value={hypercoreStats ? formatNumber(hypercoreStats.volume24h, '$') : '--'}
                   />
-                  <StatBlock
-                    icon={TrendingUp}
+                  <MetricBlock
                     label="BTC Funding"
-                    value={hypercoreStats?.fundingRate || '-'}
-                    subtitle="8h rate"
-                    valueColor={hypercoreStats?.fundingRate?.startsWith('+') ? 'text-emerald-500' : hypercoreStats?.fundingRate?.startsWith('-') ? 'text-red-500' : undefined}
+                    value={hypercoreStats?.fundingRate || '--'}
+                    valueClass={hypercoreStats?.fundingRate?.startsWith('+') ? 'text-up' : hypercoreStats?.fundingRate?.startsWith('-') ? 'text-down' : undefined}
                   />
-                  <StatBlock
-                    icon={Zap}
+                  <MetricBlock
                     label="Top Market"
-                    value={hypercoreStats?.topMarket || '-'}
-                    subtitle={hypercoreStats ? `${formatNumber(hypercoreStats.topMarketVolume, '$')} vol` : '-'}
+                    value={hypercoreStats?.topMarket || '--'}
+                    subtitle={hypercoreStats ? `${formatNumber(hypercoreStats.topMarketVolume, '$')}` : undefined}
                   />
-                  <StatBlock
-                    icon={Activity}
+                  <MetricBlock
                     label="Perp Markets"
-                    value={hypercoreStats?.marketsCount.toString() || '-'}
-                    subtitle="Active pairs"
+                    value={hypercoreStats?.marketsCount.toString() || '--'}
                   />
-                  <StatBlock
-                    icon={Wallet}
+                  <MetricBlock
                     label="Spot Tokens"
-                    value={hypercoreStats?.spotTokensCount.toString() || '-'}
-                    subtitle="Tradeable"
+                    value={hypercoreStats?.spotTokensCount.toString() || '--'}
                   />
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          {/* HyperEVM Section */}
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-chart-2/10 border border-chart-2/20">
-                  <Box className="h-5 w-5 text-chart-2" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">HyperEVM</CardTitle>
-                  <p className="text-xs text-muted-foreground">EVM-compatible Layer</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          {/* HyperEVM Panel */}
+          <div className="panel">
+            <div className="flex items-center gap-2 p-3 border-b border-border">
+              <Box className="h-3.5 w-3.5 text-perpetual" />
+              <span className="text-xs font-mono font-medium text-foreground">
+                HyperEVM
+              </span>
+              <span className="text-[9px] font-mono text-muted-foreground/50 ml-auto">
+                EVM Layer
+              </span>
+            </div>
+            <div className="p-3">
               {isLoadingEvm ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {[...Array(6)].map((_, i) => (
-                    <div key={i} className="p-3 rounded-lg bg-muted/20">
-                      <Skeleton className="h-4 w-20 mb-2" />
-                      <Skeleton className="h-6 w-24" />
+                    <div key={i} className="p-2 bg-muted/10 rounded">
+                      <Skeleton className="h-3 w-16 mb-1" />
+                      <Skeleton className="h-4 w-20" />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <StatBlock
-                    icon={Box}
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricBlock
                     label="Latest Block"
-                    value={evmStats ? `#${evmStats.latestBlock.toLocaleString()}` : '-'}
-                    subtitle="Block height"
+                    value={evmStats ? `#${evmStats.latestBlock.toLocaleString()}` : '--'}
                   />
-                  <StatBlock
-                    icon={Clock}
+                  <MetricBlock
                     label="Block Time"
-                    value={evmStats ? `${evmStats.avgBlockTime.toFixed(1)}s` : '-'}
-                    subtitle="Average"
+                    value={evmStats ? `${evmStats.avgBlockTime.toFixed(2)}s` : '--'}
                   />
-                  <StatBlock
-                    icon={Fuel}
-                    label="Avg Gas/Block"
-                    value={evmStats ? formatGas(evmStats.avgGasUsed) : '-'}
-                    subtitle="Per block"
+                  <MetricBlock
+                    label="Avg Gas"
+                    value={evmStats ? formatGas(evmStats.avgGasUsed) : '--'}
                   />
-                  <StatBlock
-                    icon={Activity}
+                  <MetricBlock
                     label="Recent Txs"
-                    value={evmStats ? evmStats.recentTxCount.toString() : '-'}
+                    value={evmStats ? evmStats.recentTxCount.toString() : '--'}
                     subtitle="Last 10 blocks"
                   />
-                  <StatBlock
-                    icon={FileCode}
-                    label="Total Contracts"
+                  <MetricBlock
+                    label="Contracts"
                     value={formatNumber(overviewStats?.totalContracts || 0)}
-                    subtitle="Deployed"
                   />
-                  <StatBlock
-                    icon={CheckCircle}
+                  <MetricBlock
                     label="Verified"
                     value={formatNumber(overviewStats?.verifiedContracts || 0)}
-                    subtitle="Contracts"
                   />
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </Layout>
   );
 }
 
-function StatBlock({ 
+function StatCard({ 
   icon: Icon, 
   label, 
-  value, 
-  subtitle, 
-  valueColor 
-}: { 
-  icon: any; 
-  label: string; 
-  value: string; 
-  subtitle: string;
-  valueColor?: string;
-}) {
-  return (
-    <div className="p-3 rounded-lg bg-muted/10 border border-border/30">
-      <div className="flex items-center gap-1.5 text-muted-foreground/60 mb-1">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
-      </div>
-      <p className={cn("text-base font-semibold tabular-nums", valueColor || "text-foreground")}>{value}</p>
-      <p className="text-[10px] text-muted-foreground/50">{subtitle}</p>
-    </div>
-  );
-}
-
-function OverviewStatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
+  value,
+  rawValue,
   subtitle,
   change,
-  positive
 }: { 
   icon: any; 
   label: string; 
-  value: string; 
+  value?: number;
+  rawValue?: string;
   subtitle?: string;
   change?: number;
-  positive?: boolean;
 }) {
-  const hasChange = change !== undefined;
-  const isPositiveChange = positive || change! > 0;
+  const displayValue = useCompactCountUp(value ?? null, { prefix: '' });
+  const hasChange = change !== undefined && change !== null;
+  const isPositive = change && change > 0;
   
   return (
-    <div className="p-4 rounded-xl bg-card/80 border border-border/50 hover:border-border/80 transition-colors">
-      <div className="flex items-center gap-1.5 text-muted-foreground/60 mb-2">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
+    <div className="panel p-3 hover:border-primary/30 transition-colors">
+      <div className="flex items-center gap-1 mb-1.5">
+        <Icon className="h-3 w-3 text-muted-foreground/50" />
+        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">
+          {label}
+        </span>
       </div>
-      <div className="flex items-baseline gap-2">
-        <p className="text-lg font-semibold tabular-nums text-foreground">{value}</p>
+      <div className="flex items-baseline gap-1.5 flex-wrap">
+        <span className="text-sm font-mono font-semibold tabular-nums text-foreground">
+          {rawValue || displayValue || '--'}
+        </span>
         {hasChange && (
           <span className={cn(
-            "text-[10px] flex items-center gap-0.5",
-            isPositiveChange ? "text-emerald-500" : "text-red-500"
+            "text-[9px] font-mono tabular-nums flex items-center",
+            isPositive ? "text-up" : "text-down"
           )}>
-            {isPositiveChange ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            {Math.abs(change!).toFixed(2)}%
+            {isPositive ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+            {Math.abs(change).toFixed(1)}%
           </span>
         )}
       </div>
       {subtitle && (
-        <p className="text-[10px] text-muted-foreground/50 mt-0.5">{subtitle}</p>
+        <span className="text-[9px] font-mono text-muted-foreground/40 mt-0.5 block">
+          {subtitle}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function MetricBlock({ 
+  label, 
+  value, 
+  subtitle,
+  valueClass,
+}: { 
+  label: string; 
+  value: string; 
+  subtitle?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="p-2 bg-muted/5 border border-border/30 rounded">
+      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50 block mb-1">
+        {label}
+      </span>
+      <span className={cn("text-sm font-mono font-semibold tabular-nums", valueClass || "text-foreground")}>
+        {value}
+      </span>
+      {subtitle && (
+        <span className="text-[9px] font-mono text-muted-foreground/40 block">
+          {subtitle}
+        </span>
       )}
     </div>
   );

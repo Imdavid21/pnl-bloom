@@ -1,9 +1,10 @@
 /**
- * HypeStats - Terminal style network stats
+ * HypeStats - Terminal style network stats with counting animations
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { useCountUp, useCompactCountUp } from '@/hooks/useCountUp';
 
 interface HypeStatsData {
   hypePrice: number | null;
@@ -31,20 +32,20 @@ function StatBlock({
   const isPlaceholder = value.includes('--');
   
   return (
-    <div className="panel p-4 text-center hover:border-primary/30 transition-colors">
-      <span className="text-[9px] uppercase tracking-[0.15em] text-muted-foreground/50 font-medium block mb-2">
+    <div className="panel p-3 text-center hover:border-primary/30 transition-colors min-w-0">
+      <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground/50 font-mono font-medium block mb-1.5 truncate">
         {label}
       </span>
-      <div className="flex items-center gap-1.5 justify-center flex-wrap">
+      <div className="flex items-center gap-1.5 justify-center flex-nowrap overflow-hidden">
         <span className={cn(
-          "text-lg font-mono font-semibold tabular-nums",
+          "text-base font-mono font-semibold tabular-nums truncate",
           isPlaceholder ? "text-muted-foreground/20" : "text-foreground"
         )}>
           {value}
         </span>
         {change !== undefined && change !== null && !isPlaceholder && (
           <span className={cn(
-            "text-[9px] font-mono font-medium tabular-nums px-1 py-0.5 rounded",
+            "text-[9px] font-mono font-medium tabular-nums px-1 py-0.5 rounded flex-shrink-0",
             change >= 0 ? "text-up bg-up/10" : "text-down bg-down/10"
           )}>
             {change >= 0 ? '+' : ''}{change.toFixed(2)}%
@@ -52,7 +53,57 @@ function StatBlock({
         )}
       </div>
       {subValue && (
-        <span className="text-[10px] text-muted-foreground/40 mt-1 font-mono block">
+        <span className="text-[9px] text-muted-foreground/40 mt-1 font-mono block truncate">
+          {subValue}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function AnimatedStatBlock({ 
+  label, 
+  numValue, 
+  prefix = '',
+  subValue,
+  change,
+  compact = false,
+}: { 
+  label: string;
+  numValue: number | null;
+  prefix?: string;
+  subValue?: string;
+  change?: number | null;
+  compact?: boolean;
+}) {
+  const compactValue = useCompactCountUp(numValue);
+  const rawValue = useCountUp(numValue || 0, { prefix, enabled: numValue !== null && !compact });
+  const displayValue = compact ? compactValue : rawValue;
+  const isPlaceholder = numValue === null;
+  
+  return (
+    <div className="panel p-3 text-center hover:border-primary/30 transition-colors min-w-0">
+      <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground/50 font-mono font-medium block mb-1.5 truncate">
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5 justify-center flex-nowrap overflow-hidden">
+        <span className={cn(
+          "text-base font-mono font-semibold tabular-nums truncate",
+          isPlaceholder ? "text-muted-foreground/20" : "text-foreground"
+        )}>
+          {isPlaceholder ? '--' : `${prefix}${displayValue}`}
+        </span>
+        {change !== undefined && change !== null && !isPlaceholder && (
+          <span className={cn(
+            "text-[9px] font-mono font-medium tabular-nums px-1 py-0.5 rounded flex-shrink-0",
+            change >= 0 ? "text-up bg-up/10" : "text-down bg-down/10"
+          )}>
+            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+          </span>
+        )}
+      </div>
+      {subValue && (
+        <span className="text-[9px] text-muted-foreground/40 mt-1 font-mono block truncate">
           {subValue}
         </span>
       )}
@@ -164,8 +215,6 @@ export function HypeStats() {
     return () => { clearInterval(priceInterval); clearInterval(blockInterval); if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current); wsRef.current?.close(); };
   }, [fetchPriceData, fetchInitialBlock, connectWebSocket, isLive]);
 
-  const fmt = (v: number | null, suffix = '') => v === null ? '--' + suffix : v >= 1e9 ? `${(v/1e9).toFixed(2)}B` : v >= 1e6 ? `${(v/1e6).toFixed(2)}M` : v >= 1e3 ? `${(v/1e3).toFixed(1)}K` : v.toLocaleString();
-
   return (
     <div className="w-full flex flex-col items-center">
       {isLive && (
@@ -178,11 +227,34 @@ export function HypeStats() {
         </div>
       )}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 w-full max-w-4xl">
-        <StatBlock label="HYPE" value={stats.hypePrice ? `$${stats.hypePrice.toFixed(2)}` : '$--'} change={stats.priceChange24h} />
-        <StatBlock label="Market Cap" value={stats.marketCap ? `$${fmt(stats.marketCap)}` : '$--'} />
-        <StatBlock label="Transactions" value={fmt(stats.totalTxns)} subValue={stats.tps ? `${stats.tps.toFixed(1)} TPS` : undefined} />
-        <StatBlock label="Addresses" value={fmt(stats.uniqueAddresses)} subValue={stats.addresses24h ? `+${fmt(stats.addresses24h)} 24h` : undefined} />
-        <StatBlock label="Latest Block" value={stats.latestBlock?.toLocaleString() || '--'} subValue={stats.blockTime ? `${stats.blockTime.toFixed(2)}s` : undefined} />
+        <StatBlock 
+          label="HYPE" 
+          value={stats.hypePrice ? `$${stats.hypePrice.toFixed(2)}` : '$--'} 
+          change={stats.priceChange24h} 
+        />
+        <AnimatedStatBlock 
+          label="Market Cap" 
+          numValue={stats.marketCap} 
+          prefix="$"
+          compact
+        />
+        <AnimatedStatBlock 
+          label="Transactions" 
+          numValue={stats.totalTxns}
+          compact 
+          subValue={stats.tps ? `${stats.tps.toFixed(1)} TPS` : undefined} 
+        />
+        <AnimatedStatBlock 
+          label="Addresses" 
+          numValue={stats.uniqueAddresses}
+          compact 
+          subValue={stats.addresses24h ? `+${(stats.addresses24h / 1000).toFixed(1)}K 24h` : undefined} 
+        />
+        <StatBlock 
+          label="Latest Block" 
+          value={stats.latestBlock?.toLocaleString() || '--'} 
+          subValue={stats.blockTime ? `${stats.blockTime.toFixed(2)}s` : undefined} 
+        />
       </div>
     </div>
   );
