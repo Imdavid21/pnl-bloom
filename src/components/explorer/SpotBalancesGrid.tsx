@@ -1,11 +1,12 @@
 /**
  * Spot Balances Grid
- * Displays spot token holdings in a responsive grid
+ * Displays spot token holdings in a responsive grid with chain badges
  */
 
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { TokenLogo } from './TokenLogo';
 import type { SpotBalance } from '@/lib/position-aggregator';
 
@@ -31,6 +32,22 @@ function formatUsd(value: number): string {
   }).format(value);
 }
 
+function ChainBadge({ chain }: { chain: 'hypercore' | 'hyperevm' }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'text-[9px] px-1.5 py-0 h-4 font-mono uppercase tracking-wider border',
+        chain === 'hypercore'
+          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+          : 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+      )}
+    >
+      {chain === 'hypercore' ? 'Core' : 'EVM'}
+    </Badge>
+  );
+}
+
 function BalanceSkeleton() {
   return (
     <div className="rounded-lg bg-muted/20 p-4 space-y-2">
@@ -50,6 +67,10 @@ export function SpotBalancesGrid({
   onNavigate 
 }: SpotBalancesGridProps) {
   const totalValue = balances.reduce((sum, b) => sum + b.valueUsd, 0);
+  
+  // Count by chain
+  const hypercoreCount = balances.filter(b => b.chain === 'hypercore').length;
+  const hyperevmCount = balances.filter(b => b.chain === 'hyperevm').length;
 
   if (isLoading) {
     return (
@@ -82,25 +103,40 @@ export function SpotBalancesGrid({
   return (
     <section className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-base font-semibold">Spot Balances</h3>
-        <p className="text-sm text-muted-foreground/60">
-          {balances.length} assets • {formatUsd(totalValue)} total
-        </p>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
+          {hypercoreCount > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              {hypercoreCount} Core
+            </span>
+          )}
+          {hyperevmCount > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              {hyperevmCount} EVM
+            </span>
+          )}
+          <span>• {formatUsd(totalValue)} total</span>
+        </div>
       </div>
 
       {/* Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {balances.map((balance) => (
+        {balances.map((balance, idx) => (
           <div
-            key={balance.symbol}
+            key={`${balance.symbol}-${balance.chain}-${idx}`}
             className="rounded-lg bg-muted/20 p-4 hover:bg-muted/30 transition-colors cursor-pointer group"
             onClick={() => onNavigate?.(balance.symbol)}
           >
             {/* Token Header */}
-            <div className="flex items-center gap-2 mb-2">
-              <TokenLogo symbol={balance.symbol} size="sm" />
-              <span className="font-semibold text-sm">{balance.symbol}</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <TokenLogo symbol={balance.symbol} size="sm" />
+                <span className="font-semibold text-sm">{balance.symbol}</span>
+              </div>
+              <ChainBadge chain={balance.chain} />
             </div>
 
             {/* Balance Amount */}
@@ -111,7 +147,7 @@ export function SpotBalancesGrid({
             {/* USD Value & Change */}
             <div className="flex items-center justify-between mt-1">
               <span className="text-sm text-muted-foreground">
-                {formatUsd(balance.valueUsd)}
+                {balance.valueUsd > 0 ? formatUsd(balance.valueUsd) : '—'}
               </span>
               {balance.symbol !== 'USDC' && balance.change24h !== 0 && (
                 <div className={cn(

@@ -29,6 +29,7 @@ export interface SpotBalance {
   valueUsd: number;
   price: number;
   change24h: number;
+  chain: 'hypercore' | 'hyperevm';
 }
 
 export interface LendingPosition {
@@ -167,7 +168,7 @@ async function fetchPerpPositions(address: string): Promise<{ positions: PerpPos
   }
 }
 
-async function fetchSpotBalances(address: string): Promise<SpotBalance[]> {
+async function fetchHypercoreSpotBalances(address: string): Promise<SpotBalance[]> {
   try {
     const [spotState, metaAndCtxs] = await Promise.all([
       getSpotClearinghouseState(address),
@@ -215,15 +216,122 @@ async function fetchSpotBalances(address: string): Promise<SpotBalance[]> {
         valueUsd: usdValue,
         price,
         change24h: balance.coin === 'USDC' ? 0 : priceData.change24h,
+        chain: 'hypercore',
       });
     });
 
-    // Sort by USD value descending
-    return balances.sort((a, b) => b.valueUsd - a.valueUsd);
+    return balances;
   } catch (error) {
-    console.error('Failed to fetch spot balances:', error);
+    console.error('Failed to fetch HyperCore spot balances:', error);
     return [];
   }
+}
+
+async function fetchHyperevmTokenBalances(address: string): Promise<SpotBalance[]> {
+  try {
+    // Fetch EVM token balances and HYPE price in parallel
+    const [tokenResponse, priceResponse, addressResponse] = await Promise.all([
+      fetch(`${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenBalances&address=${address}`, {
+        headers: { 'apikey': SUPABASE_KEY },
+      }),
+      fetch(`${SUPABASE_URL}/functions/v1/hyperliquid-proxy`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'allMids' }),
+      }),
+      fetch(`${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${address}`, {
+        headers: { 'apikey': SUPABASE_KEY },
+      }),
+    ]);
+
+    const balances: SpotBalance[] = [];
+    
+    // Get price data for known tokens
+    let priceMap: Record<string, number> = { USDC: 1 };
+    if (priceResponse.ok) {
+      const prices = await priceResponse.json();
+      if (prices) {
+        Object.entries(prices).forEach(([symbol, price]) => {
+          priceMap[symbol] = parseFloat(price as string);
+        });
+      }
+    }
+
+    // Add native HYPE balance
+    if (addressResponse.ok) {
+      const addressData = await addressResponse.json();
+      const hypeBalance = parseFloat(addressData.balance || '0');
+      if (hypeBalance > 0) {
+        const hypePrice = priceMap['HYPE'] || 25;
+        const hypeValueUsd = hypeBalance * hypePrice;
+        if (hypeValueUsd >= 1) {
+          balances.push({
+            symbol: 'HYPE',
+            balance: hypeBalance,
+            valueUsd: hypeValueUsd,
+            price: hypePrice,
+            change24h: 0,
+            chain: 'hyperevm',
+          });
+        }
+      }
+    }
+
+    // Add ERC-20 token balances
+    if (tokenResponse.ok) {
+      const tokenData = await tokenResponse.json();
+      if (tokenData.tokens && Array.isArray(tokenData.tokens)) {
+        for (const token of tokenData.tokens) {
+          const balance = parseFloat(token.balance || '0');
+          if (balance <= 0) continue;
+
+          // Try to get price from our price map
+          const symbol = token.symbol || 'UNKNOWN';
+          let price = priceMap[symbol] || 0;
+          
+          // Special handling for stablecoins
+          if (['USDC', 'USDT', 'DAI', 'USDCE'].includes(symbol.toUpperCase())) {
+            price = 1;
+          }
+
+          const valueUsd = balance * price;
+          
+          // Filter dust (< $1)
+          if (valueUsd < 1 && price > 0) continue;
+          // Include unknown price tokens if balance is significant
+          if (price === 0 && balance < 100) continue;
+
+          balances.push({
+            symbol,
+            balance,
+            valueUsd,
+            price,
+            change24h: 0,
+            chain: 'hyperevm',
+          });
+        }
+      }
+    }
+
+    return balances;
+  } catch (error) {
+    console.error('Failed to fetch HyperEVM token balances:', error);
+    return [];
+  }
+}
+
+async function fetchAllSpotBalances(address: string): Promise<SpotBalance[]> {
+  const [hypercoreBalances, hyperevmBalances] = await Promise.all([
+    fetchHypercoreSpotBalances(address),
+    fetchHyperevmTokenBalances(address),
+  ]);
+
+  // Merge and sort by USD value descending
+  const allBalances = [...hypercoreBalances, ...hyperevmBalances];
+  return allBalances.sort((a, b) => b.valueUsd - a.valueUsd);
 }
 
 async function fetchLendingPositions(address: string): Promise<LendingPosition[]> {
@@ -266,7 +374,7 @@ export async function fetchUnifiedPositions(address: string): Promise<UnifiedPos
   // Fetch all data in parallel
   const [perpData, spot, lending, lp] = await Promise.all([
     fetchPerpPositions(normalizedAddress),
-    fetchSpotBalances(normalizedAddress),
+    fetchAllSpotBalances(normalizedAddress),
     fetchLendingPositions(normalizedAddress),
     fetchLPPositions(normalizedAddress),
   ]);
