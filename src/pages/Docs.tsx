@@ -282,10 +282,11 @@ URL: wss://api.hyperliquid.xyz/ws
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /functions/v1/explorer-proxy | Proxies L1 Explorer API |
-| GET | /functions/v1/hyperevm-rpc | Proxies HyperEVM RPC with actions: balance, erc20, tokenMeta, addressTxs (up to 100 txs) |
+| GET | /functions/v1/hyperevm-rpc | Proxies HyperEVM RPC with actions: balance, erc20, tokenMeta, addressTxs |
 | GET | /functions/v1/hyperliquid-proxy | Proxies Hyperliquid Info API |
 | POST | /functions/v1/sync-wallet | Initiates wallet sync with progress tracking |
 | POST | /functions/v1/poll-hypercore | Ingests trading data (fills, funding) |
+| POST | /functions/v1/ingest-hypercore | Ingests HyperCore economic events |
 | POST | /functions/v1/recompute-pnl | Recomputes PnL aggregations |
 | POST | /functions/v1/compute-analytics | Computes derived analytics |
 | GET | /functions/v1/pnl-calendar | Returns calendar view data |
@@ -293,6 +294,11 @@ URL: wss://api.hyperliquid.xyz/ws
 | GET | /functions/v1/pnl-analytics | Returns analytics datasets |
 | GET | /functions/v1/live-positions | Fetches current positions |
 | GET | /functions/v1/unified-resolver | Multi-domain entity resolution |
+| GET | /functions/v1/chain-stats | Returns chain statistics |
+| GET | /functions/v1/etherscan-proxy | Proxies Etherscan API |
+| GET | /functions/v1/hyperevm-lending | HyperEVM lending protocol data |
+| POST | /functions/v1/admin-recompute | Admin-triggered PnL recompute |
+| POST | /functions/v1/admin-tokens | Admin token metadata management |
 
 ---
 
@@ -657,7 +663,8 @@ export default function DocsPage() {
                   <FileTreeItem name="components/" type="folder" description="React components" indent={1}>
                     <FileTreeItem name="ui/" type="folder" description="shadcn/ui primitives" indent={2} />
                     <FileTreeItem name="explorer/" type="folder" description="Explorer page components" indent={2} />
-                    <FileTreeItem name="pnl/" type="folder" description="PnL analytics components" indent={2} />
+                <FileTreeItem name="pnl/" type="folder" description="PnL analytics components" indent={2} />
+                    <FileTreeItem name="wallet/" type="folder" description="Wallet page components" indent={2} />
                   </FileTreeItem>
                   <FileTreeItem name="hooks/" type="folder" description="Custom React hooks" indent={1} />
                   <FileTreeItem name="lib/" type="folder" description="Utility functions & API clients" indent={1} />
@@ -681,6 +688,13 @@ export default function DocsPage() {
                     <FileTreeItem name="pnl-analytics/" type="folder" description="Analytics API" indent={2} />
                     <FileTreeItem name="compute-analytics/" type="folder" description="Analytics computation" indent={2} />
                     <FileTreeItem name="live-positions/" type="folder" description="Live position API" indent={2} />
+                    <FileTreeItem name="sync-wallet/" type="folder" description="Wallet sync orchestrator" indent={2} />
+                    <FileTreeItem name="unified-resolver/" type="folder" description="Multi-domain entity resolution" indent={2} />
+                    <FileTreeItem name="chain-stats/" type="folder" description="Chain statistics API" indent={2} />
+                    <FileTreeItem name="etherscan-proxy/" type="folder" description="Etherscan API proxy" indent={2} />
+                    <FileTreeItem name="hyperevm-lending/" type="folder" description="HyperEVM lending data" indent={2} />
+                    <FileTreeItem name="ingest-hypercore/" type="folder" description="HyperCore data ingestion" indent={2} />
+                    <FileTreeItem name="admin-recompute/" type="folder" description="Admin PnL recompute" indent={2} />
                   </FileTreeItem>
                   <FileTreeItem name="config.toml" type="file" description="Supabase config" indent={1} />
                 </FileTreeItem>
@@ -1155,6 +1169,48 @@ GET /spot-token/{tokenIndex}
                   description="Fetches current open positions with real-time data. Includes liquidation risk scoring."
                   params={['wallet']}
                 />
+
+                <ApiEndpoint
+                  method="GET"
+                  path="/functions/v1/unified-resolver"
+                  description="Resolves any input (address, tx hash, block, token) to entity type. Powers universal search across domains."
+                  params={['q (query string)', 'domain?: hypercore|hyperevm|all']}
+                />
+
+                <ApiEndpoint
+                  method="GET"
+                  path="/functions/v1/chain-stats"
+                  description="Returns chain-level statistics including block height, TPS, validator count, and network health."
+                  params={['chain?: l1|evm']}
+                />
+
+                <ApiEndpoint
+                  method="GET"
+                  path="/functions/v1/etherscan-proxy"
+                  description="Proxies Etherscan-compatible API for EVM transaction history and contract verification."
+                  params={['module', 'action', 'address?', 'txhash?']}
+                />
+
+                <ApiEndpoint
+                  method="GET"
+                  path="/functions/v1/hyperevm-lending"
+                  description="Fetches lending protocol positions and rates from HyperEVM DeFi protocols."
+                  params={['wallet', 'protocol?']}
+                />
+
+                <ApiEndpoint
+                  method="POST"
+                  path="/functions/v1/ingest-hypercore"
+                  description="Ingests HyperCore economic events (fills, funding, transfers) with deduplication."
+                  params={['wallet', 'events[]']}
+                />
+
+                <ApiEndpoint
+                  method="POST"
+                  path="/functions/v1/admin-recompute"
+                  description="Admin endpoint to trigger full PnL recomputation for a wallet. Requires service role."
+                  params={['wallet', 'force?: boolean']}
+                />
               </div>
             </Section>
 
@@ -1248,6 +1304,21 @@ serve(async (req) => {
                   term="EquityCurveChart"
                   description="Line chart showing equity over time with cumulative PnL overlay. Supports timeframe selection and brush for zooming."
                   badges={['Wallet', 'Chart']}
+                />
+                <Definition
+                  term="WalletPositions"
+                  description="Displays current open perp positions with unrealized PnL, leverage, liquidation price. Uses live-positions edge function for real-time data."
+                  badges={['Wallet', 'Positions']}
+                />
+                <Definition
+                  term="PositionHistoryTimeline"
+                  description="Visual timeline of closed positions showing entry/exit points, PnL, and trade duration. Supports filtering and sorting."
+                  badges={['Wallet', 'History']}
+                />
+                <Definition
+                  term="WalletCTA"
+                  description="Call-to-action component prompting users to sync wallet or view analytics. Contextual based on wallet state."
+                  badges={['Wallet', 'CTA']}
                 />
 
                 <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 mt-4">
@@ -1389,6 +1460,46 @@ useEffect(() => {
                   description="Filters WebSocket trades by size threshold. Returns whale trades above configurable USD value."
                   badges={['Explorer', 'Filtering']}
                 />
+
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 mt-4">
+                  <h4 className="font-medium text-foreground mb-2">Data & Position Hooks</h4>
+                  <p className="text-sm text-muted-foreground">Hooks for positions, equity, and market data.</p>
+                </div>
+                <Definition
+                  term="useUnifiedWallet (src/hooks/useUnifiedWallet.ts)"
+                  description="Main wallet hook that fetches unified wallet data from wallet-aggregator. Returns combined HyperCore + HyperEVM state."
+                  badges={['Wallet', 'Aggregation']}
+                />
+                <Definition
+                  term="useUnifiedPositions (src/hooks/useUnifiedPositions.ts)"
+                  description="Fetches and aggregates all position types: perps, spot, and EVM holdings. Calculates total exposure and risk metrics."
+                  badges={['Positions', 'Multi-domain']}
+                />
+                <Definition
+                  term="usePositionHistory (src/hooks/usePositionHistory.ts)"
+                  description="Fetches closed positions from closed_trades table. Supports pagination and filtering by market/timeframe."
+                  badges={['Positions', 'History']}
+                />
+                <Definition
+                  term="useEquityCurve (src/hooks/useEquityCurve.ts)"
+                  description="Fetches equity curve data from equity_curve table for charting. Returns daily equity snapshots with drawdown calculations."
+                  badges={['Analytics', 'Charts']}
+                />
+                <Definition
+                  term="useMarketData (src/hooks/useMarketData.ts)"
+                  description="Fetches market metadata from Hyperliquid. Returns market info, funding rates, open interest, and 24h volume."
+                  badges={['Market', 'Metadata']}
+                />
+                <Definition
+                  term="useTokenData (src/hooks/useTokenData.ts)"
+                  description="Fetches spot token metadata and balances. Resolves token IDs to symbols and logos."
+                  badges={['Tokens', 'Metadata']}
+                />
+                <Definition
+                  term="useUnifiedResolver (src/hooks/useUnifiedResolver.ts)"
+                  description="Resolves any input (address, tx hash, block number, token symbol) to appropriate entity type. Powers universal search."
+                  badges={['Search', 'Resolution']}
+                />
               </div>
             </Section>
 
@@ -1428,6 +1539,36 @@ useEffect(() => {
                   term="src/lib/formatters.ts"
                   description="Number and currency formatting utilities. formatUsd(), formatNumber(), formatPercent(), formatAddress() with abbreviation support."
                   badges={['Utility', 'Formatting']}
+                />
+                <Definition
+                  term="src/lib/position-aggregator.ts"
+                  description="Aggregates position data from multiple sources. Calculates combined exposure, weighted average entry, total unrealized PnL."
+                  badges={['Positions', 'Aggregation']}
+                />
+                <Definition
+                  term="src/lib/risk-calculator.ts"
+                  description="Calculates risk metrics: liquidation distance, margin ratio, effective leverage, liquidation score. Used for position health indicators."
+                  badges={['Risk', 'Calculation']}
+                />
+                <Definition
+                  term="src/lib/risk-detector.ts"
+                  description="Detects risk events: approaching liquidation, high leverage, underwater positions. Triggers alerts and behavior flags."
+                  badges={['Risk', 'Detection']}
+                />
+                <Definition
+                  term="src/lib/token-aggregator.ts"
+                  description="Aggregates token balances across HyperCore spot and HyperEVM ERC-20s. Calculates total value with live prices."
+                  badges={['Tokens', 'Aggregation']}
+                />
+                <Definition
+                  term="src/lib/token-resolver.ts"
+                  description="Resolves token symbols to addresses and vice versa. Handles both HyperCore spot tokens and EVM ERC-20s."
+                  badges={['Tokens', 'Resolution']}
+                />
+                <Definition
+                  term="src/lib/input-resolver.ts"
+                  description="Determines input type (address, tx hash, block number, token) from user search. Routes to appropriate resolver."
+                  badges={['Search', 'Parsing']}
                 />
               </div>
             </Section>
