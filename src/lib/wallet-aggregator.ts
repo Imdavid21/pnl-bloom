@@ -208,14 +208,23 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
       .eq('wallet_id', wallet.id)
       .gte('exit_time', thirtyDaysAgo.toISOString());
     
-    // Get last active from economic_events
-    const { data: lastEvent } = await supabase
-      .from('economic_events')
-      .select('ts')
-      .eq('wallet_id', wallet.id)
-      .order('ts', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Get first and last active from economic_events
+    const [{ data: firstEvent }, { data: lastEvent }] = await Promise.all([
+      supabase
+        .from('economic_events')
+        .select('ts')
+        .eq('wallet_id', wallet.id)
+        .order('ts', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('economic_events')
+        .select('ts')
+        .eq('wallet_id', wallet.id)
+        .order('ts', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
     
     const pnl30d = dailyStats?.reduce((sum, d) => sum + Number(d.total_pnl || 0), 0) || 0;
     const volume30d = recentTrades?.reduce((sum, t) => sum + Number(t.notional_value || 0), 0) || 0;
@@ -231,7 +240,7 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
       wins: totalWins,
       losses: totalLosses,
       winRate,
-      firstSeen: wallet.created_at ? new Date(wallet.created_at) : null,
+      firstSeen: firstEvent?.ts ? new Date(firstEvent.ts) : null,
       lastActive: lastEvent?.ts ? new Date(lastEvent.ts) : null,
     };
   } catch (error) {
