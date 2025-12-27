@@ -13,11 +13,15 @@ interface WalletCTAProps {
 }
 
 export function WalletCTA({ config, address }: WalletCTAProps) {
+  const Icon = config.icon;
+  
   return (
     <div className="panel p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
-          <span className="text-xl">{config.icon}</span>
+          <div className="p-2 rounded bg-muted/30 border border-border/30">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
           <div className="space-y-1">
             <h3 className="font-mono text-sm font-medium text-foreground">
               {config.title}
