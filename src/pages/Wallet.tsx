@@ -119,7 +119,15 @@ function SyncBanner({
   isSyncing: boolean;
   syncComplete: boolean;
   error: string | null;
-  progress: { fills: number; funding: number; events: number; days?: number; volume?: number } | null;
+  progress: { 
+    fills: number; 
+    funding: number; 
+    events: number; 
+    days?: number; 
+    volume?: number;
+    hypercore?: { fills: number; funding: number };
+    hyperevm?: { txs: number; tokens: number };
+  } | null;
   estimatedTime: number | null;
   startedAt: number | null;
   onRetry: () => void;
@@ -173,6 +181,29 @@ function SyncBanner({
 
   if (!isSyncing && !syncComplete && !error) return null;
 
+  // Build chain-specific progress text
+  const buildProgressText = () => {
+    const parts: string[] = [];
+    
+    if (progress?.hypercore && (progress.hypercore.fills > 0 || progress.hypercore.funding > 0)) {
+      parts.push(`Core: ${progress.hypercore.fills} trades, ${progress.hypercore.funding} funding`);
+    }
+    
+    if (progress?.hyperevm && (progress.hyperevm.txs > 0 || progress.hyperevm.tokens > 0)) {
+      parts.push(`EVM: ${progress.hyperevm.txs} txs, ${progress.hyperevm.tokens} tokens`);
+    }
+    
+    // Fallback to legacy format
+    if (parts.length === 0 && progress) {
+      parts.push(`${progress.fills} trades, ${progress.funding} funding`);
+      if (progress.volume) {
+        parts.push(`$${(progress.volume / 1000).toFixed(1)}K volume`);
+      }
+    }
+    
+    return parts.join(' • ');
+  };
+
   return (
     <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded border ${
       error 
@@ -192,7 +223,7 @@ function SyncBanner({
         <div className="flex flex-col min-w-0">
           <span className="text-xs font-medium truncate">
             {isSyncing 
-              ? `Syncing wallet history... ${formatTime(elapsed)}${estimatedTime ? ` / ~${formatTime(estimatedTime)}` : ''}`
+              ? `Syncing HyperCore + HyperEVM... ${formatTime(elapsed)}${estimatedTime ? ` / ~${formatTime(estimatedTime)}` : ''}`
               : syncComplete 
                 ? `Sync complete!`
                 : `Sync failed: ${error}`
@@ -200,8 +231,7 @@ function SyncBanner({
           </span>
           {syncComplete && progress && (
             <span className="text-[10px] text-muted-foreground">
-              {progress.fills} trades, {progress.funding} funding events
-              {progress.volume ? `, $${(progress.volume / 1000).toFixed(1)}K volume` : ''}
+              {buildProgressText()}
             </span>
           )}
         </div>
@@ -342,8 +372,8 @@ export default function Wallet() {
               volume30d={data?.volume30d || 0}
               trades30d={data?.trades30d || 0}
               pnl30d={data?.pnl30d || 0}
-              winRate={data?.winRate || 0}
-              wins={data?.wins || 0}
+              firstSeen={data?.firstSeen || null}
+              lastActive={data?.lastActive || null}
               totalTrades={data?.totalTrades || 0}
             />
             
