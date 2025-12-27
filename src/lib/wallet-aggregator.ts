@@ -1,10 +1,17 @@
 /**
  * Wallet Data Aggregator
  * Merges HyperCore + HyperEVM data into a unified view
+ * Optimized for large accounts with caching and rate limit handling
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { fetchWithRetry } from '@/lib/retry';
+import { formatUsd as formatUsdLib, formatPercent as formatPercentLib, formatNumber as formatNumberLib } from '@/lib/formatters';
+
+// Re-export formatters for backward compatibility
+export const formatUsd = formatUsdLib;
+export const formatPercent = formatPercentLib;
+export const formatNumber = formatNumberLib;
 
 // ============ TYPES ============
 
@@ -38,10 +45,26 @@ export interface HyperevmState {
   hasActivity: boolean;
 }
 
+export interface PnlData {
+  pnl: number;
+  pnlPercent: number;
+  volume: number;
+  trades: number;
+}
+
 export interface ActivitySummary {
   pnl30d: number;
+  pnl7d: number;
+  pnlYtd: number;
+  pnlAll: number;
   volume30d: number;
+  volume7d: number;
+  volumeYtd: number;
+  volumeAll: number;
   trades30d: number;
+  trades7d: number;
+  tradesYtd: number;
+  tradesAll: number;
   wins: number;
   losses: number;
   winRate: number;
@@ -56,8 +79,16 @@ export interface UnifiedWalletData {
     hyperevm: boolean;
   };
   totalValue: number;
+  hypercoreValue: number;
+  hyperevmValue: number;
   pnl30d: number;
   pnlPercent30d: number;
+  pnlByTimeframe: {
+    '7d': PnlData;
+    '30d': PnlData;
+    'ytd': PnlData;
+    'all': PnlData;
+  };
   openPositions: number;
   marginUsed: number;
   volume30d: number;
@@ -78,7 +109,27 @@ export interface UnifiedWalletData {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Cache for API calls
+const apiCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds
+
+function getCached<T>(key: string): T | null {
+  const cached = apiCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data as T;
+  }
+  return null;
+}
+
+function setCache(key: string, data: any) {
+  apiCache.set(key, { data, timestamp: Date.now() });
+}
+
 async function fetchHypercoreState(address: string): Promise<HypercoreState | null> {
+  const cacheKey = `hypercore:${address}`;
+  const cached = getCached<HypercoreState>(cacheKey);
+  if (cached) return cached;
+  
   try {
     const response = await fetchWithRetry(
       `${SUPABASE_URL}/functions/v1/hyperliquid-proxy`,
@@ -90,7 +141,7 @@ async function fetchHypercoreState(address: string): Promise<HypercoreState | nu
         },
         body: JSON.stringify({ type: 'clearinghouseState', user: address }),
       },
-      { maxRetries: 3, initialDelayMs: 1000 }
+      { maxRetries: 3, initialDelayMs: 1000, maxDelayMs: 10000 }
     );
     
     if (!response.ok) return null;
@@ -113,12 +164,15 @@ async function fetchHypercoreState(address: string): Promise<HypercoreState | nu
       };
     }).filter((p: any) => p.size > 0);
     
-    return {
+    const result: HypercoreState = {
       accountValue: parseFloat(marginSummary.accountValue || '0'),
       marginUsed: parseFloat(marginSummary.totalMarginUsed || '0'),
       positions,
-      spotBalances: [], // TODO: Fetch spot balances separately
+      spotBalances: [],
     };
+    
+    setCache(cacheKey, result);
+    return result;
   } catch (error) {
     console.error('Failed to fetch Hypercore state:', error);
     return null;
@@ -126,13 +180,17 @@ async function fetchHypercoreState(address: string): Promise<HypercoreState | nu
 }
 
 async function fetchHyperevmState(address: string): Promise<HyperevmState | null> {
+  const cacheKey = `hyperevm:${address}`;
+  const cached = getCached<HyperevmState>(cacheKey);
+  if (cached) return cached;
+  
   try {
     // Fetch address info and HYPE price in parallel with retry
     const [addressResponse, priceResponse] = await Promise.all([
       fetchWithRetry(
         `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${address}`,
         { headers: { 'apikey': SUPABASE_KEY } },
-        { maxRetries: 2 }
+        { maxRetries: 2, initialDelayMs: 500 }
       ),
       fetchWithRetry(
         `${SUPABASE_URL}/functions/v1/hyperliquid-proxy`,
@@ -144,7 +202,7 @@ async function fetchHyperevmState(address: string): Promise<HyperevmState | null
           },
           body: JSON.stringify({ type: 'allMids' }),
         },
-        { maxRetries: 2 }
+        { maxRetries: 2, initialDelayMs: 500 }
       ),
     ]);
     
@@ -155,8 +213,8 @@ async function fetchHyperevmState(address: string): Promise<HyperevmState | null
     
     const balance = parseFloat(data.balance || '0');
     
-    // Get HYPE price from allMids (HYPE is the native token on HyperEVM)
-    let hypePrice = 25; // Fallback price
+    // Get HYPE price from allMids
+    let hypePrice = 25;
     if (priceResponse.ok) {
       const prices = await priceResponse.json();
       if (prices?.HYPE) {
@@ -164,12 +222,15 @@ async function fetchHyperevmState(address: string): Promise<HyperevmState | null
       }
     }
     
-    return {
+    const result: HyperevmState = {
       nativeBalance: balance,
       nativeValueUsd: balance * hypePrice,
       tokens: [],
       hasActivity: balance > 0 || data.isContract,
     };
+    
+    setCache(cacheKey, result);
+    return result;
   } catch (error) {
     console.error('Failed to fetch HyperEVM state:', error);
     return null;
@@ -187,39 +248,29 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
     
     if (!wallet) return null;
     
-    // Fetch aggregated stats from market_stats (has correct volume and win rate)
-    const { data: marketStats } = await supabase
-      .from('market_stats')
-      .select('total_volume, total_trades, wins, losses')
-      .eq('wallet_id', wallet.id);
-    
-    // Calculate totals from market_stats
-    const totalVolume = marketStats?.reduce((sum, m) => sum + Number(m.total_volume || 0), 0) || 0;
-    const totalTrades = marketStats?.reduce((sum, m) => sum + (m.total_trades || 0), 0) || 0;
-    const totalWins = marketStats?.reduce((sum, m) => sum + (m.wins || 0), 0) || 0;
-    const totalLosses = marketStats?.reduce((sum, m) => sum + (m.losses || 0), 0) || 0;
-    
-    const thirtyDaysAgo = new Date();
+    // Dates for different timeframes
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
     
-    // Fetch 30-day PnL from daily_pnl
-    const { data: dailyStats } = await supabase
-      .from('daily_pnl')
-      .select('total_pnl, day')
-      .eq('wallet_id', wallet.id)
-      .gte('day', thirtyDaysAgoStr)
-      .order('day', { ascending: false });
-    
-    // Fetch 30-day trades from closed_trades
-    const { data: recentTrades } = await supabase
-      .from('closed_trades')
-      .select('notional_value, is_win, exit_time')
-      .eq('wallet_id', wallet.id)
-      .gte('exit_time', thirtyDaysAgo.toISOString());
-    
-    // Get first and last active from economic_events
-    const [{ data: firstEvent }, { data: lastEvent }] = await Promise.all([
+    // Fetch all data in parallel
+    const [marketStats, dailyStats, recentTrades, firstEvent, lastEvent] = await Promise.all([
+      supabase
+        .from('market_stats')
+        .select('total_volume, total_trades, wins, losses')
+        .eq('wallet_id', wallet.id),
+      supabase
+        .from('daily_pnl')
+        .select('total_pnl, volume, trades_count, day')
+        .eq('wallet_id', wallet.id)
+        .order('day', { ascending: false }),
+      supabase
+        .from('closed_trades')
+        .select('notional_value, is_win, exit_time')
+        .eq('wallet_id', wallet.id),
       supabase
         .from('economic_events')
         .select('ts')
@@ -236,29 +287,58 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
         .maybeSingle(),
     ]);
     
-    const pnl30d = dailyStats?.reduce((sum, d) => sum + Number(d.total_pnl || 0), 0) || 0;
-    const volume30d = recentTrades?.reduce((sum, t) => sum + Number(t.notional_value || 0), 0) || 0;
-    const trades30d = recentTrades?.length || 0;
+    // Calculate totals from market_stats
+    const ms = marketStats.data || [];
+    const totalVolume = ms.reduce((sum, m) => sum + Number(m.total_volume || 0), 0);
+    const totalTrades = ms.reduce((sum, m) => sum + (m.total_trades || 0), 0);
+    const totalWins = ms.reduce((sum, m) => sum + (m.wins || 0), 0);
+    const totalLosses = ms.reduce((sum, m) => sum + (m.losses || 0), 0);
     
-    // Use overall stats for win rate (more accurate than 30d sample)
+    // Calculate PnL by timeframe from daily_pnl
+    const days = dailyStats.data || [];
+    
+    const calc = (filterFn: (day: string) => boolean) => {
+      const filtered = days.filter(d => filterFn(d.day));
+      return {
+        pnl: filtered.reduce((sum, d) => sum + Number(d.total_pnl || 0), 0),
+        volume: filtered.reduce((sum, d) => sum + Number(d.volume || 0), 0),
+        trades: filtered.reduce((sum, d) => sum + (d.trades_count || 0), 0),
+      };
+    };
+    
+    const stats7d = calc(day => new Date(day) >= sevenDaysAgo);
+    const stats30d = calc(day => new Date(day) >= thirtyDaysAgo);
+    const statsYtd = calc(day => new Date(day) >= startOfYear);
+    const statsAll = calc(() => true);
+    
+    // Calculate win rate
     const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
     
     // Fallback to wallet creation date if no events
-    const firstSeenDate = firstEvent?.ts 
-      ? new Date(firstEvent.ts) 
+    const firstSeenDate = firstEvent.data?.ts 
+      ? new Date(firstEvent.data.ts) 
       : wallet.created_at 
         ? new Date(wallet.created_at) 
         : null;
     
     return {
-      pnl30d,
-      volume30d,
-      trades30d,
+      pnl7d: stats7d.pnl,
+      pnl30d: stats30d.pnl,
+      pnlYtd: statsYtd.pnl,
+      pnlAll: statsAll.pnl,
+      volume7d: stats7d.volume,
+      volume30d: stats30d.volume,
+      volumeYtd: statsYtd.volume,
+      volumeAll: statsAll.volume,
+      trades7d: stats7d.trades,
+      trades30d: stats30d.trades,
+      tradesYtd: statsYtd.trades,
+      tradesAll: statsAll.trades,
       wins: totalWins,
       losses: totalLosses,
       winRate,
       firstSeen: firstSeenDate,
-      lastActive: lastEvent?.ts ? new Date(lastEvent.ts) : null,
+      lastActive: lastEvent.data?.ts ? new Date(lastEvent.data.ts) : null,
     };
   } catch (error) {
     console.error('Failed to fetch activity summary:', error);
@@ -287,6 +367,39 @@ export async function fetchUnifiedWalletData(address: string): Promise<UnifiedWa
   const startingValue = totalValue - pnl30d;
   const pnlPercent30d = startingValue > 0 ? (pnl30d / startingValue) * 100 : 0;
   
+  // Build PnL by timeframe
+  const calcPercent = (pnl: number) => {
+    const start = totalValue - pnl;
+    return start > 0 ? (pnl / start) * 100 : 0;
+  };
+  
+  const pnlByTimeframe = {
+    '7d': {
+      pnl: activitySummary?.pnl7d || 0,
+      pnlPercent: calcPercent(activitySummary?.pnl7d || 0),
+      volume: activitySummary?.volume7d || 0,
+      trades: activitySummary?.trades7d || 0,
+    },
+    '30d': {
+      pnl: activitySummary?.pnl30d || 0,
+      pnlPercent: pnlPercent30d,
+      volume: activitySummary?.volume30d || 0,
+      trades: activitySummary?.trades30d || 0,
+    },
+    'ytd': {
+      pnl: activitySummary?.pnlYtd || 0,
+      pnlPercent: calcPercent(activitySummary?.pnlYtd || 0),
+      volume: activitySummary?.volumeYtd || 0,
+      trades: activitySummary?.tradesYtd || 0,
+    },
+    'all': {
+      pnl: activitySummary?.pnlAll || 0,
+      pnlPercent: calcPercent(activitySummary?.pnlAll || 0),
+      volume: activitySummary?.volumeAll || 0,
+      trades: activitySummary?.tradesAll || 0,
+    },
+  };
+  
   const openPositions = hypercoreState?.positions.length || 0;
   const marginUsed = hypercoreState?.marginUsed || 0;
   
@@ -297,8 +410,11 @@ export async function fetchUnifiedWalletData(address: string): Promise<UnifiedWa
       hyperevm: !!hyperevmState && hyperevmState.hasActivity,
     },
     totalValue,
+    hypercoreValue,
+    hyperevmValue,
     pnl30d,
     pnlPercent30d,
+    pnlByTimeframe,
     openPositions,
     marginUsed,
     volume30d: activitySummary?.volume30d || 0,
@@ -313,40 +429,4 @@ export async function fetchUnifiedWalletData(address: string): Promise<UnifiedWa
     isLoading: false,
     error: null,
   };
-}
-
-// ============ FORMATTERS ============
-
-export function formatUsd(value: number, compact = false): string {
-  if (compact && Math.abs(value) >= 1000) {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    }).format(value);
-  }
-  
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-export function formatPercent(value: number): string {
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(1)}%`;
-}
-
-export function formatNumber(value: number, compact = false): string {
-  if (compact && value >= 1000) {
-    return new Intl.NumberFormat('en-US', {
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    }).format(value);
-  }
-  
-  return new Intl.NumberFormat('en-US').format(value);
 }

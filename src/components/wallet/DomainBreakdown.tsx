@@ -1,10 +1,12 @@
 /**
  * Domain Breakdown Cards - Shows HyperCore and HyperEVM breakdown
+ * Now uses compact formatters for large values
  */
 
 import { cn } from '@/lib/utils';
-import { formatUsd, type HypercoreState, type HyperevmState } from '@/lib/wallet-aggregator';
-import { Activity, Wallet, TrendingUp, TrendingDown, Layers } from 'lucide-react';
+import { formatUsd, formatTokenBalance } from '@/lib/formatters';
+import { Activity, Layers, TrendingUp, TrendingDown } from 'lucide-react';
+import type { HypercoreState, HyperevmState } from '@/lib/wallet-aggregator';
 
 interface DomainBreakdownProps {
   domains: { hypercore: boolean; hyperevm: boolean };
@@ -56,7 +58,7 @@ function HypercoreCard({
           <div className="flex justify-between items-center">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Margin Used</span>
             <span className="text-xs font-mono tabular-nums text-muted-foreground">
-              {formatUsd(state.marginUsed)}
+              {formatUsd(state.marginUsed, true)}
             </span>
           </div>
         )}
@@ -88,7 +90,7 @@ function HypercoreCard({
                 "text-xs font-mono tabular-nums font-medium",
                 totalUnrealizedPnl >= 0 ? "text-up" : "text-down"
               )}>
-                {totalUnrealizedPnl >= 0 ? '+' : ''}{formatUsd(totalUnrealizedPnl)}
+                {totalUnrealizedPnl >= 0 ? '+' : ''}{formatUsd(totalUnrealizedPnl, true)}
               </span>
             </div>
           </>
@@ -129,7 +131,7 @@ function HyperevmCard({
               "font-mono font-semibold tabular-nums block",
               compact ? "text-sm" : "text-base"
             )}>
-              {state.nativeBalance.toFixed(4)}
+              {formatTokenBalance(state.nativeBalance)}
             </span>
             <span className="text-[10px] text-muted-foreground font-mono">
               ≈ {formatUsd(state.nativeValueUsd)}
@@ -162,16 +164,9 @@ export function DomainBreakdown({
   const hasBoth = domains.hypercore && domains.hyperevm;
   const hasNone = !domains.hypercore && !domains.hyperevm;
   
+  // Don't render if no activity
   if (hasNone) {
-    return (
-      <div className="panel p-4 text-center">
-        <Wallet className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground font-mono">No activity detected</p>
-        <p className="text-[10px] text-muted-foreground/50 mt-1">
-          This wallet has no HyperCore or HyperEVM activity
-        </p>
-      </div>
-    );
+    return null;
   }
   
   // Single domain - full width
