@@ -237,6 +237,44 @@ async function fetchHyperevmState(address: string): Promise<HyperevmState | null
   }
 }
 
+async function fetchHyperevmActivityStats(address: string): Promise<{ volume: number; trades: number }> {
+  try {
+    const response = await fetchWithRetry(
+      `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressTxs&address=${address}&limit=100`,
+      { headers: { 'apikey': SUPABASE_KEY } },
+      { maxRetries: 2, initialDelayMs: 500 }
+    );
+    
+    if (!response.ok) return { volume: 0, trades: 0 };
+    
+    const data = await response.json();
+    if (data.error || !data.transactions) return { volume: 0, trades: 0 };
+    
+    const txs = data.transactions || [];
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Filter for last 30 days and calculate volume
+    const recentTxs = txs.filter((tx: any) => {
+      const txDate = new Date(tx.timestamp || tx.timeStamp * 1000);
+      return txDate >= thirtyDaysAgo;
+    });
+    
+    const volume = recentTxs.reduce((sum: number, tx: any) => {
+      const value = parseFloat(tx.value || '0') / 1e18; // Convert from wei
+      return sum + value * 25; // Approximate HYPE price
+    }, 0);
+    
+    return { 
+      volume, 
+      trades: recentTxs.length 
+    };
+  } catch (error) {
+    console.error('Failed to fetch HyperEVM activity stats:', error);
+    return { volume: 0, trades: 0 };
+  }
+}
+
 async function fetchActivitySummary(address: string): Promise<ActivitySummary | null> {
   try {
     // Get wallet ID
@@ -246,8 +284,6 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
       .eq('address', address.toLowerCase())
       .maybeSingle();
     
-    if (!wallet) return null;
-    
     // Dates for different timeframes
     const now = new Date();
     const sevenDaysAgo = new Date(now);
@@ -256,8 +292,35 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     
+    // Fetch HyperEVM stats regardless of wallet ID
+    const evmStatsPromise = fetchHyperevmActivityStats(address);
+    
+    if (!wallet) {
+      // No HyperCore data, only HyperEVM
+      const evmStats = await evmStatsPromise;
+      return {
+        pnl7d: 0,
+        pnl30d: 0,
+        pnlYtd: 0,
+        pnlAll: 0,
+        volume7d: 0,
+        volume30d: evmStats.volume,
+        volumeYtd: evmStats.volume,
+        volumeAll: evmStats.volume,
+        trades7d: 0,
+        trades30d: evmStats.trades,
+        tradesYtd: evmStats.trades,
+        tradesAll: evmStats.trades,
+        wins: 0,
+        losses: 0,
+        winRate: 0,
+        firstSeen: null,
+        lastActive: null,
+      };
+    }
+    
     // Fetch all data in parallel
-    const [marketStats, dailyStats, recentTrades, firstEvent, lastEvent] = await Promise.all([
+    const [marketStats, dailyStats, recentTrades, firstEvent, lastEvent, evmStats] = await Promise.all([
       supabase
         .from('market_stats')
         .select('total_volume, total_trades, wins, losses')
@@ -285,6 +348,7 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
         .order('ts', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      evmStatsPromise,
     ]);
     
     // Calculate totals from market_stats
@@ -321,19 +385,20 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
         ? new Date(wallet.created_at) 
         : null;
     
+    // Combine HyperCore + HyperEVM stats
     return {
       pnl7d: stats7d.pnl,
       pnl30d: stats30d.pnl,
       pnlYtd: statsYtd.pnl,
       pnlAll: statsAll.pnl,
       volume7d: stats7d.volume,
-      volume30d: stats30d.volume,
-      volumeYtd: statsYtd.volume,
-      volumeAll: statsAll.volume,
+      volume30d: stats30d.volume + evmStats.volume,
+      volumeYtd: statsYtd.volume + evmStats.volume,
+      volumeAll: statsAll.volume + evmStats.volume,
       trades7d: stats7d.trades,
-      trades30d: stats30d.trades,
-      tradesYtd: statsYtd.trades,
-      tradesAll: statsAll.trades,
+      trades30d: stats30d.trades + evmStats.trades,
+      tradesYtd: statsYtd.trades + evmStats.trades,
+      tradesAll: statsAll.trades + evmStats.trades,
       wins: totalWins,
       losses: totalLosses,
       winRate,
