@@ -15,6 +15,10 @@ export type EventType =
   | 'SPOT_TRANSFER_OUT'
   | 'ERC20_TRANSFER_IN'
   | 'ERC20_TRANSFER_OUT'
+  | 'HYPE_TRANSFER_IN'
+  | 'HYPE_TRANSFER_OUT'
+  | 'CONTRACT_CALL'
+  | 'CONTRACT_DEPLOY'
   | 'SWAP'
   | 'LENDING_DEPOSIT'
   | 'LENDING_WITHDRAW'
@@ -84,7 +88,13 @@ export function getBadgeInfo(type: EventType): { label: string; variant: BadgeVa
     case 'SPOT_TRANSFER_OUT':
     case 'ERC20_TRANSFER_IN':
     case 'ERC20_TRANSFER_OUT':
+    case 'HYPE_TRANSFER_IN':
+    case 'HYPE_TRANSFER_OUT':
       return { label: 'Transfer', variant: 'transfer' };
+    case 'CONTRACT_CALL':
+      return { label: 'Contract', variant: 'swap' };
+    case 'CONTRACT_DEPLOY':
+      return { label: 'Deploy', variant: 'swap' };
     case 'SWAP':
       return { label: 'Swap', variant: 'swap' };
     case 'LENDING_DEPOSIT':
@@ -255,30 +265,55 @@ export function formatHypercoreEvent(event: any, walletAddress: string): Unified
 export function formatHyperevmEvent(tx: any, walletAddress: string, hypePrice = 25): UnifiedEvent {
   const timestamp = new Date(tx.timestamp * 1000);
   const isIncoming = tx.direction === 'in' || tx.to?.toLowerCase() === walletAddress.toLowerCase();
+  const isOutgoing = tx.direction === 'out' || tx.from?.toLowerCase() === walletAddress.toLowerCase();
   const value = Number(tx.valueEth || 0);
-  const valueUsd = value * hypePrice; // Use HYPE price
+  const valueUsd = value * hypePrice;
   
-  // Determine event type based on transaction data
-  let type: EventType = isIncoming ? 'ERC20_TRANSFER_IN' : 'ERC20_TRANSFER_OUT';
-  let description = '';
-  let descriptionParts: DescriptionPart[] = [];
-  let badge = getBadgeInfo(type);
-  
-  // Check if this is a contract interaction (has input data beyond 0x)
+  // Check if this is a contract interaction
   const isContractCall = tx.input && tx.input !== '0x' && tx.input.length > 10;
+  const isContractDeploy = !tx.to && isContractCall;
   const hasValue = value > 0.0001;
   
-  if (isContractCall && !hasValue) {
+  let type: EventType;
+  let description = '';
+  let descriptionParts: DescriptionPart[] = [];
+  
+  if (isContractDeploy) {
+    // Contract deployment
+    type = 'CONTRACT_DEPLOY';
+    const contractAddr = tx.contractAddress ? shortenAddress(tx.contractAddress) : 'contract';
+    description = `Deployed contract ${contractAddr}`;
+    descriptionParts = createParts('Deployed contract ', b(contractAddr));
+  } else if (isContractCall && !hasValue) {
     // Contract interaction without value transfer
-    type = 'SWAP';
-    badge = { label: 'Contract', variant: 'swap' as BadgeVariant };
+    type = 'CONTRACT_CALL';
     const contract = shortenAddress(tx.to || '');
+    const methodSig = tx.input?.slice(0, 10) || '';
     description = `Contract call to ${contract}`;
     descriptionParts = createParts('Contract call to ', b(contract));
-  } else if (isIncoming) {
-    description = `Received ${formatNumber(value, 4)} HYPE`;
-    descriptionParts = createParts('Received ', b(`${formatNumber(value, 4)} HYPE`));
-  } else {
+  } else if (isContractCall && hasValue) {
+    // Contract interaction with value (likely swap or deposit)
+    type = 'SWAP';
+    const contract = shortenAddress(tx.to || '');
+    description = `Sent ${formatNumber(value, 4)} HYPE to contract ${contract}`;
+    descriptionParts = createParts(
+      'Sent ',
+      b(`${formatNumber(value, 4)} HYPE`),
+      ` to contract ${contract}`
+    );
+  } else if (isIncoming && hasValue) {
+    // Native HYPE transfer in
+    type = 'HYPE_TRANSFER_IN';
+    const sender = shortenAddress(tx.from || '');
+    description = `Received ${formatNumber(value, 4)} HYPE from ${sender}`;
+    descriptionParts = createParts(
+      'Received ',
+      b(`${formatNumber(value, 4)} HYPE`),
+      ` from ${sender}`
+    );
+  } else if (isOutgoing && hasValue) {
+    // Native HYPE transfer out
+    type = 'HYPE_TRANSFER_OUT';
     const recipient = shortenAddress(tx.to || '');
     description = `Sent ${formatNumber(value, 4)} HYPE to ${recipient}`;
     descriptionParts = createParts(
@@ -286,7 +321,15 @@ export function formatHyperevmEvent(tx: any, walletAddress: string, hypePrice = 
       b(`${formatNumber(value, 4)} HYPE`),
       ` to ${recipient}`
     );
+  } else {
+    // Other transaction types (0 value, no contract call)
+    type = 'CONTRACT_CALL';
+    const target = shortenAddress(tx.to || tx.from || '');
+    description = `Transaction with ${target}`;
+    descriptionParts = createParts('Transaction with ', b(target));
   }
+  
+  const badge = getBadgeInfo(type);
   
   return {
     id: tx.hash,

@@ -149,7 +149,9 @@ function matchesFilter(eventType: string, filter: FilterKey, domain?: string): b
       return eventType === 'SPOT_TRANSFER_IN' || 
              eventType === 'SPOT_TRANSFER_OUT' ||
              eventType === 'ERC20_TRANSFER_IN' ||
-             eventType === 'ERC20_TRANSFER_OUT';
+             eventType === 'ERC20_TRANSFER_OUT' ||
+             eventType === 'HYPE_TRANSFER_IN' ||
+             eventType === 'HYPE_TRANSFER_OUT';
     case 'funding':
       return eventType === 'PERP_FUNDING';
     case 'evm':
