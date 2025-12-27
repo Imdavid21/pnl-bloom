@@ -6,13 +6,15 @@ Complete rebuild guide and technical reference for the Hyperliquid analytics pla
 
 ## Platform Overview
 
-HyperPNL is a comprehensive analytics and exploration platform for Hyperliquid, providing real-time PnL tracking, position analytics, blockchain exploration, and trading insights. The platform operates across both Hyperliquid L1 (the native perps DEX) and HyperEVM (the EVM-compatible layer).
+HyperPNL is a comprehensive analytics and exploration platform for Hyperliquid, providing real-time PnL tracking, position analytics, blockchain exploration, and trading insights. The platform operates across both Hyperliquid L1 (HyperCore - the native perps DEX) and HyperEVM (the EVM-compatible layer).
 
 ### Key Features
 - **PnL Analytics**: Calendar heatmap, equity curves, drawdown tracking, market breakdowns
-- **Block Explorer**: Unified L1 + EVM explorer with wallet, tx, block, and token details
+- **Unified Wallet Explorer**: Domain-aware wallet view with HyperCore + HyperEVM activity
+- **Activity Feed**: Unified timeline of perp fills, funding, transfers, and all EVM transactions
 - **Live Positions**: Real-time position tracking with liquidation scores and risk metrics
-- **Wallet Connect**: MetaMask, WalletConnect, Coinbase Wallet integration
+- **Block Explorer**: L1 + EVM explorer with wallet, tx, block, and token details
+- **Wallet Sync**: Automatic data ingestion with progress tracking and retry support
 
 ---
 
@@ -74,7 +76,8 @@ src/
 ├── components/
 │   ├── ui/              # shadcn/ui primitives
 │   ├── explorer/        # Explorer page components
-│   └── pnl/             # PnL analytics components
+│   ├── pnl/             # PnL analytics components
+│   └── wallet/          # Wallet page components (Hero, Activity, Metrics, Positions)
 ├── hooks/               # Custom React hooks
 ├── lib/                 # Utility functions & API clients
 ├── pages/               # Route page components
@@ -88,7 +91,7 @@ supabase/
 ├── functions/
 │   ├── _shared/         # Shared utilities
 │   ├── explorer-proxy/  # L1 explorer proxy
-│   ├── hyperevm-rpc/    # HyperEVM RPC proxy
+│   ├── hyperevm-rpc/    # HyperEVM RPC proxy (supports addressTxs, balance, erc20, tokenMeta)
 │   ├── hyperliquid-proxy/  # Hyperliquid API proxy
 │   ├── poll-hypercore/  # Data ingestion
 │   ├── recompute-pnl/   # PnL aggregation
@@ -96,7 +99,9 @@ supabase/
 │   ├── pnl-day/         # Day detail API
 │   ├── pnl-analytics/   # Analytics API
 │   ├── compute-analytics/  # Analytics computation
-│   └── live-positions/  # Live position API
+│   ├── live-positions/  # Live position API
+│   ├── sync-wallet/     # Wallet sync orchestrator
+│   └── unified-resolver/ # Multi-domain entity resolver
 └── config.toml          # Supabase config
 \`\`\`
 
@@ -251,6 +256,14 @@ URL: https://rpc.hyperliquid.xyz/evm
 { "method": "debug_traceTransaction", "params": ["0x...", { "tracer": "callTracer" }] }
 \`\`\`
 
+### EVM Transaction Types
+The platform detects and categorizes all HyperEVM transaction types:
+- **HYPE_TRANSFER_IN/OUT**: Native HYPE token transfers
+- **CONTRACT_CALL**: Contract interactions with/without value
+- **CONTRACT_DEPLOY**: New contract deployments
+- **SWAP**: DEX swap transactions
+- **TOKEN_TRANSFER_IN/OUT**: ERC20 token transfers
+
 ### WebSocket
 URL: wss://api.hyperliquid.xyz/ws
 
@@ -269,18 +282,33 @@ URL: wss://api.hyperliquid.xyz/ws
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /functions/v1/explorer-proxy | Proxies L1 Explorer API |
-| GET | /functions/v1/hyperevm-rpc | Proxies HyperEVM RPC |
+| GET | /functions/v1/hyperevm-rpc | Proxies HyperEVM RPC with actions: balance, erc20, tokenMeta, addressTxs (up to 100 txs) |
 | GET | /functions/v1/hyperliquid-proxy | Proxies Hyperliquid Info API |
-| POST | /functions/v1/sync-wallet | Initiates wallet sync |
-| POST | /functions/v1/poll-hypercore | Ingests trading data |
+| POST | /functions/v1/sync-wallet | Initiates wallet sync with progress tracking |
+| POST | /functions/v1/poll-hypercore | Ingests trading data (fills, funding) |
 | POST | /functions/v1/recompute-pnl | Recomputes PnL aggregations |
 | POST | /functions/v1/compute-analytics | Computes derived analytics |
 | GET | /functions/v1/pnl-calendar | Returns calendar view data |
 | GET | /functions/v1/pnl-day | Returns day detail breakdown |
 | GET | /functions/v1/pnl-analytics | Returns analytics datasets |
 | GET | /functions/v1/live-positions | Fetches current positions |
+| GET | /functions/v1/unified-resolver | Multi-domain entity resolution |
 
 ---
+
+## Wallet Components
+
+### WalletHero
+Displays total net worth with HyperCore/HyperEVM domain breakdown, PnL with timeframe selector (7d/30d/YTD/All).
+
+### WalletActivity  
+Unified activity feed combining HyperCore events (perp fills, funding, spot) and all EVM transactions (transfers, contract calls, deploys). Supports filtering by type and infinite scroll.
+
+### WalletMetrics
+Terminal-style metric cards showing 30D volume, win rate, account age with domain-specific breakdowns.
+
+### DomainBreakdown
+Side-by-side cards for HyperCore (account value, margin, positions) and HyperEVM (HYPE balance, token count).
 
 ## Key Formulas
 
@@ -1192,6 +1220,40 @@ serve(async (req) => {
           <TabsContent value="frontend" className="space-y-8">
             <Section icon={<Layers className="h-5 w-5 text-primary" />} title="Key Components" id="components">
               <div className="grid gap-4">
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5">
+                  <h4 className="font-medium text-foreground mb-2">Wallet Components (src/components/wallet/)</h4>
+                  <p className="text-sm text-muted-foreground">Domain-aware wallet view components for unified HyperCore + HyperEVM display.</p>
+                </div>
+                <Definition
+                  term="WalletHero"
+                  description="Displays total net worth with domain breakdown (HyperCore/HyperEVM), PnL with timeframe selector (7d/30d/YTD/All), and first seen/last active timestamps."
+                  badges={['Wallet', 'Hero']}
+                />
+                <Definition
+                  term="WalletActivity"
+                  description="Unified activity feed combining HyperCore events (perp fills, funding, spot transfers) and all EVM transactions (native transfers, contract calls, deploys, swaps). Supports filtering by type (all/trades/funding/transfers) and infinite scroll pagination."
+                  badges={['Wallet', 'Activity', 'Infinite Scroll']}
+                />
+                <Definition
+                  term="WalletMetrics"
+                  description="Terminal-style metric cards showing 30D volume, win rate, and account age. Each metric includes domain-specific breakdowns (HC for HyperCore, EVM for HyperEVM)."
+                  badges={['Wallet', 'Metrics']}
+                />
+                <Definition
+                  term="DomainBreakdown"
+                  description="Side-by-side cards for HyperCore (account value, margin used, open positions with long/short counts) and HyperEVM (native HYPE balance, ERC-20 token count)."
+                  badges={['Wallet', 'Multi-domain']}
+                />
+                <Definition
+                  term="EquityCurveChart"
+                  description="Line chart showing equity over time with cumulative PnL overlay. Supports timeframe selection and brush for zooming."
+                  badges={['Wallet', 'Chart']}
+                />
+
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 mt-4">
+                  <h4 className="font-medium text-foreground mb-2">PnL Components (src/components/pnl/)</h4>
+                  <p className="text-sm text-muted-foreground">Calendar heatmap and analytics visualization components.</p>
+                </div>
                 <Definition
                   term="Heatmap (src/components/pnl/Heatmap.tsx)"
                   description="Calendar heatmap for daily PnL visualization. Uses color gradient from red (loss) to green (profit). Supports click to show day details."
@@ -1203,6 +1265,16 @@ serve(async (req) => {
                   badges={['PnL', 'Charts']}
                 />
                 <Definition
+                  term="CurrentPositions (src/components/pnl/CurrentPositions.tsx)"
+                  description="Live open positions display with liquidation risk indicators. Uses live-positions edge function."
+                  badges={['PnL', 'Live']}
+                />
+
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 mt-4">
+                  <h4 className="font-medium text-foreground mb-2">Explorer Components (src/components/explorer/)</h4>
+                  <p className="text-sm text-muted-foreground">Block explorer and search components.</p>
+                </div>
+                <Definition
                   term="WalletDetailPage (src/components/explorer/WalletDetailPage.tsx)"
                   description="Comprehensive wallet view with progressive loading. Shows L1 clearinghouse, fills, transactions; EVM balances, transactions, tokens."
                   badges={['Explorer', 'Multi-chain']}
@@ -1213,15 +1285,52 @@ serve(async (req) => {
                   badges={['Explorer', 'Real-time']}
                 />
                 <Definition
-                  term="CurrentPositions (src/components/pnl/CurrentPositions.tsx)"
-                  description="Live open positions display with liquidation risk indicators. Uses live-positions edge function."
-                  badges={['PnL', 'Live']}
+                  term="UniversalSearch"
+                  description="Search input that resolves addresses, transaction hashes, block numbers, and token symbols. Routes to appropriate detail pages."
+                  badges={['Explorer', 'Search']}
                 />
               </div>
             </Section>
 
             <Section icon={<Zap className="h-5 w-5 text-primary" />} title="Custom Hooks" id="hooks">
               <div className="grid gap-4">
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5">
+                  <h4 className="font-medium text-foreground mb-2">Wallet Hooks</h4>
+                  <p className="text-sm text-muted-foreground">Hooks for wallet data aggregation and activity feeds.</p>
+                </div>
+                <Definition
+                  term="useWalletSync (src/hooks/useWalletSync.ts)"
+                  description="Manages wallet sync lifecycle: checks if wallet exists, triggers sync if needed, tracks progress with estimated time, supports manual retry. Returns isSyncing, syncComplete, error, triggerManualSync, retrySync."
+                  badges={['Wallet', 'Sync']}
+                />
+                <Definition
+                  term="useInfiniteActivity (src/hooks/useInfiniteActivity.ts)"
+                  description="Fetches unified activity from HyperCore (economic_events) and HyperEVM (addressTxs, token transfers). Supports infinite scroll with cursor-based pagination. Deduplicates and sorts by timestamp."
+                  badges={['Wallet', 'Infinite Query']}
+                />
+                <CodeBlock title="useInfiniteActivity usage">
+{`const {
+  data,           // { pages: UnifiedEvent[][] }
+  fetchNextPage,
+  hasNextPage,
+  isLoading,
+  isFetchingNextPage
+} = useInfiniteActivity(walletAddress);
+
+// Flatten pages for rendering
+const events = data?.pages.flatMap(p => p.events) ?? [];`}
+                </CodeBlock>
+
+                <Definition
+                  term="useWalletExplorer (src/hooks/useWalletExplorer.ts)"
+                  description="Aggregates wallet data from multiple sources: live trading state, activity summary (30d PnL, volume, trades), recent events, and EVM data. Returns hasHypercore, hasHyperevm flags for domain detection."
+                  badges={['Wallet', 'Aggregation']}
+                />
+
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 mt-4">
+                  <h4 className="font-medium text-foreground mb-2">PnL Hooks</h4>
+                  <p className="text-sm text-muted-foreground">Hooks for calendar data and analytics.</p>
+                </div>
                 <Definition
                   term="usePnlData (src/hooks/usePnlData.ts)"
                   description="Main hook for PnL calendar data. Handles wallet input, sync status, data fetching via React Query. Returns calendarData, isLoading, isSyncing, refetch."
@@ -1244,6 +1353,10 @@ serve(async (req) => {
                   badges={['Analytics', 'React Query']}
                 />
 
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 mt-4">
+                  <h4 className="font-medium text-foreground mb-2">Real-time Hooks</h4>
+                  <p className="text-sm text-muted-foreground">WebSocket and live data hooks.</p>
+                </div>
                 <Definition
                   term="useHyperliquidWebSocket (src/hooks/useHyperliquidWebSocket.ts)"
                   description="Manages WebSocket connection to Hyperliquid. Supports subscriptions for allMids and trades. Auto-reconnects on disconnect."
@@ -1271,7 +1384,6 @@ useEffect(() => {
                   badges={['Explorer', 'State']}
                 />
 
-
                 <Definition
                   term="useWhaleTracking (src/hooks/useWhaleTracking.ts)"
                   description="Filters WebSocket trades by size threshold. Returns whale trades above configurable USD value."
@@ -1289,8 +1401,18 @@ useEffect(() => {
                 />
                 <Definition
                   term="src/lib/hyperevmApi.ts"
-                  description="Client-side API wrapper for HyperEVM RPC. Functions for balances, tokens, transactions, internal transactions."
+                  description="Client-side API wrapper for HyperEVM RPC. Functions for balances, tokens, transactions (up to 100), internal transactions."
                   badges={['API', 'Client']}
+                />
+                <Definition
+                  term="src/lib/wallet-aggregator.ts"
+                  description="Unifies data from HyperCore and HyperEVM into single wallet view. Fetches clearinghouse state, EVM balances, activity stats. Caches responses for 30s."
+                  badges={['Aggregation', 'Caching']}
+                />
+                <Definition
+                  term="src/lib/format-activity.ts"
+                  description="Formats activity events for display. Handles all event types including EVM transactions (HYPE_TRANSFER, CONTRACT_CALL, CONTRACT_DEPLOY, SWAP, TOKEN_TRANSFER)."
+                  badges={['Formatting', 'EVM']}
                 />
                 <Definition
                   term="src/lib/pnlApi.ts"
@@ -1301,6 +1423,11 @@ useEffect(() => {
                   term="src/lib/symbolMapping.ts"
                   description="Maps Hyperliquid token indices to symbols and metadata. Used for display names and token resolution."
                   badges={['Utility']}
+                />
+                <Definition
+                  term="src/lib/formatters.ts"
+                  description="Number and currency formatting utilities. formatUsd(), formatNumber(), formatPercent(), formatAddress() with abbreviation support."
+                  badges={['Utility', 'Formatting']}
                 />
               </div>
             </Section>
