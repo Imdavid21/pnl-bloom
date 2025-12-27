@@ -235,32 +235,29 @@ export function useWalletSync(address: string | undefined) {
     syncMutation.mutate(address);
   }, [address, walletAge, syncMutation.isPending]);
 
-  // Retry sync function
-  const retrySync = useCallback(() => {
-    if (!address) {
-      console.warn('retrySync: No address provided');
-      return;
-    }
-    
-    if (syncMutation.isPending) {
-      console.warn('retrySync: Sync already in progress');
-      return;
-    }
-    
-    setSyncStatus(prev => ({
-      ...prev,
-      error: null,
-      syncComplete: false,
-    }));
-    
-    syncMutation.mutate(address);
-  }, [address, syncMutation.isPending]);
-
   return {
     ...syncStatus,
     isChecking: checkingWallet,
     walletExists,
-    retrySync,
+    retrySync: () => {
+      if (!address) {
+        console.warn('retrySync: No address provided');
+        return;
+      }
+      
+      if (syncMutation.isPending) {
+        console.warn('retrySync: Sync already in progress');
+        return;
+      }
+      
+      setSyncStatus(prev => ({
+        ...prev,
+        error: null,
+        syncComplete: false,
+      }));
+      
+      syncMutation.mutate(address);
+    },
     triggerManualSync,
   };
 }
