@@ -94,8 +94,8 @@ function WalletSkeleton() {
           <div className="h-5 w-20 mx-auto bg-muted/30 rounded animate-pulse" />
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {[1, 2, 3, 4].map(i => (
+      <div className="grid grid-cols-3 gap-2">
+        {[1, 2, 3].map(i => (
           <div key={i} className="panel p-4">
             <div className="h-3 w-14 mb-2 bg-muted/30 rounded animate-pulse" />
             <div className="h-6 w-16 bg-muted/30 rounded animate-pulse" />
@@ -256,7 +256,7 @@ function SyncBanner({
 export default function Wallet() {
   const { address } = useParams<{ address: string }>();
   const navigate = useNavigate();
-  const { data, isLoading, error } = useUnifiedWallet(address);
+  const { data, isLoading, error, timeframe, setTimeframe, pnlData, refetchFresh } = useUnifiedWallet(address);
   const { 
     isSyncing, 
     syncComplete, 
@@ -356,26 +356,27 @@ export default function Wallet() {
               </Button>
             </div>
             
-            {/* Hero Section */}
+            {/* Hero Section - with PnL timeframe selector */}
             <WalletHero
               totalValue={data?.totalValue || 0}
-              pnl30d={data?.pnl30d || 0}
-              pnlPercent30d={data?.pnlPercent30d || 0}
+              hypercoreValue={data?.hypercoreValue || 0}
+              hyperevmValue={data?.hyperevmValue || 0}
+              pnl={pnlData.pnl}
+              pnlPercent={pnlData.pnlPercent}
+              pnlTimeframe={timeframe}
+              onTimeframeChange={setTimeframe}
               domains={data?.domains || { hypercore: false, hyperevm: false }}
               firstSeen={data?.firstSeen || null}
               lastActive={data?.lastActive || null}
             />
             
-            {/* Metrics Grid */}
+            {/* Metrics Grid - simplified (no positions) */}
             <WalletMetrics
-              openPositions={data?.openPositions || 0}
-              marginUsed={data?.marginUsed || 0}
               volume30d={data?.volume30d || 0}
               trades30d={data?.trades30d || 0}
-              pnl30d={data?.pnl30d || 0}
               firstSeen={data?.firstSeen || null}
-              lastActive={data?.lastActive || null}
               totalTrades={data?.totalTrades || 0}
+              winRate={data?.winRate || 0}
             />
             
             {/* Domain Breakdown - Shows HyperCore/HyperEVM split */}

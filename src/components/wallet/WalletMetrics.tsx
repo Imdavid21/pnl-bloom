@@ -1,10 +1,9 @@
 /**
- * Wallet Metrics - Terminal style metric cards
+ * Wallet Metrics - Terminal style metric cards (without positions)
  */
 
 import { cn } from '@/lib/utils';
-import { formatUsd, formatNumber } from '@/lib/wallet-aggregator';
-import { formatDistanceToNowStrict } from 'date-fns';
+import { formatUsd, formatNumber } from '@/lib/formatters';
 
 interface MetricCardProps {
   label: string;
@@ -35,14 +34,11 @@ function MetricCard({ label, value, subtext, trend }: MetricCardProps) {
 }
 
 interface WalletMetricsProps {
-  openPositions: number;
-  marginUsed: number;
   volume30d: number;
   trades30d: number;
-  pnl30d: number;
   firstSeen: Date | null;
-  lastActive: Date | null;
   totalTrades: number;
+  winRate?: number;
 }
 
 function formatAccountAge(firstSeen: Date | null): { value: string; subtext: string } {
@@ -76,25 +72,16 @@ function formatAccountAge(firstSeen: Date | null): { value: string; subtext: str
 }
 
 export function WalletMetrics({
-  openPositions,
-  marginUsed,
   volume30d,
   trades30d,
-  pnl30d,
   firstSeen,
-  lastActive,
   totalTrades,
+  winRate = 0,
 }: WalletMetricsProps) {
   const accountAge = formatAccountAge(firstSeen);
   
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-      <MetricCard
-        label="Positions"
-        value={formatNumber(openPositions)}
-        subtext={`${formatUsd(marginUsed, true)} margin`}
-      />
-      
+    <div className="grid grid-cols-3 gap-2">
       <MetricCard
         label="30D Volume"
         value={formatUsd(volume30d, true)}
@@ -102,15 +89,15 @@ export function WalletMetrics({
       />
       
       <MetricCard
-        label="30D PnL"
-        value={`${pnl30d >= 0 ? '+' : ''}${formatUsd(pnl30d, true)}`}
-        trend={pnl30d >= 0 ? 'up' : 'down'}
+        label="Win Rate"
+        value={winRate > 0 ? `${winRate.toFixed(1)}%` : '—'}
+        subtext={totalTrades > 0 ? `${formatNumber(totalTrades)} total` : 'No trades'}
       />
       
       <MetricCard
         label="Account Age"
         value={accountAge.value}
-        subtext={totalTrades > 0 ? `${formatNumber(totalTrades)} total trades` : accountAge.subtext}
+        subtext={accountAge.subtext}
       />
     </div>
   );
