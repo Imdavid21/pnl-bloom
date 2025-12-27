@@ -233,6 +233,13 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
     // Use overall stats for win rate (more accurate than 30d sample)
     const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
     
+    // Fallback to wallet creation date if no events
+    const firstSeenDate = firstEvent?.ts 
+      ? new Date(firstEvent.ts) 
+      : wallet.created_at 
+        ? new Date(wallet.created_at) 
+        : null;
+    
     return {
       pnl30d,
       volume30d,
@@ -240,7 +247,7 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
       wins: totalWins,
       losses: totalLosses,
       winRate,
-      firstSeen: firstEvent?.ts ? new Date(firstEvent.ts) : null,
+      firstSeen: firstSeenDate,
       lastActive: lastEvent?.ts ? new Date(lastEvent.ts) : null,
     };
   } catch (error) {
