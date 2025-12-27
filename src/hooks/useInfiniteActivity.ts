@@ -48,9 +48,29 @@ async function fetchHypercoreEvents(
   return (data || []).map(event => formatHypercoreEvent(event, address));
 }
 
+async function fetchHypePrice(): Promise<number> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/hyperliquid-proxy`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ type: 'allMids' }),
+    });
+    
+    if (!response.ok) return 25;
+    const prices = await response.json();
+    return prices?.HYPE ? parseFloat(prices.HYPE) : 25;
+  } catch {
+    return 25;
+  }
+}
+
 async function fetchHyperevmEvents(
   address: string,
-  limit = 10
+  limit = 20,
+  hypePrice = 25
 ): Promise<UnifiedEvent[]> {
   try {
     const response = await fetch(
@@ -63,7 +83,7 @@ async function fetchHyperevmEvents(
     const data = await response.json();
     if (data.error || !data.transactions) return [];
     
-    return data.transactions.map((tx: any) => formatHyperevmEvent(tx, address));
+    return data.transactions.map((tx: any) => formatHyperevmEvent(tx, address, hypePrice));
   } catch (error) {
     console.error('Failed to fetch HyperEVM events:', error);
     return [];
@@ -84,13 +104,17 @@ async function fetchActivityPage(
   address: string,
   cursor?: string
 ): Promise<ActivityPage> {
-  const walletId = await getWalletId(address);
+  // Fetch wallet ID and HYPE price in parallel
+  const [walletId, hypePrice] = await Promise.all([
+    getWalletId(address),
+    !cursor ? fetchHypePrice() : Promise.resolve(25), // Only fetch price on first page
+  ]);
   
   // Fetch from both sources
   const [hypercoreEvents, hyperevmEvents] = await Promise.all([
     walletId ? fetchHypercoreEvents(walletId, address, cursor, PAGE_SIZE) : Promise.resolve([]),
     // Only fetch EVM on first page (limited by RPC scanning)
-    !cursor ? fetchHyperevmEvents(address, 10) : Promise.resolve([]),
+    !cursor ? fetchHyperevmEvents(address, 20, hypePrice) : Promise.resolve([]),
   ]);
   
   // Merge and sort chronologically

@@ -252,26 +252,38 @@ export function formatHypercoreEvent(event: any, walletAddress: string): Unified
   };
 }
 
-export function formatHyperevmEvent(tx: any, walletAddress: string): UnifiedEvent {
+export function formatHyperevmEvent(tx: any, walletAddress: string, hypePrice = 25): UnifiedEvent {
   const timestamp = new Date(tx.timestamp * 1000);
-  const isIncoming = tx.to?.toLowerCase() === walletAddress.toLowerCase();
+  const isIncoming = tx.direction === 'in' || tx.to?.toLowerCase() === walletAddress.toLowerCase();
   const value = Number(tx.valueEth || 0);
-  const valueUsd = value * 2000; // TODO: Use actual ETH price
+  const valueUsd = value * hypePrice; // Use HYPE price
   
-  // Default to transfer for native transactions
+  // Determine event type based on transaction data
   let type: EventType = isIncoming ? 'ERC20_TRANSFER_IN' : 'ERC20_TRANSFER_OUT';
   let description = '';
   let descriptionParts: DescriptionPart[] = [];
+  let badge = getBadgeInfo(type);
   
-  if (isIncoming) {
-    description = `Received ${formatNumber(value, 4)} ETH`;
-    descriptionParts = createParts('Received ', b(`${formatNumber(value, 4)} ETH`));
+  // Check if this is a contract interaction (has input data beyond 0x)
+  const isContractCall = tx.input && tx.input !== '0x' && tx.input.length > 10;
+  const hasValue = value > 0.0001;
+  
+  if (isContractCall && !hasValue) {
+    // Contract interaction without value transfer
+    type = 'SWAP';
+    badge = { label: 'Contract', variant: 'swap' as BadgeVariant };
+    const contract = shortenAddress(tx.to || '');
+    description = `Contract call to ${contract}`;
+    descriptionParts = createParts('Contract call to ', b(contract));
+  } else if (isIncoming) {
+    description = `Received ${formatNumber(value, 4)} HYPE`;
+    descriptionParts = createParts('Received ', b(`${formatNumber(value, 4)} HYPE`));
   } else {
     const recipient = shortenAddress(tx.to || '');
-    description = `Sent ${formatNumber(value, 4)} ETH to ${recipient}`;
+    description = `Sent ${formatNumber(value, 4)} HYPE to ${recipient}`;
     descriptionParts = createParts(
       'Sent ',
-      b(`${formatNumber(value, 4)} ETH`),
+      b(`${formatNumber(value, 4)} HYPE`),
       ` to ${recipient}`
     );
   }
@@ -285,9 +297,59 @@ export function formatHyperevmEvent(tx: any, walletAddress: string): UnifiedEven
     descriptionParts,
     valueUsd,
     isPnl: false,
-    isPositive: false,
+    isPositive: isIncoming && hasValue,
     link: `/tx/${tx.hash}`,
-    badge: getBadgeInfo(type),
+    badge,
     raw: tx,
+  };
+}
+
+// Format ERC-20 token transfer from HyperEVM
+export function formatHyperevmTokenTransfer(
+  transfer: any, 
+  walletAddress: string
+): UnifiedEvent {
+  const timestamp = new Date(transfer.timestamp * 1000);
+  const isIncoming = transfer.to?.toLowerCase() === walletAddress.toLowerCase();
+  const amount = Number(transfer.amount || 0);
+  const symbol = transfer.symbol || 'TOKEN';
+  const valueUsd = Number(transfer.valueUsd || 0);
+  
+  const type: EventType = isIncoming ? 'ERC20_TRANSFER_IN' : 'ERC20_TRANSFER_OUT';
+  
+  let description = '';
+  let descriptionParts: DescriptionPart[] = [];
+  
+  if (isIncoming) {
+    const sender = shortenAddress(transfer.from || '');
+    description = `Received ${formatNumber(amount)} ${symbol} from ${sender}`;
+    descriptionParts = createParts(
+      'Received ',
+      b(`${formatNumber(amount)} ${symbol}`),
+      ` from ${sender}`
+    );
+  } else {
+    const recipient = shortenAddress(transfer.to || '');
+    description = `Sent ${formatNumber(amount)} ${symbol} to ${recipient}`;
+    descriptionParts = createParts(
+      'Sent ',
+      b(`${formatNumber(amount)} ${symbol}`),
+      ` to ${recipient}`
+    );
+  }
+  
+  return {
+    id: transfer.hash || `${transfer.txHash}-${transfer.logIndex}`,
+    timestamp,
+    type,
+    domain: 'hyperevm',
+    description,
+    descriptionParts,
+    valueUsd,
+    isPnl: false,
+    isPositive: isIncoming,
+    link: `/tx/${transfer.txHash || transfer.hash}`,
+    badge: getBadgeInfo(type),
+    raw: transfer,
   };
 }

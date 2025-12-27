@@ -25,6 +25,7 @@ const EVENT_FILTERS = [
   { key: 'spot', label: 'Spot' },
   { key: 'transfer', label: 'Transfers' },
   { key: 'funding', label: 'Funding' },
+  { key: 'evm', label: 'HyperEVM' },
 ] as const;
 
 type FilterKey = (typeof EVENT_FILTERS)[number]['key'];
@@ -135,7 +136,7 @@ function ClosedPositionCard({ position }: { position: PositionHistoryItem }) {
   );
 }
 
-function matchesFilter(eventType: string, filter: FilterKey): boolean {
+function matchesFilter(eventType: string, filter: FilterKey, domain?: string): boolean {
   if (filter === 'all') return true;
   if (filter === 'positions') return false; // Handled separately
   
@@ -151,6 +152,8 @@ function matchesFilter(eventType: string, filter: FilterKey): boolean {
              eventType === 'ERC20_TRANSFER_OUT';
     case 'funding':
       return eventType === 'PERP_FUNDING';
+    case 'evm':
+      return domain === 'hyperevm';
     default:
       return true;
   }
@@ -202,7 +205,7 @@ export function WalletActivity({ address }: WalletActivityProps) {
     
     // Add events
     uniqueEvents.forEach(event => {
-      if (matchesFilter(event.type, activeFilter)) {
+      if (matchesFilter(event.type, activeFilter, event.domain)) {
         timeline.push({
           type: 'event',
           data: event,
