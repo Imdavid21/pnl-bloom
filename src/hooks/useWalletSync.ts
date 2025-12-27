@@ -132,31 +132,26 @@ export function useWalletSync(address: string | undefined) {
     startedAt: null,
   });
 
+  const normalizedAddress = address?.toLowerCase();
+  const isValidAddress = !!address && address.length === 42;
+
   // Check if wallet exists in DB
   const { data: walletExists, isLoading: checkingWallet } = useQuery({
-    queryKey: ['wallet-exists', address?.toLowerCase()],
+    queryKey: ['wallet-exists', normalizedAddress],
     queryFn: () => checkWalletExists(address!),
-    enabled: !!address && address.length === 42,
+    enabled: isValidAddress,
     staleTime: 60_000,
   });
 
   // Fetch wallet age for time estimation
   const { data: walletAge } = useQuery({
-    queryKey: ['wallet-age', address?.toLowerCase()],
+    queryKey: ['wallet-age', normalizedAddress],
     queryFn: () => fetchWalletAge(address!),
-    enabled: !!address && address.length === 42 && walletExists === false,
+    enabled: isValidAddress && walletExists === false,
     staleTime: 5 * 60_000,
   });
 
-  // Calculate estimated time when wallet age is available
-  useEffect(() => {
-    if (walletAge && !syncStatus.estimatedTime) {
-      const estimate = estimateSyncTime(walletAge);
-      setSyncStatus(prev => ({ ...prev, estimatedTime: estimate }));
-    }
-  }, [walletAge, syncStatus.estimatedTime]);
-
-  // Sync mutation
+  // Sync mutation - defined before any effects or conditional logic
   const syncMutation = useMutation({
     mutationFn: triggerSync,
     onMutate: () => {
@@ -186,7 +181,7 @@ export function useWalletSync(address: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
       queryClient.invalidateQueries({ queryKey: ['activity'] });
       queryClient.invalidateQueries({ queryKey: ['positions'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet-exists', address?.toLowerCase()] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-exists', normalizedAddress] });
     },
     onError: (error: Error) => {
       setSyncStatus(prev => ({
@@ -198,19 +193,35 @@ export function useWalletSync(address: string | undefined) {
     },
   });
 
+  // Calculate estimated time when wallet age is available
+  useEffect(() => {
+    if (walletAge && !syncStatus.estimatedTime) {
+      const estimate = estimateSyncTime(walletAge);
+      setSyncStatus(prev => ({ ...prev, estimatedTime: estimate }));
+    }
+  }, [walletAge, syncStatus.estimatedTime]);
+
   // Auto-sync when wallet doesn't exist
   useEffect(() => {
-    if (!checkingWallet && walletExists === false && address && !syncStatus.isSyncing && !syncStatus.syncComplete && !syncStatus.error) {
+    if (
+      !checkingWallet && 
+      walletExists === false && 
+      isValidAddress && 
+      !syncStatus.isSyncing && 
+      !syncStatus.syncComplete && 
+      !syncStatus.error &&
+      !syncMutation.isPending
+    ) {
       setSyncStatus(prev => ({
         ...prev,
         needsSync: true,
       }));
-      syncMutation.mutate(address);
+      syncMutation.mutate(address!);
     }
-  }, [walletExists, checkingWallet, address, syncStatus.isSyncing, syncStatus.syncComplete, syncStatus.error]);
+  }, [walletExists, checkingWallet, isValidAddress, address, syncStatus.isSyncing, syncStatus.syncComplete, syncStatus.error, syncMutation.isPending]);
 
-  // Manual sync function (avoid useCallback here to prevent stale mutation references)
-  const triggerManualSync = () => {
+  // Manual sync function
+  const handleManualSync = () => {
     if (!address) {
       console.warn('triggerManualSync: No address provided');
       return;
@@ -235,32 +246,35 @@ export function useWalletSync(address: string | undefined) {
     syncMutation.mutate(address);
   };
 
+  // Retry sync function
+  const handleRetrySync = () => {
+    if (!address) {
+      console.warn('retrySync: No address provided');
+      return;
+    }
+
+    if (syncMutation.isPending) {
+      console.warn('retrySync: Sync already in progress');
+      return;
+    }
+
+    setSyncStatus(prev => ({
+      ...prev,
+      needsSync: true,
+      isSyncing: true,
+      startedAt: Date.now(),
+      error: null,
+      syncComplete: false,
+    }));
+
+    syncMutation.mutate(address);
+  };
+
   return {
     ...syncStatus,
     isChecking: checkingWallet,
     walletExists,
-    retrySync: () => {
-      if (!address) {
-        console.warn('retrySync: No address provided');
-        return;
-      }
-
-      if (syncMutation.isPending) {
-        console.warn('retrySync: Sync already in progress');
-        return;
-      }
-
-      setSyncStatus(prev => ({
-        ...prev,
-        needsSync: true,
-        isSyncing: true,
-        startedAt: Date.now(),
-        error: null,
-        syncComplete: false,
-      }));
-
-      syncMutation.mutate(address);
-    },
-    triggerManualSync,
+    retrySync: handleRetrySync,
+    triggerManualSync: handleManualSync,
   };
 }
