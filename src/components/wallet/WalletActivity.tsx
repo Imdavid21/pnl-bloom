@@ -60,7 +60,9 @@ function matchesFilter(eventType: string, filter: FilterKey): boolean {
   
   switch (filter) {
     case 'perp':
-      return typeNormalized.includes('perp') || typeNormalized.includes('fill');
+      // Perp trades only - exclude funding events
+      return (typeNormalized.includes('perp') || typeNormalized.includes('fill')) 
+        && !typeNormalized.includes('funding');
     case 'spot':
       return typeNormalized.includes('spot') && !typeNormalized.includes('transfer');
     case 'transfer':

@@ -5,18 +5,15 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
-import { useUnifiedPositions } from '@/hooks/useUnifiedPositions';
 import { Layout } from '@/components/Layout';
 import { WalletHero } from '@/components/wallet/WalletHero';
 import { WalletMetrics } from '@/components/wallet/WalletMetrics';
 import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
-
+import { EquityCurveChart } from '@/components/wallet/EquityCurveChart';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Search, Copy, Check, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
-import { selectCTA } from '@/lib/cta-selector';
-import { hasHighRiskPositions } from '@/lib/risk-detector';
 
 function WalletNotFound({ address }: { address: string }) {
   return (
@@ -112,7 +109,6 @@ export default function Wallet() {
   const { address } = useParams<{ address: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error } = useUnifiedWallet(address);
-  const { data: positions } = useUnifiedPositions(address || '');
   
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -128,15 +124,6 @@ export default function Wallet() {
     : displayAddress;
   
   const hasNoActivity = data && !data.domains.hypercore && !data.domains.hyperevm;
-  
-  // CTA config
-  const ctaConfig = !isLoading && data ? selectCTA({
-    winRate: data.winRate || 0,
-    pnl30d: data.pnl30d || 0,
-    trades30d: data.trades30d || 0,
-    hasHighRisk: positions ? hasHighRiskPositions(positions) : false,
-    address: displayAddress,
-  }) : null;
   
   if (!isLoading && (error || hasNoActivity)) {
     return (
@@ -186,18 +173,16 @@ export default function Wallet() {
           <WalletSkeleton />
         ) : (
           <>
-            {/* Subtle CTA at top */}
-            {ctaConfig && (
-              <div className="flex items-center justify-between gap-3 px-3 py-2 rounded border border-border/40 bg-muted/20">
-                <div className="flex items-center gap-2">
-                  <ctaConfig.icon className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{ctaConfig.title}</span>
-                </div>
-                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-primary hover:text-primary" asChild>
-                  <Link to={ctaConfig.link}>{ctaConfig.action}</Link>
-                </Button>
+            {/* CTA Banner */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded border border-border/40 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <span className="text-xs text-foreground font-medium">Advanced Analytics</span>
               </div>
-            )}
+              <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                <Link to={`/analytics/${displayAddress}`}>Explore Advanced Analytics</Link>
+              </Button>
+            </div>
             
             {/* Hero Section */}
             <WalletHero
@@ -208,6 +193,9 @@ export default function Wallet() {
               firstSeen={data?.firstSeen || null}
               lastActive={data?.lastActive || null}
             />
+            
+            {/* Equity Curve Chart */}
+            <EquityCurveChart address={displayAddress} />
             
             {/* Metrics Grid */}
             <WalletMetrics
