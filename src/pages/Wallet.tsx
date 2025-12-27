@@ -345,16 +345,6 @@ export default function Wallet() {
               walletExists={walletExists}
             />
 
-            {/* CTA Banner */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded border border-border/40 bg-muted/20">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                <span className="text-xs text-foreground font-medium">Advanced Analytics</span>
-              </div>
-              <Button variant="outline" size="sm" className="h-7 text-xs hover:bg-primary hover:text-primary-foreground transition-colors" asChild>
-                <Link to={`/analytics/${displayAddress}`}>Explore Advanced Analytics</Link>
-              </Button>
-            </div>
             
             {/* Hero Section - with PnL timeframe selector */}
             <WalletHero
