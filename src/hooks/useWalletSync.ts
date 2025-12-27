@@ -209,32 +209,58 @@ export function useWalletSync(address: string | undefined) {
     }
   }, [walletExists, checkingWallet, address, syncStatus.isSyncing, syncStatus.syncComplete, syncStatus.error]);
 
-  // Manual sync function
+  // Manual sync function - fixed to avoid stale closures
   const triggerManualSync = useCallback(() => {
-    if (address && !syncStatus.isSyncing) {
-      setSyncStatus(prev => ({
-        ...prev,
-        syncComplete: false,
-        error: null,
-        estimatedTime: walletAge ? estimateSyncTime(walletAge) : 15,
-      }));
-      syncMutation.mutate(address);
+    if (!address) {
+      console.warn('triggerManualSync: No address provided');
+      return;
     }
-  }, [address, syncStatus.isSyncing, walletAge, syncMutation]);
+    
+    if (syncMutation.isPending) {
+      console.warn('triggerManualSync: Sync already in progress');
+      return;
+    }
+    
+    // Reset state and trigger sync
+    setSyncStatus({
+      needsSync: true,
+      isSyncing: false,
+      syncComplete: false,
+      error: null,
+      progress: null,
+      estimatedTime: walletAge ? estimateSyncTime(walletAge) : 15,
+      startedAt: null,
+    });
+    
+    syncMutation.mutate(address);
+  }, [address, walletAge, syncMutation.isPending]);
+
+  // Retry sync function
+  const retrySync = useCallback(() => {
+    if (!address) {
+      console.warn('retrySync: No address provided');
+      return;
+    }
+    
+    if (syncMutation.isPending) {
+      console.warn('retrySync: Sync already in progress');
+      return;
+    }
+    
+    setSyncStatus(prev => ({
+      ...prev,
+      error: null,
+      syncComplete: false,
+    }));
+    
+    syncMutation.mutate(address);
+  }, [address, syncMutation.isPending]);
 
   return {
     ...syncStatus,
     isChecking: checkingWallet,
     walletExists,
-    retrySync: () => {
-      if (address) {
-        setSyncStatus(prev => ({
-          ...prev,
-          error: null,
-        }));
-        syncMutation.mutate(address);
-      }
-    },
+    retrySync,
     triggerManualSync,
   };
 }
