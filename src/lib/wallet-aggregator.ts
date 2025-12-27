@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { fetchWithRetry } from '@/lib/retry';
 
 // ============ TYPES ============
 
@@ -79,14 +80,18 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 async function fetchHypercoreState(address: string): Promise<HypercoreState | null> {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/hyperliquid-proxy`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Content-Type': 'application/json',
+    const response = await fetchWithRetry(
+      `${SUPABASE_URL}/functions/v1/hyperliquid-proxy`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'clearinghouseState', user: address }),
       },
-      body: JSON.stringify({ type: 'clearinghouseState', user: address }),
-    });
+      { maxRetries: 3, initialDelayMs: 1000 }
+    );
     
     if (!response.ok) return null;
     
@@ -122,20 +127,25 @@ async function fetchHypercoreState(address: string): Promise<HypercoreState | nu
 
 async function fetchHyperevmState(address: string): Promise<HyperevmState | null> {
   try {
-    // Fetch address info and HYPE price in parallel
+    // Fetch address info and HYPE price in parallel with retry
     const [addressResponse, priceResponse] = await Promise.all([
-      fetch(
+      fetchWithRetry(
         `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${address}`,
-        { headers: { 'apikey': SUPABASE_KEY } }
+        { headers: { 'apikey': SUPABASE_KEY } },
+        { maxRetries: 2 }
       ),
-      fetch(`${SUPABASE_URL}/functions/v1/hyperliquid-proxy`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Content-Type': 'application/json',
+      fetchWithRetry(
+        `${SUPABASE_URL}/functions/v1/hyperliquid-proxy`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ type: 'allMids' }),
         },
-        body: JSON.stringify({ type: 'allMids' }),
-      }),
+        { maxRetries: 2 }
+      ),
     ]);
     
     if (!addressResponse.ok) return null;

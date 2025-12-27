@@ -5,3 +5,4 @@ export { WalletActivity } from './WalletActivity';
 export { WalletCTA } from './WalletCTA';
 export { EquityCurveChart } from './EquityCurveChart';
 export { PositionHistoryTimeline } from './PositionHistoryTimeline';
+export { DomainBreakdown } from './DomainBreakdown';

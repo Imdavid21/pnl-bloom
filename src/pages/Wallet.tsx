@@ -11,6 +11,7 @@ import { WalletHero } from '@/components/wallet/WalletHero';
 import { WalletMetrics } from '@/components/wallet/WalletMetrics';
 import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
+import { DomainBreakdown } from '@/components/wallet/DomainBreakdown';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -375,6 +376,14 @@ export default function Wallet() {
               firstSeen={data?.firstSeen || null}
               lastActive={data?.lastActive || null}
               totalTrades={data?.totalTrades || 0}
+            />
+            
+            {/* Domain Breakdown - Shows HyperCore/HyperEVM split */}
+            <DomainBreakdown
+              domains={data?.domains || { hypercore: false, hyperevm: false }}
+              hypercoreState={data?.hypercoreState || null}
+              hyperevmState={data?.hyperevmState || null}
+              compact={data?.domains.hypercore && data?.domains.hyperevm}
             />
             
             {/* Positions */}
