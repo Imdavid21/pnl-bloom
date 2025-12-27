@@ -70,6 +70,11 @@ export interface ActivitySummary {
   winRate: number;
   firstSeen: Date | null;
   lastActive: Date | null;
+  // Domain-specific breakdowns
+  hypercoreVolume30d: number;
+  hypercoreTrades30d: number;
+  hyperevmVolume30d: number;
+  hyperevmTxCount30d: number;
 }
 
 export interface UnifiedWalletData {
@@ -102,6 +107,17 @@ export interface UnifiedWalletData {
   hyperevmState: HyperevmState | null;
   isLoading: boolean;
   error: string | null;
+  // Domain-specific stats
+  hypercoreStats: {
+    volume30d: number;
+    trades30d: number;
+    positions: number;
+  };
+  hyperevmStats: {
+    volume30d: number;
+    txCount30d: number;
+    tokenCount: number;
+  };
 }
 
 // ============ API CALLS ============
@@ -316,6 +332,11 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
         winRate: 0,
         firstSeen: null,
         lastActive: null,
+        // Domain-specific
+        hypercoreVolume30d: 0,
+        hypercoreTrades30d: 0,
+        hyperevmVolume30d: evmStats.volume,
+        hyperevmTxCount30d: evmStats.trades,
       };
     }
     
@@ -404,6 +425,11 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
       winRate,
       firstSeen: firstSeenDate,
       lastActive: lastEvent.data?.ts ? new Date(lastEvent.data.ts) : null,
+      // Domain-specific
+      hypercoreVolume30d: stats30d.volume,
+      hypercoreTrades30d: stats30d.trades,
+      hyperevmVolume30d: evmStats.volume,
+      hyperevmTxCount30d: evmStats.trades,
     };
   } catch (error) {
     console.error('Failed to fetch activity summary:', error);
@@ -493,5 +519,16 @@ export async function fetchUnifiedWalletData(address: string): Promise<UnifiedWa
     hyperevmState,
     isLoading: false,
     error: null,
+    // Domain-specific stats
+    hypercoreStats: {
+      volume30d: activitySummary?.hypercoreVolume30d || 0,
+      trades30d: activitySummary?.hypercoreTrades30d || 0,
+      positions: openPositions,
+    },
+    hyperevmStats: {
+      volume30d: activitySummary?.hyperevmVolume30d || 0,
+      txCount30d: activitySummary?.hyperevmTxCount30d || 0,
+      tokenCount: hyperevmState?.tokens.length || 0,
+    },
   };
 }

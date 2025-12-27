@@ -360,13 +360,23 @@ export default function Wallet() {
               lastActive={data?.lastActive || null}
             />
             
-            {/* Metrics Grid - simplified (no positions) */}
+            {/* Metrics Grid - with domain breakdown */}
             <WalletMetrics
               volume30d={data?.volume30d || 0}
               trades30d={data?.trades30d || 0}
               firstSeen={data?.firstSeen || null}
               totalTrades={data?.totalTrades || 0}
               winRate={data?.winRate || 0}
+              hypercoreStats={data?.hypercoreStats ? {
+                volume: data.hypercoreStats.volume30d,
+                trades: data.hypercoreStats.trades30d,
+                positions: data.hypercoreStats.positions,
+              } : undefined}
+              hyperevmStats={data?.hyperevmStats ? {
+                volume: data.hyperevmStats.volume30d,
+                txCount: data.hyperevmStats.txCount30d,
+                tokenCount: data.hyperevmStats.tokenCount,
+              } : undefined}
             />
             
             
