@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   formatHypercoreEvent, 
   formatHyperevmEvent,
+  formatHyperevmTokenTransfer,
   type UnifiedEvent 
 } from '@/lib/format-activity';
 
@@ -100,6 +101,28 @@ async function getWalletId(address: string): Promise<string | null> {
   return data?.id || null;
 }
 
+async function fetchHyperevmTokenTransfers(
+  address: string,
+  limit = 20
+): Promise<UnifiedEvent[]> {
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenTransfers&address=${address}&limit=${limit}`,
+      { headers: { 'apikey': SUPABASE_KEY } }
+    );
+    
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    if (data.error || !data.transfers) return [];
+    
+    return data.transfers.map((transfer: any) => formatHyperevmTokenTransfer(transfer, address));
+  } catch (error) {
+    console.error('Failed to fetch HyperEVM token transfers:', error);
+    return [];
+  }
+}
+
 async function fetchActivityPage(
   address: string,
   cursor?: string
@@ -110,15 +133,19 @@ async function fetchActivityPage(
     !cursor ? fetchHypePrice() : Promise.resolve(25), // Only fetch price on first page
   ]);
   
-  // Fetch from both sources
-  const [hypercoreEvents, hyperevmEvents] = await Promise.all([
+  // Fetch from all sources (only fetch EVM on first page - limited by RPC scanning)
+  const [hypercoreEvents, hyperevmEvents, tokenTransfers] = await Promise.all([
     walletId ? fetchHypercoreEvents(walletId, address, cursor, PAGE_SIZE) : Promise.resolve([]),
-    // Only fetch EVM on first page (limited by RPC scanning)
     !cursor ? fetchHyperevmEvents(address, 20, hypePrice) : Promise.resolve([]),
+    !cursor ? fetchHyperevmTokenTransfers(address, 30) : Promise.resolve([]),
   ]);
   
-  // Merge and sort chronologically
-  const merged = [...hypercoreEvents, ...hyperevmEvents]
+  // Merge and deduplicate (token transfers may overlap with native txs)
+  const evmEventIds = new Set(hyperevmEvents.map(e => e.id));
+  const uniqueTokenTransfers = tokenTransfers.filter(t => !evmEventIds.has(t.id));
+  
+  // Merge all and sort chronologically
+  const merged = [...hypercoreEvents, ...hyperevmEvents, ...uniqueTokenTransfers]
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   
   // Determine next cursor from oldest hypercore event
