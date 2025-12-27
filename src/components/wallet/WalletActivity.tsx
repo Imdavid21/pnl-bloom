@@ -56,19 +56,23 @@ function SkeletonRow() {
 function matchesFilter(eventType: string, filter: FilterKey): boolean {
   if (filter === 'all') return true;
   
-  const typeNormalized = eventType.toLowerCase();
-  
+  // Match against actual event types from database
   switch (filter) {
     case 'perp':
-      // Perp trades only - exclude funding events
-      return (typeNormalized.includes('perp') || typeNormalized.includes('fill')) 
-        && !typeNormalized.includes('funding');
+      // Perp trades only - PERP_FILL events, exclude funding
+      return eventType === 'PERP_FILL';
     case 'spot':
-      return typeNormalized.includes('spot') && !typeNormalized.includes('transfer');
+      // Spot buys and sells only
+      return eventType === 'SPOT_BUY' || eventType === 'SPOT_SELL';
     case 'transfer':
-      return typeNormalized.includes('transfer');
+      // All transfers
+      return eventType === 'SPOT_TRANSFER_IN' || 
+             eventType === 'SPOT_TRANSFER_OUT' ||
+             eventType === 'ERC20_TRANSFER_IN' ||
+             eventType === 'ERC20_TRANSFER_OUT';
     case 'funding':
-      return typeNormalized.includes('funding');
+      // Funding payments
+      return eventType === 'PERP_FUNDING';
     default:
       return true;
   }
