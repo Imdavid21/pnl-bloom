@@ -5,6 +5,7 @@
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchWithRetry } from '@/lib/retry';
 import { 
   formatHypercoreEvent, 
   formatHyperevmEvent,
@@ -51,14 +52,18 @@ async function fetchHypercoreEvents(
 
 async function fetchHypePrice(): Promise<number> {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/hyperliquid-proxy`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Content-Type': 'application/json',
+    const response = await fetchWithRetry(
+      `${SUPABASE_URL}/functions/v1/hyperliquid-proxy`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'allMids' }),
       },
-      body: JSON.stringify({ type: 'allMids' }),
-    });
+      { maxRetries: 2, initialDelayMs: 500 }
+    );
     
     if (!response.ok) return 25;
     const prices = await response.json();
@@ -74,9 +79,10 @@ async function fetchHyperevmEvents(
   hypePrice = 25
 ): Promise<UnifiedEvent[]> {
   try {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=addressTxs&address=${address}&limit=${limit}`,
-      { headers: { 'apikey': SUPABASE_KEY } }
+      { headers: { 'apikey': SUPABASE_KEY } },
+      { maxRetries: 2, initialDelayMs: 500 }
     );
     
     if (!response.ok) return [];
@@ -106,9 +112,10 @@ async function fetchHyperevmTokenTransfers(
   limit = 20
 ): Promise<UnifiedEvent[]> {
   try {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=tokenTransfers&address=${address}&limit=${limit}`,
-      { headers: { 'apikey': SUPABASE_KEY } }
+      { headers: { 'apikey': SUPABASE_KEY } },
+      { maxRetries: 2, initialDelayMs: 500 }
     );
     
     if (!response.ok) return [];
