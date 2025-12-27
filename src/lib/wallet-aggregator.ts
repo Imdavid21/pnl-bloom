@@ -122,23 +122,41 @@ async function fetchHypercoreState(address: string): Promise<HypercoreState | nu
 
 async function fetchHyperevmState(address: string): Promise<HyperevmState | null> {
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${address}`,
-      {
-        headers: { 'apikey': SUPABASE_KEY },
-      }
-    );
+    // Fetch address info and HYPE price in parallel
+    const [addressResponse, priceResponse] = await Promise.all([
+      fetch(
+        `${SUPABASE_URL}/functions/v1/hyperevm-rpc?action=address&address=${address}`,
+        { headers: { 'apikey': SUPABASE_KEY } }
+      ),
+      fetch(`${SUPABASE_URL}/functions/v1/hyperliquid-proxy`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'allMids' }),
+      }),
+    ]);
     
-    if (!response.ok) return null;
+    if (!addressResponse.ok) return null;
     
-    const data = await response.json();
+    const data = await addressResponse.json();
     if (data.error) return null;
     
     const balance = parseFloat(data.balance || '0');
     
+    // Get HYPE price from allMids (HYPE is the native token on HyperEVM)
+    let hypePrice = 25; // Fallback price
+    if (priceResponse.ok) {
+      const prices = await priceResponse.json();
+      if (prices?.HYPE) {
+        hypePrice = parseFloat(prices.HYPE);
+      }
+    }
+    
     return {
       nativeBalance: balance,
-      nativeValueUsd: balance * 2000, // TODO: Fetch actual ETH price
+      nativeValueUsd: balance * hypePrice,
       tokens: [],
       hasActivity: balance > 0 || data.isContract,
     };

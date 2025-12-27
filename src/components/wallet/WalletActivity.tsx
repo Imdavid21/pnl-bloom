@@ -28,20 +28,22 @@ const EVENT_FILTERS = [
 
 type FilterKey = (typeof EVENT_FILTERS)[number]['key'];
 
-const EmptyActivity = () => (
-  <div className="flex flex-col items-center justify-center py-12 text-center">
-    <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center mb-3">
-      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+function EmptyActivity() {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center mb-3">
+        <BarChart3 className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <h3 className="font-mono text-sm font-medium mb-1">No Activity</h3>
+      <p className="text-[10px] text-muted-foreground mb-4 uppercase tracking-wider">
+        No trades recorded yet
+      </p>
+      <Button variant="outline" size="sm" className="text-xs h-7" asChild>
+        <Link to="/">Explore Wallets</Link>
+      </Button>
     </div>
-    <h3 className="font-mono text-sm font-medium mb-1">No Activity</h3>
-    <p className="text-[10px] text-muted-foreground mb-4 uppercase tracking-wider">
-      No trades recorded yet
-    </p>
-    <Button variant="outline" size="sm" className="text-xs h-7" asChild>
-      <Link to="/">Explore Wallets</Link>
-    </Button>
-  </div>
-);
+  );
+}
 
 function SkeletonRow() {
   return (
