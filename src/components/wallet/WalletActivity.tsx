@@ -1,11 +1,12 @@
 /**
  * Wallet Activity - Unified activity feed with position history inline
+ * Reorganized filters: shorter labels, chain-grouped, no overlaps
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Loader2, RefreshCw, BarChart3, Filter, TrendingUp, TrendingDown, Clock, ArrowRight, Trophy } from 'lucide-react';
+import { Loader2, RefreshCw, BarChart3, TrendingUp, TrendingDown, Clock, ArrowRight, Trophy, Activity, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EventRow, EventCard } from '@/components/explorer/EventRow';
 import { useInfiniteActivity } from '@/hooks/useInfiniteActivity';
@@ -18,17 +19,24 @@ interface WalletActivityProps {
   address: string;
 }
 
-const EVENT_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'positions', label: 'Closed Positions' },
-  { key: 'perp', label: 'Perps' },
-  { key: 'spot', label: 'Spot' },
-  { key: 'transfer', label: 'Transfers' },
-  { key: 'funding', label: 'Funding' },
-  { key: 'evm', label: 'HyperEVM' },
-] as const;
+// Reorganized filters with shorter labels and chain indicators
+const FILTER_GROUPS = {
+  general: [
+    { key: 'all', label: 'All', icon: null },
+    { key: 'closed', label: 'Closed', icon: null },
+  ],
+  hypercore: [
+    { key: 'perp', label: 'Perps', icon: Activity },
+    { key: 'spot', label: 'Spot', icon: Activity },
+    { key: 'funding', label: 'Fund', icon: Activity },
+    { key: 'transfer', label: 'Xfer', icon: Activity },
+  ],
+  hyperevm: [
+    { key: 'evm', label: 'EVM', icon: Layers },
+  ],
+} as const;
 
-type FilterKey = (typeof EVENT_FILTERS)[number]['key'];
+type FilterKey = 'all' | 'closed' | 'perp' | 'spot' | 'funding' | 'transfer' | 'evm';
 
 function EmptyActivity() {
   return (
@@ -138,7 +146,7 @@ function ClosedPositionCard({ position }: { position: PositionHistoryItem }) {
 
 function matchesFilter(eventType: string, filter: FilterKey, domain?: string): boolean {
   if (filter === 'all') return true;
-  if (filter === 'positions') return false; // Handled separately
+  if (filter === 'closed') return false; // Handled separately
   
   switch (filter) {
     case 'perp':
@@ -163,6 +171,37 @@ function matchesFilter(eventType: string, filter: FilterKey, domain?: string): b
 type TimelineItem = 
   | { type: 'event'; data: any; timestamp: Date }
   | { type: 'position'; data: PositionHistoryItem; timestamp: Date };
+
+// Filter button component
+function FilterButton({ 
+  label, 
+  isActive, 
+  onClick,
+  variant = 'default'
+}: { 
+  label: string; 
+  isActive: boolean; 
+  onClick: () => void;
+  variant?: 'default' | 'hypercore' | 'hyperevm';
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "px-2 py-1 text-[10px] uppercase tracking-wider font-mono rounded transition-all whitespace-nowrap",
+        isActive
+          ? variant === 'hypercore'
+            ? "bg-prediction/15 text-prediction border border-prediction/30"
+            : variant === 'hyperevm'
+              ? "bg-perpetual/15 text-perpetual border border-perpetual/30"
+              : "bg-primary/10 text-primary border border-primary/20"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
 
 export function WalletActivity({ address }: WalletActivityProps) {
   const isMobile = useIsMobile();
@@ -190,9 +229,14 @@ export function WalletActivity({ address }: WalletActivityProps) {
     index === self.findIndex(e => e.id === event.id)
   );
   
+  // Detect which chains have activity
+  const hasHypercoreEvents = uniqueEvents.some(e => e.domain === 'hypercore' || !e.domain);
+  const hasHyperevmEvents = uniqueEvents.some(e => e.domain === 'hyperevm');
+  const hasPositions = (historyData?.length || 0) > 0;
+  
   // Create unified timeline
   const unifiedTimeline = useMemo(() => {
-    if (activeFilter === 'positions') {
+    if (activeFilter === 'closed') {
       // Only show closed positions
       return (historyData || []).map(pos => ({
         type: 'position' as const,
@@ -262,6 +306,16 @@ export function WalletActivity({ address }: WalletActivityProps) {
   const positionCount = historyData?.length || 0;
   const winCount = historyData?.filter(p => p.pnl >= 0).length || 0;
 
+  // Get label for current filter
+  const getFilterLabel = (key: FilterKey): string => {
+    const allFilters = [
+      ...FILTER_GROUPS.general,
+      ...FILTER_GROUPS.hypercore,
+      ...FILTER_GROUPS.hyperevm,
+    ];
+    return allFilters.find(f => f.key === key)?.label || key;
+  };
+
   return (
     <div id="activity" className="panel">
       {/* Header */}
@@ -286,23 +340,71 @@ export function WalletActivity({ address }: WalletActivityProps) {
         </Button>
       </div>
 
-      {/* Type Filter - Scrollable on mobile */}
-      <div className="flex items-center gap-1 p-4 pb-2 overflow-x-auto scrollbar-hide">
-        <Filter className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
-        {EVENT_FILTERS.map((filter) => (
-          <button
-            key={filter.key}
-            onClick={() => setActiveFilter(filter.key)}
-            className={cn(
-              "px-2 py-1 text-[10px] uppercase tracking-wider font-mono rounded transition-colors whitespace-nowrap flex-shrink-0",
-              activeFilter === filter.key
-                ? "bg-primary/10 text-primary border border-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
+      {/* Reorganized Filters - Grouped by chain */}
+      <div className="p-3 pb-2 space-y-2">
+        {/* Row 1: General filters */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {FILTER_GROUPS.general.map((filter) => (
+            <FilterButton
+              key={filter.key}
+              label={filter.label}
+              isActive={activeFilter === filter.key}
+              onClick={() => setActiveFilter(filter.key as FilterKey)}
+            />
+          ))}
+          
+          {/* Show Closed only if there are positions */}
+          {hasPositions && (
+            <FilterButton
+              key="closed"
+              label="Closed"
+              isActive={activeFilter === 'closed'}
+              onClick={() => setActiveFilter('closed')}
+            />
+          )}
+          
+          {/* Separator */}
+          {(hasHypercoreEvents || hasHyperevmEvents) && (
+            <div className="h-4 w-px bg-border/50 mx-1" />
+          )}
+          
+          {/* HyperCore filters - only show if there's HyperCore activity */}
+          {hasHypercoreEvents && (
+            <>
+              <span className="text-[9px] text-prediction/70 font-mono uppercase tracking-wider px-1">Core:</span>
+              {FILTER_GROUPS.hypercore.map((filter) => (
+                <FilterButton
+                  key={filter.key}
+                  label={filter.label}
+                  isActive={activeFilter === filter.key}
+                  onClick={() => setActiveFilter(filter.key as FilterKey)}
+                  variant="hypercore"
+                />
+              ))}
+            </>
+          )}
+          
+          {/* Separator between chains */}
+          {hasHypercoreEvents && hasHyperevmEvents && (
+            <div className="h-4 w-px bg-border/50 mx-1" />
+          )}
+          
+          {/* HyperEVM filter - only show if there's EVM activity */}
+          {hasHyperevmEvents && (
+            <>
+              <span className="text-[9px] text-perpetual/70 font-mono uppercase tracking-wider px-1">EVM:</span>
+              {FILTER_GROUPS.hyperevm.map((filter) => (
+                <FilterButton
+                  key={filter.key}
+                  label={filter.label}
+                  isActive={activeFilter === filter.key}
+                  onClick={() => setActiveFilter(filter.key as FilterKey)}
+                  variant="hyperevm"
+                />
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="p-4 pt-2">
@@ -324,7 +426,7 @@ export function WalletActivity({ address }: WalletActivityProps) {
           activeFilter !== 'all' ? (
             <div className="flex flex-col items-center py-8 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                No {EVENT_FILTERS.find(f => f.key === activeFilter)?.label.toLowerCase()} found
+                No {getFilterLabel(activeFilter).toLowerCase()} found
               </p>
               <Button 
                 variant="ghost" 
