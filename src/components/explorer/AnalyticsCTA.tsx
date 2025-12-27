@@ -46,6 +46,7 @@ function getVariantStyles(variant: CTAConfig['variant']) {
 
 export function AnalyticsCTA({ config, address }: AnalyticsCTAProps) {
   const [isDismissed, setIsDismissed] = useState(true);
+  const Icon = config.icon;
 
   useEffect(() => {
     // Check if dismissed on mount
@@ -83,8 +84,8 @@ export function AnalyticsCTA({ config, address }: AnalyticsCTAProps) {
       {/* Content */}
       <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
         {/* Icon */}
-        <div className="text-4xl md:text-5xl flex-shrink-0">
-          {config.icon}
+        <div className="p-3 rounded-lg bg-muted/30 border border-border/30 flex-shrink-0">
+          <Icon className="h-8 w-8 text-primary" />
         </div>
 
         {/* Text */}

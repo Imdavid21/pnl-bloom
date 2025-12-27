@@ -3,13 +3,15 @@
  * Choose the right call-to-action based on wallet characteristics
  */
 
+import { LucideIcon, Target, AlertTriangle, BarChart3, TrendingUp } from 'lucide-react';
+
 export interface CTAConfig {
   variant: 'profitable_wallet' | 'risk_alert' | 'active_trader' | 'default';
   title: string;
   description: string;
   action: string;
   link: string;
-  icon: string;
+  icon: LucideIcon;
   dismissible: boolean;
 }
 
@@ -32,7 +34,7 @@ export function selectCTA(metrics: WalletMetrics): CTAConfig {
       description: 'This wallet shows consistent profitability. Get alerts when they trade.',
       action: 'Follow This Wallet',
       link: `/analytics/${address}`,
-      icon: '🎯',
+      icon: Target,
       dismissible: true,
     };
   }
@@ -45,7 +47,7 @@ export function selectCTA(metrics: WalletMetrics): CTAConfig {
       description: 'Get real-time alerts before positions reach critical risk levels.',
       action: 'Set Up Risk Alerts',
       link: `/analytics/${address}#risk`,
-      icon: '⚠️',
+      icon: AlertTriangle,
       dismissible: true,
     };
   }
@@ -58,7 +60,7 @@ export function selectCTA(metrics: WalletMetrics): CTAConfig {
       description: 'Track performance over time, identify winning strategies, and analyze complete trading history.',
       action: 'View Full Analytics',
       link: `/analytics/${address}`,
-      icon: '📊',
+      icon: BarChart3,
       dismissible: true,
     };
   }
@@ -70,7 +72,7 @@ export function selectCTA(metrics: WalletMetrics): CTAConfig {
     description: 'PnL calendar, equity curves, risk metrics, and real-time position alerts.',
     action: 'Explore Analytics',
     link: `/analytics/${address}`,
-    icon: '📈',
+    icon: TrendingUp,
     dismissible: true,
   };
 }
