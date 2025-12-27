@@ -15,11 +15,19 @@ function hexToDecimal(hex: string): number {
   return parseInt(hex, 16);
 }
 
-// Helper to format wei to ETH
+// Helper to format wei to ETH (handles large BigInt values without precision loss)
 function weiToEth(weiHex: string): string {
-  const wei = BigInt(weiHex);
-  const eth = Number(wei) / 1e18;
-  return eth.toFixed(6);
+  try {
+    const wei = BigInt(weiHex);
+    // Use BigInt division to avoid Number overflow
+    const ethWhole = wei / BigInt(1e18);
+    const remainder = wei % BigInt(1e18);
+    // Convert remainder to decimal fraction (6 decimal places)
+    const fracStr = remainder.toString().padStart(18, '0').slice(0, 6);
+    return `${ethWhole}.${fracStr}`;
+  } catch {
+    return "0.000000";
+  }
 }
 
 // Helper to format token amount with decimals
