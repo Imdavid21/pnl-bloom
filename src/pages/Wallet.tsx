@@ -5,13 +5,14 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
+import { useWalletSync } from '@/hooks/useWalletSync';
 import { Layout } from '@/components/Layout';
 import { WalletHero } from '@/components/wallet/WalletHero';
 import { WalletMetrics } from '@/components/wallet/WalletMetrics';
 import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 
 function WalletNotFound({ address }: { address: string }) {
@@ -104,10 +105,55 @@ function WalletSkeleton() {
   );
 }
 
+function SyncBanner({ isSyncing, syncComplete, error, progress, onRetry }: {
+  isSyncing: boolean;
+  syncComplete: boolean;
+  error: string | null;
+  progress: { fills: number; funding: number; events: number } | null;
+  onRetry: () => void;
+}) {
+  if (!isSyncing && !syncComplete && !error) return null;
+
+  return (
+    <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded border ${
+      error 
+        ? 'border-down/40 bg-down/10' 
+        : syncComplete 
+          ? 'border-up/40 bg-up/10' 
+          : 'border-primary/40 bg-primary/10'
+    }`}>
+      <div className="flex items-center gap-2">
+        {isSyncing ? (
+          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+        ) : syncComplete ? (
+          <CheckCircle2 className="h-4 w-4 text-up" />
+        ) : (
+          <RefreshCw className="h-4 w-4 text-down" />
+        )}
+        <span className="text-xs font-medium">
+          {isSyncing 
+            ? 'Syncing wallet history...' 
+            : syncComplete 
+              ? `Sync complete! ${progress?.fills || 0} trades, ${progress?.funding || 0} funding events`
+              : `Sync failed: ${error}`
+          }
+        </span>
+      </div>
+      {error && (
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onRetry}>
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Retry
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export default function Wallet() {
   const { address } = useParams<{ address: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error } = useUnifiedWallet(address);
+  const { isSyncing, syncComplete, error: syncError, progress, retrySync } = useWalletSync(address);
   
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -172,6 +218,15 @@ export default function Wallet() {
           <WalletSkeleton />
         ) : (
           <>
+            {/* Sync Banner */}
+            <SyncBanner 
+              isSyncing={isSyncing}
+              syncComplete={syncComplete}
+              error={syncError}
+              progress={progress}
+              onRetry={retrySync}
+            />
+
             {/* CTA Banner */}
             <div className="flex items-center justify-between gap-3 px-4 py-3 rounded border border-border/40 bg-muted/20">
               <div className="flex items-center gap-2">
