@@ -618,6 +618,153 @@ serve(async (req) => {
       });
     }
 
+    // Get ERC-20 token transfer history for an address
+    if (action === "tokenTransfers") {
+      const address = url.searchParams.get("address");
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 50);
+      const blocksToScan = Math.min(parseInt(url.searchParams.get("blocks") || "500", 10), 900);
+      
+      if (!address) {
+        return new Response(JSON.stringify({ error: "Missing address parameter" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`[hyperevm-rpc] Fetching token transfers for ${address}`);
+
+      try {
+        // Get latest block
+        const latestHex = await rpcCall("eth_blockNumber", []);
+        const latest = hexToDecimal(latestHex);
+        const fromBlock = "0x" + Math.max(0, latest - blocksToScan).toString(16);
+        const paddedAddress = padAddress(address);
+
+        // Get Transfer events TO and FROM address
+        let logsTo: any[] = [];
+        let logsFrom: any[] = [];
+        
+        try {
+          logsTo = await rpcCall("eth_getLogs", [{
+            fromBlock,
+            toBlock: "latest",
+            topics: [ERC20_TRANSFER_TOPIC, null, paddedAddress],
+          }]) || [];
+        } catch (e) {
+          console.warn("[hyperevm-rpc] Failed to get logsTo:", e);
+        }
+        
+        await delay(100);
+        
+        try {
+          logsFrom = await rpcCall("eth_getLogs", [{
+            fromBlock,
+            toBlock: "latest",
+            topics: [ERC20_TRANSFER_TOPIC, paddedAddress, null],
+          }]) || [];
+        } catch (e) {
+          console.warn("[hyperevm-rpc] Failed to get logsFrom:", e);
+        }
+
+        // Combine and annotate logs
+        const allLogs = [
+          ...logsTo.map((log: any) => ({ ...log, direction: "in" })),
+          ...logsFrom.map((log: any) => ({ ...log, direction: "out" })),
+        ];
+
+        // Sort by block number descending
+        allLogs.sort((a, b) => hexToDecimal(b.blockNumber) - hexToDecimal(a.blockNumber));
+
+        // Limit results
+        const limitedLogs = allLogs.slice(0, limit);
+
+        // Get unique token addresses for metadata lookup
+        const tokenAddresses = new Set<string>();
+        for (const log of limitedLogs) {
+          tokenAddresses.add(log.address.toLowerCase());
+        }
+
+        // Fetch metadata for tokens (cache results)
+        const tokenMetadataCache: Record<string, any> = {};
+        for (const tokenAddr of Array.from(tokenAddresses).slice(0, 10)) {
+          try {
+            const metadata = await getTokenMetadata(tokenAddr);
+            tokenMetadataCache[tokenAddr.toLowerCase()] = metadata || { symbol: "???", name: "Unknown", decimals: 18 };
+            await delay(50);
+          } catch {
+            tokenMetadataCache[tokenAddr.toLowerCase()] = { symbol: "???", name: "Unknown", decimals: 18 };
+          }
+        }
+
+        // Get block timestamps for transfers (batch unique blocks)
+        const blockNumbers = new Set<string>();
+        for (const log of limitedLogs) {
+          blockNumbers.add(log.blockNumber);
+        }
+        
+        const blockTimestamps: Record<string, number> = {};
+        for (const blockNum of Array.from(blockNumbers).slice(0, 20)) {
+          try {
+            const block = await rpcCall("eth_getBlockByNumber", [blockNum, false]);
+            if (block?.timestamp) {
+              blockTimestamps[blockNum] = hexToDecimal(block.timestamp);
+            }
+            await delay(50);
+          } catch {
+            // Use current time as fallback
+            blockTimestamps[blockNum] = Math.floor(Date.now() / 1000);
+          }
+        }
+
+        // Format transfers
+        const transfers = limitedLogs.map((log: any) => {
+          const tokenAddr = log.address.toLowerCase();
+          const metadata = tokenMetadataCache[tokenAddr] || { symbol: "???", decimals: 18 };
+          const decimals = metadata.decimals || 18;
+          
+          // Decode Transfer event data
+          const from = "0x" + log.topics[1]?.slice(26);
+          const to = "0x" + log.topics[2]?.slice(26);
+          const amountRaw = log.data || "0x0";
+          const amount = formatTokenAmount(amountRaw, decimals);
+          
+          return {
+            txHash: log.transactionHash,
+            logIndex: hexToDecimal(log.logIndex),
+            blockNumber: hexToDecimal(log.blockNumber),
+            timestamp: blockTimestamps[log.blockNumber] || Math.floor(Date.now() / 1000),
+            tokenAddress: tokenAddr,
+            symbol: metadata.symbol,
+            name: metadata.name,
+            decimals,
+            from,
+            to,
+            amount,
+            amountRaw,
+            direction: log.direction,
+          };
+        });
+
+        console.log(`[hyperevm-rpc] Found ${transfers.length} token transfers for ${address}`);
+
+        return new Response(JSON.stringify({ 
+          transfers,
+          scannedBlocks: blocksToScan,
+          totalFound: allLogs.length,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+        console.error(`[hyperevm-rpc] Error fetching token transfers: ${err.message}`);
+        return new Response(JSON.stringify({ 
+          transfers: [],
+          error: err.message,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Get internal transactions (value transfers) for a transaction by tracing
     if (action === "internalTxs") {
       const hash = url.searchParams.get("hash");
