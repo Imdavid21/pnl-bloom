@@ -4,6 +4,7 @@
 
 import { cn } from '@/lib/utils';
 import { formatUsd, formatNumber } from '@/lib/wallet-aggregator';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 interface MetricCardProps {
   label: string;
@@ -39,9 +40,39 @@ interface WalletMetricsProps {
   volume30d: number;
   trades30d: number;
   pnl30d: number;
-  winRate: number;
-  wins: number;
+  firstSeen: Date | null;
+  lastActive: Date | null;
   totalTrades: number;
+}
+
+function formatAccountAge(firstSeen: Date | null): { value: string; subtext: string } {
+  if (!firstSeen) {
+    return { value: '—', subtext: 'No history' };
+  }
+  
+  const now = new Date();
+  const diffMs = now.getTime() - firstSeen.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 1) {
+    return { value: '<1 day', subtext: 'New account' };
+  } else if (diffDays < 30) {
+    return { value: `${diffDays}d`, subtext: 'Account age' };
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    const remainingDays = diffDays % 30;
+    return { 
+      value: `${months}mo`, 
+      subtext: remainingDays > 0 ? `${remainingDays}d ago` : 'Account age'
+    };
+  } else {
+    const years = Math.floor(diffDays / 365);
+    const months = Math.floor((diffDays % 365) / 30);
+    return { 
+      value: `${years}y ${months}mo`, 
+      subtext: 'Account age'
+    };
+  }
 }
 
 export function WalletMetrics({
@@ -50,10 +81,12 @@ export function WalletMetrics({
   volume30d,
   trades30d,
   pnl30d,
-  winRate,
-  wins,
+  firstSeen,
+  lastActive,
   totalTrades,
 }: WalletMetricsProps) {
+  const accountAge = formatAccountAge(firstSeen);
+  
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
       <MetricCard
@@ -75,9 +108,9 @@ export function WalletMetrics({
       />
       
       <MetricCard
-        label="Win Rate"
-        value={`${winRate.toFixed(1)}%`}
-        subtext={`${wins}/${totalTrades} wins`}
+        label="Account Age"
+        value={accountAge.value}
+        subtext={totalTrades > 0 ? `${formatNumber(totalTrades)} total trades` : accountAge.subtext}
       />
     </div>
   );
