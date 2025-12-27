@@ -286,15 +286,15 @@ export function WalletActivity({ address }: WalletActivityProps) {
         </Button>
       </div>
 
-      {/* Type Filter */}
-      <div className="flex items-center gap-1 flex-wrap p-4 pb-2">
-        <Filter className="h-3 w-3 text-muted-foreground mr-1" />
+      {/* Type Filter - Scrollable on mobile */}
+      <div className="flex items-center gap-1 p-4 pb-2 overflow-x-auto scrollbar-hide">
+        <Filter className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
         {EVENT_FILTERS.map((filter) => (
           <button
             key={filter.key}
             onClick={() => setActiveFilter(filter.key)}
             className={cn(
-              "px-2 py-1 text-[10px] uppercase tracking-wider font-mono rounded transition-colors",
+              "px-2 py-1 text-[10px] uppercase tracking-wider font-mono rounded transition-colors whitespace-nowrap flex-shrink-0",
               activeFilter === filter.key
                 ? "bg-primary/10 text-primary border border-primary/20"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
