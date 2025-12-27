@@ -11,7 +11,7 @@ import { WalletHero } from '@/components/wallet/WalletHero';
 import { WalletMetrics } from '@/components/wallet/WalletMetrics';
 import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
-import { WalletCTA } from '@/components/wallet/WalletCTA';
+
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, Copy, Check, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
@@ -186,6 +186,19 @@ export default function Wallet() {
           <WalletSkeleton />
         ) : (
           <>
+            {/* Subtle CTA at top */}
+            {ctaConfig && (
+              <div className="flex items-center justify-between gap-3 px-3 py-2 rounded border border-border/40 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <ctaConfig.icon className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{ctaConfig.title}</span>
+                </div>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-primary hover:text-primary" asChild>
+                  <Link to={ctaConfig.link}>{ctaConfig.action}</Link>
+                </Button>
+              </div>
+            )}
+            
             {/* Hero Section */}
             <WalletHero
               totalValue={data?.totalValue || 0}
@@ -194,7 +207,6 @@ export default function Wallet() {
               domains={data?.domains || { hypercore: false, hyperevm: false }}
               firstSeen={data?.firstSeen || null}
               lastActive={data?.lastActive || null}
-              address={displayAddress}
             />
             
             {/* Metrics Grid */}
@@ -214,11 +226,6 @@ export default function Wallet() {
             
             {/* Activity Feed */}
             <WalletActivity address={displayAddress} />
-            
-            {/* CTA */}
-            {ctaConfig && (
-              <WalletCTA config={ctaConfig} address={displayAddress} />
-            )}
             
             {/* Chain indicator */}
             {data && (

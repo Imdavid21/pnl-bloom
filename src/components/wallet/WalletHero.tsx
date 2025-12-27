@@ -2,11 +2,8 @@
  * Wallet Hero - Terminal style hero section
  */
 
-import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { formatUsd, formatPercent } from '@/lib/wallet-aggregator';
-import { useUnifiedPositions } from '@/hooks/useUnifiedPositions';
-import { useAssetDistribution } from '@/hooks/useAssetDistribution';
 import { formatDistanceToNow } from 'date-fns';
 
 interface WalletHeroProps {
@@ -16,7 +13,6 @@ interface WalletHeroProps {
   domains: { hypercore: boolean; hyperevm: boolean };
   firstSeen: Date | null;
   lastActive: Date | null;
-  address: string;
 }
 
 export function WalletHero({
@@ -26,24 +22,8 @@ export function WalletHero({
   domains,
   firstSeen,
   lastActive,
-  address,
 }: WalletHeroProps) {
   const isPositive = pnl30d >= 0;
-  const { data: positions } = useUnifiedPositions(address);
-  const { segments } = useAssetDistribution(positions);
-
-  const handleSegmentClick = (key: string) => {
-    const sectionMap: Record<string, string> = {
-      perps: 'perp-positions',
-      spot: 'spot-balances',
-      lending: 'lending-positions',
-      lp: 'lp-positions',
-    };
-    const sectionId = sectionMap[key];
-    if (sectionId) {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <div className="panel p-4 sm:p-6 space-y-4">
@@ -61,10 +41,10 @@ export function WalletHero({
         )}
       </div>
 
-      {/* Total Value */}
+      {/* Total Net Worth */}
       <div className="text-center space-y-2">
         <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground font-mono">
-          Portfolio Value
+          Total Net Worth
         </p>
         <p className="text-2xl sm:text-3xl font-mono font-bold tracking-tight tabular-nums text-foreground">
           {formatUsd(totalValue)}
@@ -86,45 +66,6 @@ export function WalletHero({
           <span className="text-[9px] opacity-50 uppercase">30d</span>
         </div>
       </div>
-
-      {/* Asset Distribution Bar */}
-      {segments.length > 0 && (
-        <div className="space-y-2">
-          <div className="h-1 w-full rounded-full bg-muted/30 flex overflow-hidden">
-            {segments.map((segment) => (
-              <button
-                key={segment.key}
-                onClick={() => handleSegmentClick(segment.key)}
-                className="h-full transition-opacity hover:opacity-80"
-                style={{ 
-                  width: `${segment.percentage}%`, 
-                  backgroundColor: segment.color,
-                  minWidth: segment.percentage > 0 ? '2px' : '0'
-                }}
-                title={`${segment.label}: ${segment.percentage.toFixed(1)}%`}
-              />
-            ))}
-          </div>
-          
-          {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-3">
-            {segments.map((segment) => (
-              <button
-                key={segment.key}
-                onClick={() => handleSegmentClick(segment.key)}
-                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span 
-                  className="w-1.5 h-1.5 rounded-sm flex-shrink-0" 
-                  style={{ backgroundColor: segment.color }}
-                />
-                <span className="tabular-nums font-mono">{segment.percentage.toFixed(0)}%</span>
-                <span className="uppercase tracking-wider">{segment.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Activity timestamps */}
       {(firstSeen || lastActive) && (
