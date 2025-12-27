@@ -705,47 +705,222 @@ export default function DocsPage() {
             </Section>
 
             <Section icon={<Workflow className="h-5 w-5 text-primary" />} title="Data Flow Architecture">
-              <div className="space-y-4">
-                <div className="p-4 rounded-lg border border-border bg-card">
-                  <h4 className="font-medium text-foreground mb-3">1. Data Ingestion Flow</h4>
-                  <div className="p-3 rounded bg-muted font-mono text-xs">
-                    User enters wallet → Frontend triggers sync-wallet<br/>
-                    ↓<br/>
-                    poll-hypercore fetches from Hyperliquid API<br/>
-                    ↓<br/>
-                    Raw data stored in economic_events table<br/>
-                    ↓<br/>
-                    recompute-pnl aggregates into daily_pnl, monthly_pnl<br/>
-                    ↓<br/>
-                    compute-analytics derives closed_trades, market_stats, equity_curve
+              <div className="space-y-6">
+                {/* Main Architecture Diagram */}
+                <div className="p-6 rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+                  <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    System Architecture Overview
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <svg viewBox="0 0 900 600" className="w-full max-w-4xl mx-auto" style={{ minWidth: '700px' }}>
+                      {/* Background sections */}
+                      <rect x="20" y="20" width="250" height="560" rx="8" fill="hsl(var(--muted))" opacity="0.3" />
+                      <rect x="290" y="20" width="300" height="560" rx="8" fill="hsl(var(--primary))" opacity="0.1" />
+                      <rect x="610" y="20" width="270" height="560" rx="8" fill="hsl(var(--muted))" opacity="0.3" />
+                      
+                      {/* Section Labels */}
+                      <text x="145" y="50" textAnchor="middle" className="fill-muted-foreground text-xs font-medium">EXTERNAL APIs</text>
+                      <text x="440" y="50" textAnchor="middle" className="fill-primary text-xs font-medium">EDGE FUNCTIONS</text>
+                      <text x="745" y="50" textAnchor="middle" className="fill-muted-foreground text-xs font-medium">DATABASE</text>
+                      
+                      {/* External APIs */}
+                      <rect x="40" y="80" width="210" height="50" rx="6" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="145" y="100" textAnchor="middle" className="fill-foreground text-xs font-medium">Hyperliquid Info API</text>
+                      <text x="145" y="118" textAnchor="middle" className="fill-muted-foreground text-[10px]">fills, funding, positions</text>
+                      
+                      <rect x="40" y="145" width="210" height="50" rx="6" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="145" y="165" textAnchor="middle" className="fill-foreground text-xs font-medium">HyperEVM RPC</text>
+                      <text x="145" y="183" textAnchor="middle" className="fill-muted-foreground text-[10px]">txs, balances, tokens</text>
+                      
+                      <rect x="40" y="210" width="210" height="50" rx="6" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="145" y="230" textAnchor="middle" className="fill-foreground text-xs font-medium">L1 Explorer API</text>
+                      <text x="145" y="248" textAnchor="middle" className="fill-muted-foreground text-[10px]">blocks, validators</text>
+                      
+                      <rect x="40" y="275" width="210" height="50" rx="6" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="145" y="295" textAnchor="middle" className="fill-foreground text-xs font-medium">Etherscan API</text>
+                      <text x="145" y="313" textAnchor="middle" className="fill-muted-foreground text-[10px]">contract verification</text>
+                      
+                      {/* Edge Functions - Ingestion Layer */}
+                      <rect x="310" y="80" width="130" height="40" rx="4" className="fill-primary/20 stroke-primary" strokeWidth="1" />
+                      <text x="375" y="105" textAnchor="middle" className="fill-foreground text-[10px] font-medium">poll-hypercore</text>
+                      
+                      <rect x="450" y="80" width="130" height="40" rx="4" className="fill-primary/20 stroke-primary" strokeWidth="1" />
+                      <text x="515" y="105" textAnchor="middle" className="fill-foreground text-[10px] font-medium">ingest-hypercore</text>
+                      
+                      <rect x="310" y="135" width="130" height="40" rx="4" className="fill-primary/20 stroke-primary" strokeWidth="1" />
+                      <text x="375" y="160" textAnchor="middle" className="fill-foreground text-[10px] font-medium">sync-wallet</text>
+                      
+                      {/* Edge Functions - Processing Layer */}
+                      <rect x="310" y="200" width="130" height="40" rx="4" className="fill-amber-500/20 stroke-amber-500" strokeWidth="1" />
+                      <text x="375" y="225" textAnchor="middle" className="fill-foreground text-[10px] font-medium">recompute-pnl</text>
+                      
+                      <rect x="450" y="200" width="130" height="40" rx="4" className="fill-amber-500/20 stroke-amber-500" strokeWidth="1" />
+                      <text x="515" y="225" textAnchor="middle" className="fill-foreground text-[10px] font-medium">compute-analytics</text>
+                      
+                      {/* Edge Functions - Query Layer */}
+                      <rect x="310" y="270" width="85" height="35" rx="4" className="fill-emerald-500/20 stroke-emerald-500" strokeWidth="1" />
+                      <text x="352" y="292" textAnchor="middle" className="fill-foreground text-[9px] font-medium">pnl-calendar</text>
+                      
+                      <rect x="402" y="270" width="85" height="35" rx="4" className="fill-emerald-500/20 stroke-emerald-500" strokeWidth="1" />
+                      <text x="444" y="292" textAnchor="middle" className="fill-foreground text-[9px] font-medium">pnl-day</text>
+                      
+                      <rect x="495" y="270" width="85" height="35" rx="4" className="fill-emerald-500/20 stroke-emerald-500" strokeWidth="1" />
+                      <text x="537" y="292" textAnchor="middle" className="fill-foreground text-[9px] font-medium">pnl-analytics</text>
+                      
+                      <rect x="310" y="315" width="85" height="35" rx="4" className="fill-emerald-500/20 stroke-emerald-500" strokeWidth="1" />
+                      <text x="352" y="337" textAnchor="middle" className="fill-foreground text-[9px] font-medium">live-positions</text>
+                      
+                      {/* Edge Functions - Proxy Layer */}
+                      <rect x="310" y="375" width="130" height="35" rx="4" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="375" y="397" textAnchor="middle" className="fill-foreground text-[10px] font-medium">hyperliquid-proxy</text>
+                      
+                      <rect x="450" y="375" width="130" height="35" rx="4" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="515" y="397" textAnchor="middle" className="fill-foreground text-[10px] font-medium">explorer-proxy</text>
+                      
+                      <rect x="310" y="420" width="130" height="35" rx="4" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="375" y="442" textAnchor="middle" className="fill-foreground text-[10px] font-medium">hyperevm-rpc</text>
+                      
+                      <rect x="450" y="420" width="130" height="35" rx="4" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="515" y="442" textAnchor="middle" className="fill-foreground text-[10px] font-medium">unified-resolver</text>
+                      
+                      <rect x="310" y="465" width="130" height="35" rx="4" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="375" y="487" textAnchor="middle" className="fill-foreground text-[10px] font-medium">etherscan-proxy</text>
+                      
+                      <rect x="450" y="465" width="130" height="35" rx="4" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="515" y="487" textAnchor="middle" className="fill-foreground text-[10px] font-medium">chain-stats</text>
+                      
+                      {/* Database Tables - Core */}
+                      <rect x="630" y="80" width="130" height="35" rx="4" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="695" y="102" textAnchor="middle" className="fill-foreground text-[10px] font-medium">wallets</text>
+                      
+                      <rect x="630" y="125" width="130" height="35" rx="4" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="695" y="147" textAnchor="middle" className="fill-foreground text-[10px] font-medium">economic_events</text>
+                      
+                      <rect x="630" y="170" width="130" height="35" rx="4" className="fill-card stroke-border" strokeWidth="1" />
+                      <text x="695" y="192" textAnchor="middle" className="fill-foreground text-[10px] font-medium">raw_events</text>
+                      
+                      {/* Database Tables - Aggregations */}
+                      <rect x="770" y="80" width="100" height="35" rx="4" className="fill-amber-500/10 stroke-amber-500/50" strokeWidth="1" />
+                      <text x="820" y="102" textAnchor="middle" className="fill-foreground text-[9px] font-medium">daily_pnl</text>
+                      
+                      <rect x="770" y="125" width="100" height="35" rx="4" className="fill-amber-500/10 stroke-amber-500/50" strokeWidth="1" />
+                      <text x="820" y="147" textAnchor="middle" className="fill-foreground text-[9px] font-medium">monthly_pnl</text>
+                      
+                      <rect x="770" y="170" width="100" height="35" rx="4" className="fill-amber-500/10 stroke-amber-500/50" strokeWidth="1" />
+                      <text x="820" y="192" textAnchor="middle" className="fill-foreground text-[9px] font-medium">equity_curve</text>
+                      
+                      {/* Database Tables - Derived */}
+                      <rect x="630" y="230" width="130" height="35" rx="4" className="fill-emerald-500/10 stroke-emerald-500/50" strokeWidth="1" />
+                      <text x="695" y="252" textAnchor="middle" className="fill-foreground text-[10px] font-medium">closed_trades</text>
+                      
+                      <rect x="770" y="230" width="100" height="35" rx="4" className="fill-emerald-500/10 stroke-emerald-500/50" strokeWidth="1" />
+                      <text x="820" y="252" textAnchor="middle" className="fill-foreground text-[9px] font-medium">market_stats</text>
+                      
+                      <rect x="630" y="275" width="130" height="35" rx="4" className="fill-emerald-500/10 stroke-emerald-500/50" strokeWidth="1" />
+                      <text x="695" y="297" textAnchor="middle" className="fill-foreground text-[10px] font-medium">materialized_positions</text>
+                      
+                      <rect x="770" y="275" width="100" height="35" rx="4" className="fill-emerald-500/10 stroke-emerald-500/50" strokeWidth="1" />
+                      <text x="820" y="297" textAnchor="middle" className="fill-foreground text-[9px] font-medium">market_rollups</text>
+                      
+                      {/* Database Tables - Live */}
+                      <rect x="630" y="335" width="130" height="35" rx="4" className="fill-sky-500/10 stroke-sky-500/50" strokeWidth="1" />
+                      <text x="695" y="357" textAnchor="middle" className="fill-foreground text-[10px] font-medium">positions_perps</text>
+                      
+                      <rect x="770" y="335" width="100" height="35" rx="4" className="fill-sky-500/10 stroke-sky-500/50" strokeWidth="1" />
+                      <text x="820" y="357" textAnchor="middle" className="fill-foreground text-[9px] font-medium">positions_spot</text>
+                      
+                      {/* Database Tables - Risk */}
+                      <rect x="630" y="390" width="130" height="35" rx="4" className="fill-rose-500/10 stroke-rose-500/50" strokeWidth="1" />
+                      <text x="695" y="412" textAnchor="middle" className="fill-foreground text-[10px] font-medium">risk_events</text>
+                      
+                      <rect x="770" y="390" width="100" height="35" rx="4" className="fill-rose-500/10 stroke-rose-500/50" strokeWidth="1" />
+                      <text x="820" y="412" textAnchor="middle" className="fill-foreground text-[9px] font-medium">drawdown_events</text>
+                      
+                      {/* Database Tables - System */}
+                      <rect x="630" y="450" width="130" height="35" rx="4" className="fill-muted stroke-border" strokeWidth="1" />
+                      <text x="695" y="472" textAnchor="middle" className="fill-foreground text-[10px] font-medium">sync_runs</text>
+                      
+                      <rect x="770" y="450" width="100" height="35" rx="4" className="fill-muted stroke-border" strokeWidth="1" />
+                      <text x="820" y="472" textAnchor="middle" className="fill-foreground text-[9px] font-medium">resolution_cache</text>
+                      
+                      {/* Arrows - API to Edge Functions */}
+                      <path d="M250 105 L305 100" className="stroke-muted-foreground" strokeWidth="1.5" fill="none" markerEnd="url(#arrow)" />
+                      <path d="M250 170 L305 155" className="stroke-muted-foreground" strokeWidth="1.5" fill="none" markerEnd="url(#arrow)" />
+                      <path d="M250 235 L305 395" className="stroke-muted-foreground" strokeWidth="1.5" fill="none" markerEnd="url(#arrow)" />
+                      <path d="M250 300 L305 480" className="stroke-muted-foreground" strokeWidth="1.5" fill="none" markerEnd="url(#arrow)" />
+                      
+                      {/* Arrows - Ingestion to DB */}
+                      <path d="M580 100 L625 142" className="stroke-primary" strokeWidth="1.5" fill="none" markerEnd="url(#arrow-primary)" />
+                      <path d="M580 155 L625 187" className="stroke-primary" strokeWidth="1.5" fill="none" markerEnd="url(#arrow-primary)" />
+                      
+                      {/* Arrows - Processing to DB */}
+                      <path d="M580 220 L625 247" className="stroke-amber-500" strokeWidth="1.5" fill="none" markerEnd="url(#arrow-amber)" />
+                      <path d="M580 220 L765 97" className="stroke-amber-500" strokeWidth="1.5" fill="none" markerEnd="url(#arrow-amber)" />
+                      
+                      {/* Arrow Markers */}
+                      <defs>
+                        <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                          <path d="M0,0 L6,3 L0,6 Z" className="fill-muted-foreground" />
+                        </marker>
+                        <marker id="arrow-primary" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                          <path d="M0,0 L6,3 L0,6 Z" className="fill-primary" />
+                        </marker>
+                        <marker id="arrow-amber" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                          <path d="M0,0 L6,3 L0,6 Z" className="fill-amber-500" />
+                        </marker>
+                      </defs>
+                      
+                      {/* Legend */}
+                      <rect x="40" y="520" width="12" height="12" rx="2" className="fill-primary/20 stroke-primary" strokeWidth="1" />
+                      <text x="58" y="530" className="fill-muted-foreground text-[10px]">Ingestion</text>
+                      
+                      <rect x="120" y="520" width="12" height="12" rx="2" className="fill-amber-500/20 stroke-amber-500" strokeWidth="1" />
+                      <text x="138" y="530" className="fill-muted-foreground text-[10px]">Processing</text>
+                      
+                      <rect x="210" y="520" width="12" height="12" rx="2" className="fill-emerald-500/20 stroke-emerald-500" strokeWidth="1" />
+                      <text x="228" y="530" className="fill-muted-foreground text-[10px]">Query APIs</text>
+                      
+                      <rect x="300" y="520" width="12" height="12" rx="2" className="fill-sky-500/20 stroke-sky-500" strokeWidth="1" />
+                      <text x="318" y="530" className="fill-muted-foreground text-[10px]">Proxy/Resolver</text>
+                    </svg>
                   </div>
                 </div>
-                <div className="p-4 rounded-lg border border-border bg-card">
-                  <h4 className="font-medium text-foreground mb-3">2. Query Flow</h4>
-                  <div className="p-3 rounded bg-muted font-mono text-xs">
-                    Frontend component mounts<br/>
-                    ↓<br/>
-                    React Query hook triggers (usePnlData, useAnalytics)<br/>
-                    ↓<br/>
-                    Edge function called (pnl-calendar, pnl-analytics)<br/>
-                    ↓<br/>
-                    Data returned and cached by React Query<br/>
-                    ↓<br/>
-                    Component renders with data
+                
+                {/* Flow descriptions */}
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-lg border border-border bg-card">
+                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-primary" />
+                      1. Data Ingestion
+                    </h4>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>• sync-wallet orchestrates full wallet sync</p>
+                      <p>• poll-hypercore fetches fills & funding</p>
+                      <p>• Data stored in economic_events table</p>
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 rounded-lg border border-border bg-card">
-                  <h4 className="font-medium text-foreground mb-3">3. Explorer Flow</h4>
-                  <div className="p-3 rounded bg-muted font-mono text-xs">
-                    User searches address/tx/block<br/>
-                    ↓<br/>
-                    Query type detected (wallet, tx, block, token)<br/>
-                    ↓<br/>
-                    Parallel requests to explorer-proxy + hyperevm-rpc<br/>
-                    ↓<br/>
-                    Progressive loading: L1 data → EVM data → tokens<br/>
-                    ↓<br/>
-                    Each section renders as data arrives
+                  <div className="p-4 rounded-lg border border-border bg-card">
+                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-amber-500" />
+                      2. Processing
+                    </h4>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>• recompute-pnl aggregates daily/monthly</p>
+                      <p>• compute-analytics derives trades</p>
+                      <p>• Populates equity_curve, market_stats</p>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-lg border border-border bg-card">
+                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                      3. Query
+                    </h4>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>• pnl-calendar returns heatmap data</p>
+                      <p>• live-positions fetches current state</p>
+                      <p>• React Query caches on frontend</p>
+                    </div>
                   </div>
                 </div>
               </div>
