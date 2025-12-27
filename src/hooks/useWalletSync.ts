@@ -6,7 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -209,31 +209,31 @@ export function useWalletSync(address: string | undefined) {
     }
   }, [walletExists, checkingWallet, address, syncStatus.isSyncing, syncStatus.syncComplete, syncStatus.error]);
 
-  // Manual sync function - fixed to avoid stale closures
-  const triggerManualSync = useCallback(() => {
+  // Manual sync function (avoid useCallback here to prevent stale mutation references)
+  const triggerManualSync = () => {
     if (!address) {
       console.warn('triggerManualSync: No address provided');
       return;
     }
-    
+
     if (syncMutation.isPending) {
       console.warn('triggerManualSync: Sync already in progress');
       return;
     }
-    
+
     // Reset state and trigger sync
     setSyncStatus({
       needsSync: true,
-      isSyncing: false,
+      isSyncing: true,
       syncComplete: false,
       error: null,
       progress: null,
       estimatedTime: walletAge ? estimateSyncTime(walletAge) : 15,
-      startedAt: null,
+      startedAt: Date.now(),
     });
-    
+
     syncMutation.mutate(address);
-  }, [address, walletAge, syncMutation.isPending]);
+  };
 
   return {
     ...syncStatus,
@@ -244,18 +244,21 @@ export function useWalletSync(address: string | undefined) {
         console.warn('retrySync: No address provided');
         return;
       }
-      
+
       if (syncMutation.isPending) {
         console.warn('retrySync: Sync already in progress');
         return;
       }
-      
+
       setSyncStatus(prev => ({
         ...prev,
+        needsSync: true,
+        isSyncing: true,
+        startedAt: Date.now(),
         error: null,
         syncComplete: false,
       }));
-      
+
       syncMutation.mutate(address);
     },
     triggerManualSync,
