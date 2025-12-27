@@ -19,13 +19,13 @@ interface WalletActivityProps {
 }
 
 const EVENT_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'positions', label: 'Closed Positions' },
-  { key: 'perp', label: 'Perps' },
-  { key: 'spot', label: 'Spot' },
-  { key: 'transfer', label: 'Transfers' },
-  { key: 'funding', label: 'Funding' },
-  { key: 'evm', label: 'HyperEVM' },
+  { key: 'all', label: 'All', domain: 'both' },
+  { key: 'positions', label: 'Positions', domain: 'hypercore' },
+  { key: 'perp', label: 'Perps', domain: 'hypercore' },
+  { key: 'spot', label: 'Spot', domain: 'both' },
+  { key: 'transfer', label: 'Transfers', domain: 'both' },
+  { key: 'funding', label: 'Funding', domain: 'hypercore' },
+  { key: 'evm', label: 'EVM Only', domain: 'hyperevm' },
 ] as const;
 
 type FilterKey = (typeof EVENT_FILTERS)[number]['key'];
@@ -287,20 +287,28 @@ export function WalletActivity({ address }: WalletActivityProps) {
       </div>
 
       {/* Type Filter - Scrollable on mobile */}
-      <div className="flex items-center gap-1 p-4 pb-2 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-1.5 p-4 pb-2 overflow-x-auto scrollbar-hide">
         <Filter className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
         {EVENT_FILTERS.map((filter) => (
           <button
             key={filter.key}
             onClick={() => setActiveFilter(filter.key)}
             className={cn(
-              "px-2 py-1 text-[10px] uppercase tracking-wider font-mono rounded transition-colors whitespace-nowrap flex-shrink-0",
+              "px-2 py-1 text-[10px] uppercase tracking-wider font-mono rounded transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1",
               activeFilter === filter.key
                 ? "bg-primary/10 text-primary border border-primary/20"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >
             {filter.label}
+            {filter.domain !== 'both' && (
+              <span className={cn(
+                "text-[8px] px-1 py-0.5 rounded opacity-60",
+                filter.domain === 'hypercore' ? "bg-up/10 text-up" : "bg-accent/20 text-accent-foreground"
+              )}>
+                {filter.domain === 'hypercore' ? 'HC' : 'EVM'}
+              </span>
+            )}
           </button>
         ))}
       </div>
