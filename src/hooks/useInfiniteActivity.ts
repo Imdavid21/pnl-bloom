@@ -75,7 +75,7 @@ async function fetchHypePrice(): Promise<number> {
 
 async function fetchHyperevmEvents(
   address: string,
-  limit = 20,
+  limit = 50,
   hypePrice = 25
 ): Promise<UnifiedEvent[]> {
   try {
@@ -109,7 +109,7 @@ async function getWalletId(address: string): Promise<string | null> {
 
 async function fetchHyperevmTokenTransfers(
   address: string,
-  limit = 20
+  limit = 50
 ): Promise<UnifiedEvent[]> {
   try {
     const response = await fetchWithRetry(
@@ -140,11 +140,11 @@ async function fetchActivityPage(
     !cursor ? fetchHypePrice() : Promise.resolve(25), // Only fetch price on first page
   ]);
   
-  // Fetch from all sources (only fetch EVM on first page - limited by RPC scanning)
+  // Fetch from all sources (fetch EVM on first page with higher limits)
   const [hypercoreEvents, hyperevmEvents, tokenTransfers] = await Promise.all([
     walletId ? fetchHypercoreEvents(walletId, address, cursor, PAGE_SIZE) : Promise.resolve([]),
-    !cursor ? fetchHyperevmEvents(address, 20, hypePrice) : Promise.resolve([]),
-    !cursor ? fetchHyperevmTokenTransfers(address, 30) : Promise.resolve([]),
+    !cursor ? fetchHyperevmEvents(address, 50, hypePrice) : Promise.resolve([]),
+    !cursor ? fetchHyperevmTokenTransfers(address, 50) : Promise.resolve([]),
   ]);
   
   // Merge and deduplicate (token transfers may overlap with native txs)

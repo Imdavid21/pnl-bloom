@@ -434,7 +434,7 @@ serve(async (req) => {
     // Get EVM transaction history for an address by scanning recent blocks
     if (action === "addressTxs") {
       const address = url.searchParams.get("address");
-      const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10), 10);
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 100);
       
       if (!address) {
         return new Response(JSON.stringify({ error: "Missing address parameter" }), {
@@ -452,8 +452,8 @@ serve(async (req) => {
         const latest = hexToDecimal(latestHex);
         
         const foundTxs: any[] = [];
-        const blocksPerBatch = 3; // Smaller batches to avoid rate limits
-        const maxBlocksToScan = 50; // Reduced to minimize RPC calls
+        const blocksPerBatch = 5; // Batches for scanning
+        const maxBlocksToScan = 200; // Increased for more comprehensive history
         
         // Scan blocks in batches with delays
         for (let start = latest; start > latest - maxBlocksToScan && foundTxs.length < limit; start -= blocksPerBatch) {
