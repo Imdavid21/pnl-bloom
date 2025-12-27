@@ -19,22 +19,20 @@ interface WalletPositionsProps {
   address: string;
 }
 
-function EmptyPositions() {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center mb-3">
-        <Briefcase className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <h3 className="font-mono text-sm font-medium mb-1">No Open Positions</h3>
-      <p className="text-[10px] text-muted-foreground mb-4 uppercase tracking-wider">
-        No active positions at the moment
-      </p>
-      <Button variant="outline" size="sm" className="text-xs h-7" asChild>
-        <Link to="#activity">View Activity</Link>
-      </Button>
+const EmptyPositions = () => (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="w-10 h-10 rounded bg-muted/50 flex items-center justify-center mb-3">
+      <Briefcase className="h-4 w-4 text-muted-foreground" />
     </div>
-  );
-}
+    <h3 className="font-mono text-sm font-medium mb-1">No Open Positions</h3>
+    <p className="text-[10px] text-muted-foreground mb-4 uppercase tracking-wider">
+      No active positions at the moment
+    </p>
+    <Button variant="outline" size="sm" className="text-xs h-7" asChild>
+      <Link to="#activity">View Activity</Link>
+    </Button>
+  </div>
+);
 
 function SkeletonBlock() {
   return <div className="h-24 bg-muted/30 rounded animate-pulse" />;
