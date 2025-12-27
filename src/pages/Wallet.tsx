@@ -13,7 +13,7 @@ import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function WalletNotFound({ address }: { address: string }) {
   return (
@@ -105,13 +105,72 @@ function WalletSkeleton() {
   );
 }
 
-function SyncBanner({ isSyncing, syncComplete, error, progress, onRetry }: {
+function SyncBanner({ 
+  isSyncing, 
+  syncComplete, 
+  error, 
+  progress, 
+  estimatedTime,
+  startedAt,
+  onRetry,
+  onManualSync,
+  walletExists,
+}: {
   isSyncing: boolean;
   syncComplete: boolean;
   error: string | null;
-  progress: { fills: number; funding: number; events: number } | null;
+  progress: { fills: number; funding: number; events: number; days?: number; volume?: number } | null;
+  estimatedTime: number | null;
+  startedAt: number | null;
   onRetry: () => void;
+  onManualSync: () => void;
+  walletExists: boolean | undefined;
 }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  // Update elapsed time during sync
+  useEffect(() => {
+    if (!isSyncing || !startedAt) {
+      setElapsed(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isSyncing, startedAt]);
+
+  // Format time display
+  const formatTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  // Show manual refresh button if wallet exists and not currently syncing
+  if (walletExists && !isSyncing && !syncComplete && !error) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-4 py-3 rounded border border-border/40 bg-muted/20">
+        <div className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Refresh wallet data to get latest trades</span>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-7 text-xs" 
+          onClick={onManualSync}
+        >
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Sync Now
+        </Button>
+      </div>
+    );
+  }
+
   if (!isSyncing && !syncComplete && !error) return null;
 
   return (
@@ -122,27 +181,41 @@ function SyncBanner({ isSyncing, syncComplete, error, progress, onRetry }: {
           ? 'border-up/40 bg-up/10' 
           : 'border-primary/40 bg-primary/10'
     }`}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         {isSyncing ? (
-          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+          <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
         ) : syncComplete ? (
-          <CheckCircle2 className="h-4 w-4 text-up" />
+          <CheckCircle2 className="h-4 w-4 text-up flex-shrink-0" />
         ) : (
-          <RefreshCw className="h-4 w-4 text-down" />
+          <RefreshCw className="h-4 w-4 text-down flex-shrink-0" />
         )}
-        <span className="text-xs font-medium">
-          {isSyncing 
-            ? 'Syncing wallet history...' 
-            : syncComplete 
-              ? `Sync complete! ${progress?.fills || 0} trades, ${progress?.funding || 0} funding events`
-              : `Sync failed: ${error}`
-          }
-        </span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-medium truncate">
+            {isSyncing 
+              ? `Syncing wallet history... ${formatTime(elapsed)}${estimatedTime ? ` / ~${formatTime(estimatedTime)}` : ''}`
+              : syncComplete 
+                ? `Sync complete!`
+                : `Sync failed: ${error}`
+            }
+          </span>
+          {syncComplete && progress && (
+            <span className="text-[10px] text-muted-foreground">
+              {progress.fills} trades, {progress.funding} funding events
+              {progress.volume ? `, $${(progress.volume / 1000).toFixed(1)}K volume` : ''}
+            </span>
+          )}
+        </div>
       </div>
       {error && (
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onRetry}>
+        <Button variant="outline" size="sm" className="h-7 text-xs flex-shrink-0" onClick={onRetry}>
           <RefreshCw className="h-3 w-3 mr-1" />
           Retry
+        </Button>
+      )}
+      {syncComplete && (
+        <Button variant="ghost" size="sm" className="h-7 text-xs flex-shrink-0" onClick={onManualSync}>
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Refresh
         </Button>
       )}
     </div>
@@ -153,7 +226,17 @@ export default function Wallet() {
   const { address } = useParams<{ address: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error } = useUnifiedWallet(address);
-  const { isSyncing, syncComplete, error: syncError, progress, retrySync } = useWalletSync(address);
+  const { 
+    isSyncing, 
+    syncComplete, 
+    error: syncError, 
+    progress, 
+    estimatedTime,
+    startedAt,
+    retrySync, 
+    triggerManualSync,
+    walletExists,
+  } = useWalletSync(address);
   
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -224,7 +307,11 @@ export default function Wallet() {
               syncComplete={syncComplete}
               error={syncError}
               progress={progress}
+              estimatedTime={estimatedTime}
+              startedAt={startedAt}
               onRetry={retrySync}
+              onManualSync={triggerManualSync}
+              walletExists={walletExists}
             />
 
             {/* CTA Banner */}
