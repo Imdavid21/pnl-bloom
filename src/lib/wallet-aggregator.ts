@@ -159,22 +159,34 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
     
     if (!wallet) return null;
     
+    // Fetch aggregated stats from market_stats (has correct volume and win rate)
+    const { data: marketStats } = await supabase
+      .from('market_stats')
+      .select('total_volume, total_trades, wins, losses')
+      .eq('wallet_id', wallet.id);
+    
+    // Calculate totals from market_stats
+    const totalVolume = marketStats?.reduce((sum, m) => sum + Number(m.total_volume || 0), 0) || 0;
+    const totalTrades = marketStats?.reduce((sum, m) => sum + (m.total_trades || 0), 0) || 0;
+    const totalWins = marketStats?.reduce((sum, m) => sum + (m.wins || 0), 0) || 0;
+    const totalLosses = marketStats?.reduce((sum, m) => sum + (m.losses || 0), 0) || 0;
+    
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
     
-    // Fetch 30-day stats from daily_pnl
+    // Fetch 30-day PnL from daily_pnl
     const { data: dailyStats } = await supabase
       .from('daily_pnl')
-      .select('total_pnl, volume, trades_count, day')
+      .select('total_pnl, day')
       .eq('wallet_id', wallet.id)
       .gte('day', thirtyDaysAgoStr)
       .order('day', { ascending: false });
     
-    // Fetch closed trades for win rate
-    const { data: trades } = await supabase
+    // Fetch 30-day trades from closed_trades
+    const { data: recentTrades } = await supabase
       .from('closed_trades')
-      .select('is_win, exit_time')
+      .select('notional_value, is_win, exit_time')
       .eq('wallet_id', wallet.id)
       .gte('exit_time', thirtyDaysAgo.toISOString());
     
@@ -188,20 +200,18 @@ async function fetchActivitySummary(address: string): Promise<ActivitySummary | 
       .maybeSingle();
     
     const pnl30d = dailyStats?.reduce((sum, d) => sum + Number(d.total_pnl || 0), 0) || 0;
-    const volume30d = dailyStats?.reduce((sum, d) => sum + Number(d.volume || 0), 0) || 0;
-    const trades30d = dailyStats?.reduce((sum, d) => sum + (d.trades_count || 0), 0) || 0;
+    const volume30d = recentTrades?.reduce((sum, t) => sum + Number(t.notional_value || 0), 0) || 0;
+    const trades30d = recentTrades?.length || 0;
     
-    const wins = trades?.filter(t => t.is_win).length || 0;
-    const losses = trades?.filter(t => !t.is_win).length || 0;
-    const totalTrades = wins + losses;
-    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+    // Use overall stats for win rate (more accurate than 30d sample)
+    const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
     
     return {
       pnl30d,
       volume30d,
       trades30d,
-      wins,
-      losses,
+      wins: totalWins,
+      losses: totalLosses,
       winRate,
       firstSeen: wallet.created_at ? new Date(wallet.created_at) : null,
       lastActive: lastEvent?.ts ? new Date(lastEvent.ts) : null,

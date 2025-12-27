@@ -227,10 +227,28 @@ async function fetchSpotBalances(address: string): Promise<SpotBalance[]> {
 }
 
 async function fetchLendingPositions(address: string): Promise<LendingPosition[]> {
-  // HyperEVM lending protocols would be queried here
-  // For now, return empty as lending protocols may vary
-  // TODO: Implement when lending protocols are available on HyperEVM
-  return [];
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/hyperevm-lending?address=${address}`,
+      { headers: { 'apikey': SUPABASE_KEY } }
+    );
+    
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    if (data.error || !data.positions) return [];
+    
+    return data.positions.map((p: any) => ({
+      asset: p.asset || 'Unknown',
+      type: p.type as 'supplied' | 'borrowed',
+      amount: Number(p.amount || 0),
+      valueUsd: Number(p.valueUsd || 0),
+      apy: Number(p.apy || 0),
+    }));
+  } catch (error) {
+    console.error('Failed to fetch lending positions:', error);
+    return [];
+  }
 }
 
 async function fetchLPPositions(address: string): Promise<LPPosition[]> {

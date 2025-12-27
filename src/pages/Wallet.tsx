@@ -11,6 +11,7 @@ import { WalletMetrics } from '@/components/wallet/WalletMetrics';
 import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
 import { EquityCurveChart } from '@/components/wallet/EquityCurveChart';
+import { PositionHistoryTimeline } from '@/components/wallet/PositionHistoryTimeline';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
@@ -211,6 +212,9 @@ export default function Wallet() {
             
             {/* Positions */}
             <WalletPositions address={displayAddress} />
+            
+            {/* Position History Timeline */}
+            <PositionHistoryTimeline address={displayAddress} />
             
             {/* Activity Feed */}
             <WalletActivity address={displayAddress} />
