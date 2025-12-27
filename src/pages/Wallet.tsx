@@ -379,13 +379,6 @@ export default function Wallet() {
               winRate={data?.winRate || 0}
             />
             
-            {/* Domain Breakdown - Shows HyperCore/HyperEVM split */}
-            <DomainBreakdown
-              domains={data?.domains || { hypercore: false, hyperevm: false }}
-              hypercoreState={data?.hypercoreState || null}
-              hyperevmState={data?.hyperevmState || null}
-              compact={data?.domains.hypercore && data?.domains.hyperevm}
-            />
             
             {/* Positions */}
             <WalletPositions address={displayAddress} />
