@@ -10,8 +10,6 @@ import { WalletHero } from '@/components/wallet/WalletHero';
 import { WalletMetrics } from '@/components/wallet/WalletMetrics';
 import { WalletPositions } from '@/components/wallet/WalletPositions';
 import { WalletActivity } from '@/components/wallet/WalletActivity';
-import { EquityCurveChart } from '@/components/wallet/EquityCurveChart';
-import { PositionHistoryTimeline } from '@/components/wallet/PositionHistoryTimeline';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, Copy, Check, ExternalLink, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
@@ -180,7 +178,7 @@ export default function Wallet() {
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <span className="text-xs text-foreground font-medium">Advanced Analytics</span>
               </div>
-              <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs hover:bg-primary hover:text-primary-foreground transition-colors" asChild>
                 <Link to={`/analytics/${displayAddress}`}>Explore Advanced Analytics</Link>
               </Button>
             </div>
@@ -194,9 +192,6 @@ export default function Wallet() {
               firstSeen={data?.firstSeen || null}
               lastActive={data?.lastActive || null}
             />
-            
-            {/* Equity Curve Chart */}
-            <EquityCurveChart address={displayAddress} />
             
             {/* Metrics Grid */}
             <WalletMetrics
@@ -213,10 +208,7 @@ export default function Wallet() {
             {/* Positions */}
             <WalletPositions address={displayAddress} />
             
-            {/* Position History Timeline */}
-            <PositionHistoryTimeline address={displayAddress} />
-            
-            {/* Activity Feed */}
+            {/* Activity & Position History (merged) */}
             <WalletActivity address={displayAddress} />
             
             {/* Chain indicator */}
